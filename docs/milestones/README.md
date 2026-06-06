@@ -23,7 +23,9 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
   **Markdown** editor is the **secondary** toggle. Markdown is the canonical stored format (round-trip).
 - **Bedrock:** `bedrock-runtime` **Converse** API, a **cross-region inference profile** (`us.` prefix)
   for a Claude **Sonnet** vision model, explicit `maxTokens`, a **pt-BR-aware** prompt; verify the
-  current model/profile id and model access in `us-east-1` at setup.
+  current model/profile id and model access in `us-east-1` at setup. The model is selected by the
+  configurable **`BEDROCK_MODEL_ID`** env var/secret (introduced in M4) — no model id is hardcoded,
+  so swapping models or version-bumping is a secret update, not a code deploy.
 - **Auth/onboarding:** self sign-up lands in a **pending** queue (admin approves); a valid **invite
   bypasses approval** and activates immediately. Invites are **hashed** (sha256), single-use email
   invites + reusable **capped** shareable codes, **30-day** default expiry, revocation immediate.
