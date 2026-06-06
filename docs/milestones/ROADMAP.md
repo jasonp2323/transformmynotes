@@ -107,6 +107,16 @@ wave row are independent — dispatch one agent per milestone in parallel.
 > Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10**.
 > Shortening any of these directly shortens the whole project; M3, M9, and M7 have slack.
 
+## Sub-tasks on the timeline
+
+Every milestone's **sub-issues are also dated** — each is scheduled *within* its milestone's
+window, staggered by order (the `M*.1` data-model/scaffold tasks start first; the `*.N`
+tests/E2E tasks land at the milestone's target date). So on the Roadmap, expanding a milestone
+shows its ~7–10 sub-tasks nested under the epic bar, and the board's `Wave` filter still pulls the
+epic **and** all its sub-tasks together for parallel dispatch. Sub-tasks within one milestone are
+largely parallel among themselves (one agent can take several), so their bars intentionally
+overlap — they share the milestone's start/finish, not a strict internal waterfall.
+
 ## Viewing this on the board
 
 The Project's **Roadmap** view renders these as timeline bars. If it isn't already, set the
