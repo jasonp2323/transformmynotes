@@ -211,13 +211,13 @@ Status lifecycle (Project "Transform My Notes", single-select **Status** field):
 
 Mechanism — the GitHub MCP server has **no** Projects tool, so `gh` is the only option (it's authenticated in this environment as `GH_TOKEN`):
 ```bash
-PID=PVT_kwHOAu5WHs4BZ6XG                        # "Transform My Notes" (number 6, owner jasonp2323)
-FIELD=PVTSSF_lAHOAu5WHs4BZ6XGzhU1sXs                 # the single-select "Status" field
-# Status option IDs: Backlog=78ebde8e  Ready=c1e147be  In progress=6aa4a1af  In review=7fc39ac4  Done=b049731f
-gh project item-list 6 --owner jasonp2323 --format json   # map an issue (content.number) → its item id
+PID=PVT_kwHOAu5WHs4BZ5E3                        # "Transform My Notes" (number 5, owner jasonp2323)
+FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0khY                 # the single-select "Status" field
+# Status option IDs: Backlog=f75ad846  Ready=61e4505c  In progress=47fc9ee4  In review=df73e18b  Done=98236657
+gh project item-list 5 --owner jasonp2323 --format json   # map an issue (content.number) → its item id
 gh project item-edit --project-id "$PID" --field-id "$FIELD" --id <ITEM_ID> --single-select-option-id <OPTION_ID>
 ```
-If these IDs ever go stale, re-derive them with `gh project field-list 6 --owner jasonp2323 --format json`. Whenever you change Status, also run the stamp helper: `start` when an issue leaves Backlog, `done` when it reaches Done (see the "Cycle-time tracking" section below).
+If these IDs ever go stale, re-derive them with `gh project field-list 5 --owner jasonp2323 --format json`. Whenever you change Status, also run the stamp helper: `start` when an issue leaves Backlog, `done` when it reaches Done (see the "Cycle-time tracking" section below).
 
 ### Task sizing — every issue gets a Size (required)
 
@@ -232,9 +232,9 @@ Rough rubric:
 
 Set it the same way as Status (single-select `item-edit`):
 ```bash
-PID=PVT_kwHOAu5WHs4BZ6XG                        # "Transform My Notes"
-SIZE_FIELD=PVTSSF_lAHOAu5WHs4BZ6XGzhU1snY              # the single-select "Size" field
-# Size option IDs: XS=f9a4b68e  S=709f9776  M=fa6f5fd9  L=73ca0f89  XL=fa20fcfa
+PID=PVT_kwHOAu5WHs4BZ5E3                        # "Transform My Notes"
+SIZE_FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0lLA              # the single-select "Size" field
+# Size option IDs: XS=6c6483d2  S=f784b110  M=7515a9f1  L=817d0097  XL=db339eb2
 gh project item-edit --project-id "$PID" --field-id "$SIZE_FIELD" --id <ITEM_ID> --single-select-option-id <OPTION_ID>
 ```
 
@@ -253,7 +253,7 @@ Cycle time is tracked natively in the GitHub Project.
 
 ### Field scheme
 
-The "Transform My Notes" Project (number 6, owner `jasonp2323`) has these fields for every issue:
+The "Transform My Notes" Project (number 5, owner `jasonp2323`) has these fields for every issue:
 
 | Field | Type | Meaning |
 |---|---|---|
