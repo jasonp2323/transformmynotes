@@ -1,0 +1,210 @@
+name: Deploy
+
+# SST deploy pipeline:
+#   - push to {{DEFAULT_BRANCH}} → production stage
+#   - PR opened / synchronized / reopened → pr-<number> stage
+#
+# PR teardown lives in a separate workflow (teardown.yml) so a closed-PR
+# event doesn't get tangled with a deploy run.
+
+on:
+  push:
+    branches: ["{{DEFAULT_BRANCH}}"]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - '.gitignore'
+      - 'LICENSE'
+
+# One deploy per stage at a time. Newer pushes cancel in-flight runs so we
+# don't waste minutes deploying a commit that's already been superseded.
+concurrency:
+  group: deploy-${{ github.event_name == 'push' && 'production' || format('pr-{0}', github.event.pull_request.number) }}
+  # Cancel superseded pr-<N> deploys (disposable stages), but NEVER cancel a
+  # production (push to {{DEFAULT_BRANCH}}) deploy — killing one mid-apply corrupts
+  # SST/Pulumi state (e.g. AWS creates a GSI but state never records it).
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+permissions:
+  contents: read
+  # Required for OIDC: lets the runner mint a JWT that AWS STS will trade
+  # for short-lived credentials via configure-aws-credentials.
+  id-token: write
+
+env:
+  # Run the JS GitHub Actions themselves on Node 24. Node 20 is deprecated
+  # for action runtimes (forced June 2026, removed Sept 2026). Doesn't
+  # affect the Node version setup-node provisions for npm/tsc/next.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      AWS_REGION: us-east-1
+      # Read by sst.config.ts via process.env at app() time.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Resolve stage
+        id: stage
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "name=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve deploy gate
+        id: gate
+        run: echo "deploy=${{ (!contains(github.event.head_commit.message, '[skip deploy]') && !contains(github.event.pull_request.title, '[skip deploy]')) }}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve application-E2E gate
+        id: e2e_app
+        # The authed application E2E suite is opt-in and {{DEFAULT_BRANCH}}-only: it
+        # runs only on a push to {{DEFAULT_BRANCH}} whose head commit message
+        # contains [E2E]. On pull requests it never runs.
+        run: echo "run=${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[E2E]') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests
+        # dynalite (in-memory DynamoDB) — no AWS needed, so this gates the
+        # deploy alongside the unit tests, before credentials are configured.
+        run: npm run test:integration
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        # Boots the marketing app via next dev (:3000) and runs Chromium offline.
+        # Marketing has no auth/DB, so no AWS/DynamoDB needed — this gates the
+        # deploy alongside unit/integration tests before credentials are configured.
+        run: npm run test:e2e
+
+      - name: Application E2E tests (authed, offline)
+        # Opt-in via [E2E] on a {{DEFAULT_BRANCH}} merge (see "Resolve application-E2E gate").
+        # Fully offline: the suite's globalSetup boots dynalite (in-memory DynamoDB)
+        # and a local Cognito emulator (cognito-local) seeded with a test user, then
+        # signs in headlessly via InitiateAuth against `next dev` on :3002 — no AWS.
+        # It runs before AWS credentials are configured, so a failure here skips the
+        # deploy steps below (it gates the production deploy). Requires the test-user
+        # credentials as repo secrets.
+        if: steps.e2e_app.outputs.run == 'true'
+        env:
+          COGNITO_TEST_USERNAME: ${{ secrets.COGNITO_TEST_USERNAME }}
+          COGNITO_TEST_PASSWORD: ${{ secrets.COGNITO_TEST_PASSWORD }}
+          # Only needed if the suite targets a real dev/test pool instead of cognito-local:
+          COGNITO_TEST_USER_POOL_ID: ${{ secrets.COGNITO_TEST_USER_POOL_ID }}
+          COGNITO_TEST_CLIENT_ID: ${{ secrets.COGNITO_TEST_CLIENT_ID }}
+        run: npm run test:e2e:application
+
+      - name: Configure AWS credentials (OIDC)
+        if: steps.gate.outputs.deploy == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: SST unlock
+        if: steps.gate.outputs.deploy == 'true'
+        run: npx sst unlock --stage ${{ steps.stage.outputs.name }}
+        continue-on-error: true
+
+      - name: SST deploy
+        if: steps.gate.outputs.deploy == 'true'
+        id: sst_deploy
+        run: |
+          set -o pipefail
+          npx sst deploy --stage ${{ steps.stage.outputs.name }} \
+            2>&1 | tee /tmp/sst-deploy.log
+
+      - name: Surface deployment URLs
+        if: ${{ success() && steps.gate.outputs.deploy == 'true' }}
+        run: |
+          stage="${{ steps.stage.outputs.name }}"
+          # SST prints stack outputs after a "✓  Complete" or "---" line in
+          # the form "   <key>: <value>". Strip ANSI, then grab the trailing
+          # key:value block.
+          outputs=$(
+            sed 's/\x1b\[[0-9;]*m//g' /tmp/sst-deploy.log \
+              | awk '
+                  /^---$|✓[[:space:]]+Complete/ { capture = 1; next }
+                  capture && /^[[:space:]]+[A-Za-z][A-Za-z0-9_]*:[[:space:]]/ {
+                    # SST prints each URL twice — once from each component'\''s
+                    # auto-published .url property (Capitalised label) and once
+                    # from the run() return in sst.config.ts (lowercase). Dedupe
+                    # by URL value; first occurrence (capitalised) wins.
+                    pos = index($0, ": ")
+                    if (pos > 0) {
+                      url = substr($0, pos + 2)
+                      if (!seen[url]++) print
+                    }
+                  }
+                '
+          )
+
+          # 1. Plain stdout — visible in the step log on mobile and desktop
+          echo ""
+          echo "================================================================"
+          echo "  Deployment URLs — stage: ${stage}"
+          echo "================================================================"
+          if [ -n "$outputs" ]; then
+            echo "$outputs"
+          else
+            echo "  (no outputs found in deploy log — check the SST deploy step)"
+          fi
+          echo "================================================================"
+          echo ""
+
+          # 2. GitHub Actions ::notice:: — surfaces in the run-page header
+          # banner on every device including mobile. One notice per URL.
+          if [ -n "$outputs" ]; then
+            while IFS= read -r line; do
+              # Trim leading whitespace
+              trimmed="${line#"${line%%[![:space:]]*}"}"
+              [ -z "$trimmed" ] && continue
+              echo "::notice title=Deployed ${stage}::${trimmed}"
+            done <<< "$outputs"
+          fi
+
+          # 3. Job summary — still nice on desktop
+          {
+            echo "## Deployment URLs — \`${stage}\`"
+            echo ""
+            echo '```'
+            if [ -n "$outputs" ]; then
+              echo "$outputs"
+            else
+              echo "(no outputs found in deploy log — check the SST deploy step)"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

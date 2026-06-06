@@ -1,0 +1,118 @@
+name: PR screenshots
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  post-screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Embed verification screenshots in PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MARKER = '<!-- pr-screenshots-bot -->';
+            const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
+            const DOCS_PREFIX = 'docs/verification/';
+
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const sha = context.payload.pull_request.head.sha;
+
+            // 1. Collect all changed files in the PR (handles > 30 files via pagination).
+            const allFiles = await github.paginate(
+              github.rest.pulls.listFiles,
+              { owner, repo, pull_number, per_page: 100 }
+            );
+
+            // 2. Filter to added/modified images under docs/verification/.
+            const imageFiles = allFiles.filter(f => {
+              if (f.status !== 'added' && f.status !== 'modified') return false;
+              if (!f.filename.startsWith(DOCS_PREFIX)) return false;
+              const lower = f.filename.toLowerCase();
+              return IMAGE_EXTS.has(lower.slice(lower.lastIndexOf('.')));
+            });
+
+            // 3. Nothing to show — exit quietly.
+            if (imageFiles.length === 0) {
+              console.log('No verification screenshots found in this PR. Skipping comment.');
+              return;
+            }
+
+            // 4. Build GitHub blob URLs pinned to the head SHA.
+            //    Each path segment is individually percent-encoded so spaces and
+            //    special characters in directory/file names survive the URL.
+            function buildRawUrl(filePath) {
+              const encodedPath = filePath
+                .split('/')
+                .map(encodeURIComponent)
+                .join('/');
+              return `https://github.com/${owner}/${repo}/blob/${sha}/${encodedPath}?raw=true`;
+            }
+
+            // 5. Group images by their immediate parent directory.
+            const byDir = {};
+            for (const f of imageFiles) {
+              const parts = f.filename.split('/');
+              // e.g. docs/verification/my-feature/screenshot.png → "my-feature"
+              // Fall back to the full path prefix if directory depth is unexpected.
+              const dirName = parts.length >= 3 ? parts.slice(0, parts.length - 1).join('/') : DOCS_PREFIX;
+              if (!byDir[dirName]) byDir[dirName] = [];
+              byDir[dirName].push(f.filename);
+            }
+
+            // 6. Render markdown body.
+            const lines = [
+              MARKER,
+              '',
+              '## 📸 Verification screenshots',
+              '',
+              `_${imageFiles.length} image${imageFiles.length === 1 ? '' : 's'} · commit ${sha.slice(0, 7)}_`,
+              '',
+            ];
+
+            for (const dir of Object.keys(byDir).sort()) {
+              // Show only the leaf directory name as the subheading for readability.
+              const headingName = dir.replace(DOCS_PREFIX, '') || dir;
+              lines.push(`### ${headingName}`);
+              lines.push('');
+              for (const filePath of byDir[dir].sort()) {
+                const fileName = filePath.split('/').pop();
+                const url = buildRawUrl(filePath);
+                lines.push(`![${fileName}](${url})`);
+              }
+              lines.push('');
+            }
+
+            const body = lines.join('\n');
+
+            // 7. Upsert: find an existing sticky comment or create a new one.
+            const allComments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number: pull_number, per_page: 100 }
+            );
+
+            const existing = allComments.find(c => c.body && c.body.includes(MARKER));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+              console.log(`Updated existing screenshot comment #${existing.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body,
+              });
+              console.log('Created new screenshot comment.');
+            }

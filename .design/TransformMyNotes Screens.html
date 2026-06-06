@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TransformMyNotes — Screens</title>
+<link rel="stylesheet" href="_ds/transformmynotes-design-system-33c9b381-b20b-47fd-a4db-c3ef3bb895f6/styles.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #f0eee9; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="_ds/transformmynotes-design-system-33c9b381-b20b-47fd-a4db-c3ef3bb895f6/_ds_bundle.js"></script>
+
+  <script type="text/babel" data-presets="react" src="design-canvas.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app/ds-helpers.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app/screens-auth.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app/screens-notebook.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app/screens-states.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app/screens-admin.jsx"></script>
+  <script type="text/babel" data-presets="react" src="app/screens-responsive.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    /* DesignCanvas, DCSection, DCArtboard, DCPostIt are global from design-canvas.jsx */
+    const phoneStyle = { borderRadius: 34, border: '1px solid var(--border-default)', background: 'var(--surface-app)' };
+    const deskStyle = { borderRadius: 12, border: '1px solid var(--border-default)' };
+    const ph = (id, label, el) => (
+      <DCArtboard id={id} label={label} width={390} height={844} style={phoneStyle}>{el}</DCArtboard>
+    );
+
+    function Board() {
+      return (
+        <DesignCanvas>
+          <DCSection id="auth" title="Auth & onboarding" subtitle="Phone · 390×844 — invite-gated access. Two login directions to compare.">
+            {ph('login-a', 'Login · A — Calm', <window.LoginCalm />)}
+            {ph('login-b', 'Login · B — Branded', <window.LoginBranded />)}
+            {ph('reg-a', 'Register · A — Inline code', <window.RegisterInline />)}
+            {ph('reg-b', 'Register · B — Code boxes', <window.RegisterCode />)}
+            {ph('invite', 'Invite link — prefilled & validated', <window.InviteAccept />)}
+            {ph('pending', 'Pending approval', <window.PendingApproval />)}
+          </DCSection>
+
+          <DCSection id="notebook" title="Core notebook" subtitle="Phone · the capture → transform → read loop for approved users.">
+            {ph('home', 'Notebook home — list', <window.NotebookHome />)}
+            {ph('empty', 'Notebook home — empty', <window.NotebookEmpty />)}
+            {ph('capture', 'Capture — camera / upload', <window.Capture />)}
+            {ph('trans-a', 'Transcription · A — Stacked', <window.TranscriptionStacked />)}
+            {ph('trans-b', 'Transcription · B — Toggle', <window.TranscriptionSegmented />)}
+            {ph('note', 'Note view — rendered Markdown', <window.NoteView />)}
+          </DCSection>
+
+          <DCSection id="states" title="Key states" subtitle="Loading · error · success · offline — the moments around the core actions.">
+            {ph('loading', 'Loading — transforming', <window.StateProcessing />)}
+            {ph('error', 'Error — blurry capture', <window.StateError />)}
+            {ph('success', 'Success — saved', <window.StateSuccess />)}
+            {ph('offline', 'Offline — saved locally', <window.StateOffline />)}
+          </DCSection>
+
+          <DCSection id="responsive" title="Responsive" subtitle="The same product at tablet and desktop. The Admin group only appears for admins.">
+            <DCArtboard id="tablet" label="Notebook — tablet (820)" width={820} height={1180} style={{ ...deskStyle, borderRadius: 24, background: 'var(--surface-app)' }}><window.NotebookTablet /></DCArtboard>
+            <DCArtboard id="desk-admin" label="Notebook — desktop (admin)" width={1280} height={840} style={deskStyle}><window.NotebookDesktop isAdmin={true} /></DCArtboard>
+            <DCArtboard id="desk-member" label="Notebook — desktop (member · admin hidden)" width={1280} height={840} style={deskStyle}><window.NotebookDesktop isAdmin={false} /></DCArtboard>
+            <DCArtboard id="trans-desk" label="Transcription — desktop side-by-side" width={1280} height={840} style={deskStyle}><window.TranscriptionDesktop /></DCArtboard>
+          </DCSection>
+
+          <DCSection id="admin" title="Admin panel" subtitle="Desktop · admin-only. Approve registrations, manage members, manage invites.">
+            <DCArtboard id="adm-pending" label="Pending registrations — approve / reject" width={1280} height={840} style={deskStyle}><window.AdminPending /></DCArtboard>
+            <DCArtboard id="adm-users" label="Member management — roles, enable, remove" width={1280} height={840} style={deskStyle}><window.AdminUsers /></DCArtboard>
+            <DCArtboard id="adm-invites" label="Invite management — create, list, revoke" width={1280} height={840} style={deskStyle}><window.AdminInvites /></DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Board />);
+  </script>
+</body>
+</html>

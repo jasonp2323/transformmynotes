@@ -1,0 +1,61 @@
+name: Teardown PR stage
+
+# Removes the pr-<number> SST stage when its PR is closed (merged or not).
+# Mirrors the previous SST Console autodeploy "removed" action: unlock,
+# refresh, then remove.
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: teardown-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  # Run the JS GitHub Actions themselves on Node 24 (Node 20 runtime deprecated).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  remove:
+    if: ${{ !startsWith(github.event.pull_request.head.ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      AWS_REGION: us-east-1
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: SST unlock
+        run: npx sst unlock --stage pr-${{ github.event.pull_request.number }}
+        continue-on-error: true
+
+      - name: SST refresh
+        run: npx sst refresh --stage pr-${{ github.event.pull_request.number }}
+        continue-on-error: true
+
+      - name: SST remove
+        run: npx sst remove --stage pr-${{ github.event.pull_request.number }}
