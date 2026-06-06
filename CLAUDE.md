@@ -203,7 +203,7 @@ In Claude Code on the web, `gh` is installed and **authenticated** (as `{{GH_USE
 
 **⚠️ Keep the GitHub Project board Status current — every session, every task. This is a standing requirement, not a nicety.** GitHub Projects/Issues is the source of truth for the milestones and their phases. **The moment you start, advance, or finish work on an issue, move its Project Status in the same turn** — do NOT batch it for "later" or leave the board lagging behind the actual work. If you touch a task, its Status must reflect reality before you end the turn.
 
-Status lifecycle (Project "{{PROJECT_NAME}}", single-select **Status** field):
+Status lifecycle (Project "Transform My Notes", single-select **Status** field):
 - **Backlog → In progress** the moment you begin work on an issue/phase.
 - **In progress → In review** when the work is implemented and pushed to a PR (code complete, not yet merged).
 - **In review → Done** when the PR merges and the change is verified. Also close the issue (`state: closed`) and tick the epic's phase checklist.
@@ -211,13 +211,13 @@ Status lifecycle (Project "{{PROJECT_NAME}}", single-select **Status** field):
 
 Mechanism — the GitHub MCP server has **no** Projects tool, so `gh` is the only option (it's authenticated in this environment as `GH_TOKEN`):
 ```bash
-PID={{PROJECT_ID}}                        # "{{PROJECT_NAME}}" (number {{PROJECT_NUMBER}}, owner {{REPO_OWNER}})
-FIELD={{STATUS_FIELD_ID}}                 # the single-select "Status" field
-# Status option IDs: Backlog={{STATUS_BACKLOG}}  Ready={{STATUS_READY}}  In progress={{STATUS_INPROGRESS}}  In review={{STATUS_INREVIEW}}  Done={{STATUS_DONE}}
-gh project item-list {{PROJECT_NUMBER}} --owner {{REPO_OWNER}} --format json   # map an issue (content.number) → its item id
+PID=PVT_kwHOAu5WHs4BZ6XG                        # "Transform My Notes" (number 6, owner jasonp2323)
+FIELD=PVTSSF_lAHOAu5WHs4BZ6XGzhU1sXs                 # the single-select "Status" field
+# Status option IDs: Backlog=78ebde8e  Ready=c1e147be  In progress=6aa4a1af  In review=7fc39ac4  Done=b049731f
+gh project item-list 6 --owner jasonp2323 --format json   # map an issue (content.number) → its item id
 gh project item-edit --project-id "$PID" --field-id "$FIELD" --id <ITEM_ID> --single-select-option-id <OPTION_ID>
 ```
-If these IDs ever go stale, re-derive them with `gh project field-list {{PROJECT_NUMBER}} --owner {{REPO_OWNER}} --format json`. Whenever you change Status, also run the stamp helper: `start` when an issue leaves Backlog, `done` when it reaches Done (see the "Cycle-time tracking" section below).
+If these IDs ever go stale, re-derive them with `gh project field-list 6 --owner jasonp2323 --format json`. Whenever you change Status, also run the stamp helper: `start` when an issue leaves Backlog, `done` when it reaches Done (see the "Cycle-time tracking" section below).
 
 ### Task sizing — every issue gets a Size (required)
 
@@ -232,9 +232,9 @@ Rough rubric:
 
 Set it the same way as Status (single-select `item-edit`):
 ```bash
-PID={{PROJECT_ID}}                        # "{{PROJECT_NAME}}"
-SIZE_FIELD={{SIZE_FIELD_ID}}              # the single-select "Size" field
-# Size option IDs: XS={{SIZE_XS}}  S={{SIZE_S}}  M={{SIZE_M}}  L={{SIZE_L}}  XL={{SIZE_XL}}
+PID=PVT_kwHOAu5WHs4BZ6XG                        # "Transform My Notes"
+SIZE_FIELD=PVTSSF_lAHOAu5WHs4BZ6XGzhU1snY              # the single-select "Size" field
+# Size option IDs: XS=f9a4b68e  S=709f9776  M=fa6f5fd9  L=73ca0f89  XL=fa20fcfa
 gh project item-edit --project-id "$PID" --field-id "$SIZE_FIELD" --id <ITEM_ID> --single-select-option-id <OPTION_ID>
 ```
 
@@ -253,7 +253,7 @@ Cycle time is tracked natively in the GitHub Project.
 
 ### Field scheme
 
-The "{{PROJECT_NAME}}" Project (number {{PROJECT_NUMBER}}, owner `{{REPO_OWNER}}`) has these fields for every issue:
+The "Transform My Notes" Project (number 6, owner `jasonp2323`) has these fields for every issue:
 
 | Field | Type | Meaning |
 |---|---|---|
