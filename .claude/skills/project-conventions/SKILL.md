@@ -9,7 +9,7 @@ description: Working in this repo. Loads on any non-trivial task — captures wo
 
 ## Coding workflow
 
-- **Never commit or push directly to `{{DEFAULT_BRANCH}}`.** Always work on a feature branch. If somehow checked out on `{{DEFAULT_BRANCH}}`, branch off before staging anything.
+- **Never commit or push directly to `master`.** Always work on a feature branch. If somehow checked out on `master`, branch off before staging anything.
 - **Push only at the end** of a logical unit of work, not after every micro-commit. Avoids redeploy churn on stages with auto-deploy.
 - **Don't open PRs from Claude.** The human opens PRs manually after reviewing the branch. Do not run `gh pr create`, `mcp__github__create_pull_request`, or equivalents unless the user has just typed "open the PR".
 - **Always run `npm run typecheck` and `npm run lint` from the repo root before every commit AND before the final push to the remote branch.** Both must exit 0. If they don't, fix it before staging — never use `--no-verify` to bypass hooks. The remote CI runs the same checks; a push that breaks them blocks the deploy.
@@ -41,7 +41,7 @@ Parallel agents when work is independent. Use `run_in_background: true` to keep 
 
 ## Project board & cycle-time stamping
 
-The GitHub Project (number {{PROJECT_NUMBER}}, owner `{{REPO_OWNER}}`) is the source of truth for status. Keep it current as work lands, and stamp cycle time whenever you change an item's Status:
+The GitHub Project (number 5, owner `jasonp2323`) is the source of truth for status. Keep it current as work lands, and stamp cycle time whenever you change an item's Status:
 
 - **Leaving `Backlog`** (work starts): `npm run -s stamp --prefix packages/scripts -- <issue> start` — sets `Actual Start` (date) + `Started At` (ISO), only if not already stamped.
 - **Reaching `Done`**: `npm run -s stamp --prefix packages/scripts -- <issue> done` — sets `Actual Finish` + `Completed At` and computes `Cycle Time` / `Cycle Minutes` from the start stamp.
@@ -50,7 +50,7 @@ Manual Status changes made in the GitHub UI won't be stamped — stamp from the 
 
 ### Task sizing & size-aware execution
 
-Every issue gets a `Size` (XS/S/M/L/XL) — set it at creation, never leave it blank. Set it via the single-select `Size` field (`{{SIZE_FIELD_ID}}`; options XS=`{{SIZE_XS}}` S=`{{SIZE_S}}` M=`{{SIZE_M}}` L=`{{SIZE_L}}` XL=`{{SIZE_XL}}`) the same way you set Status. Scale execution to Size:
+Every issue gets a `Size` (XS/S/M/L/XL) — set it at creation, never leave it blank. Set it via the single-select `Size` field (`PVTSSF_lAHOAu5WHs4BZ5E3zhU0lLA`; options XS=`6c6483d2` S=`f784b110` M=`7515a9f1` L=`817d0097` XL=`db339eb2`) the same way you set Status. Scale execution to Size:
 
 - **XS/S** — direct or one subagent, one commit.
 - **M** — a couple of subagent tasks, checkpoint commits.

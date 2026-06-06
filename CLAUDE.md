@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **This is a reusable project template.** Identifiers that change per project are written as
-> `{{PLACEHOLDER}}` tokens. Before using this on a real project, fill them in — see
-> `TEMPLATE-SETUP.md` for the full checklist and how to re-derive the GitHub Project node ids.
-
 ## ⚠️ HIGHEST PRIORITY — Orchestrate via subagents, do not write code yourself
 
 **READ THIS FIRST AND DO NOT SKIP IT. This rule overrides default behavior and applies to every coding task.**
@@ -43,9 +39,9 @@ If an issue has no Size, set one first (see "Task sizing" under GitHub tooling) 
 
 npm workspaces monorepo under `packages/*`, deployed with **SST v4** on AWS.
 
-- `packages/marketing` — public Next.js site (`{{PKG_SCOPE}}/marketing`). Dev on port **3000**.
-- `packages/application` — authed Next.js app (`{{PKG_SCOPE}}/application`). Dev on port **3002**. Uses AWS Cognito for auth.
-- `packages/core` — shared library (`{{PKG_SCOPE}}/core`). DynamoDB client + key builders for the single-table design. Consumed by `application` via `sst.Resource` bindings — never imported by `marketing`.
+- `packages/marketing` — public Next.js site (`@transformmynotes/marketing`). Dev on port **3000**.
+- `packages/application` — authed Next.js app (`@transformmynotes/application`). Dev on port **3002**. Uses AWS Cognito for auth.
+- `packages/core` — shared library (`@transformmynotes/core`). DynamoDB client + key builders for the single-table design. Consumed by `application` via `sst.Resource` bindings — never imported by `marketing`.
 - `packages/scripts` — one-off SST-shell scripts (`sst shell tsx`).
 - `infra/` — SST resource definitions, loaded in order by `sst.config.ts`: `secrets → router → auth → marketing → application → jobs`. Table definitions live in `infra/db.ts` and are shared by `application` and `jobs`; the Cognito user pool is defined in `infra/auth.ts` and linked to `application`.
 - `scripts/` — repo-level Node/tsx utilities for managing SST secrets and CI variables.
@@ -88,21 +84,21 @@ The web environment is wired for this fully offline:
 - **Local Cognito, no AWS:** run a local Cognito emulator (`cognito-local`) alongside dynalite so sign-in works fully offline. Point Amplify Auth and the server-side `aws-jwt-verify` at the emulator via env (the local endpoint + issuer/JWKS URL), create a test user pool + app client, and seed a confirmed test user. None of Cognito's identifiers are secret — the pool id + app client id are public values exposed via `NEXT_PUBLIC_` (mirroring the deployed `sst.Resource` binding).
 - **Real data, no AWS:** `dev:application` is plain `next dev -p 3002` (not `sst dev`), so point `client.ts` at a local dynalite exactly like the integration harness — set `AWS_ENDPOINT_URL_DYNAMODB` + the `SST_RESOURCE_*` vars (copy `packages/core/test/integration-env.ts`), boot dynalite and recreate the tables (`packages/core/test/dynalite-global.ts`), seed through the real `packages/core/src/db` functions, then launch `next dev` with those same env vars set.
 - **Headless sign-in:** mint Cognito tokens directly instead of driving the UI — call `InitiateAuth` with the `USER_PASSWORD_AUTH` flow (`@aws-sdk/client-cognito-identity-provider`) against the local emulator (or a dev/test pool) using the seeded test user's username + password, then inject the returned ID/access JWTs as the app's session cookies before the protected navigation. The server middleware verifies them with `aws-jwt-verify`, so no real Hosted UI round-trip or email inbox is needed. (Enable the `ALLOW_USER_PASSWORD_AUTH` flow on the app client so this works.)
-- `playwright` is a committed root devDependency, and a committed marketing E2E suite exists (`npm run test:e2e`, config `playwright.config.ts`, tests in `e2e/`) that runs in CI against the offline marketing app. There is also a committed **authed application E2E suite** (`npm run test:e2e:application`, config `playwright.application.config.ts`, tests in `e2e/application/`) that drives the Cognito-authed app fully offline — a Playwright `globalSetup` boots dynalite (recreating the `infra/db.ts` tables/GSIs) and `cognito-local` (seeding the test user pool + user), `next dev` (:3002) is pointed at both via env, and sign-in is headless via the `InitiateAuth` token-mint recipe above. It is **opt-in in CI**: it runs only on `{{DEFAULT_BRANCH}}` pushes whose head commit message contains the literal tag `[E2E]`, never on PRs, and when it runs it gates (blocks) the production deploy. The ad-hoc browser-testing recipe described above remains useful for exploratory/local checks of the authed app (Cognito + DynamoDB): install the browser ad hoc (`npx playwright install chromium`) and don't commit the throwaway harness scripts.
+- `playwright` is a committed root devDependency, and a committed marketing E2E suite exists (`npm run test:e2e`, config `playwright.config.ts`, tests in `e2e/`) that runs in CI against the offline marketing app. There is also a committed **authed application E2E suite** (`npm run test:e2e:application`, config `playwright.application.config.ts`, tests in `e2e/application/`) that drives the Cognito-authed app fully offline — a Playwright `globalSetup` boots dynalite (recreating the `infra/db.ts` tables/GSIs) and `cognito-local` (seeding the test user pool + user), `next dev` (:3002) is pointed at both via env, and sign-in is headless via the `InitiateAuth` token-mint recipe above. It is **opt-in in CI**: it runs only on `master` pushes whose head commit message contains the literal tag `[E2E]`, never on PRs, and when it runs it gates (blocks) the production deploy. The ad-hoc browser-testing recipe described above remains useful for exploratory/local checks of the authed app (Cognito + DynamoDB): install the browser ad hoc (`npx playwright install chromium`) and don't commit the throwaway harness scripts.
 
 ## Architecture
 
 ### Routing — one CloudFront in front of both Next.js apps
 
-`infra/router.ts` creates a single `sst.aws.Router` with the apex domain. `infra/marketing.ts` attaches the marketing Next.js at the apex; `infra/application.ts` attaches the application Next.js at `app.{{WEB_DOMAIN}}`. Don't add a second Router — both production apps share this one.
+`infra/router.ts` creates a single `sst.aws.Router` with the apex domain. `infra/marketing.ts` attaches the marketing Next.js at the apex; `infra/application.ts` attaches the application Next.js at `app.transformmynotes.com`. Don't add a second Router — both production apps share this one.
 
-PR stages (`pr-<N>`): both the application and marketing get their own CloudFront distributions at `pr-<N>.{{WEB_DOMAIN}}` (e.g. `pr-5.{{STAGING_DOMAIN}}`) with **DNS-only (grey cloud) Cloudflare records** so ACM issues the cert directly — Cloudflare's free Universal SSL doesn't cover second-level wildcards.
+PR stages (`pr-<N>`): both the application and marketing get their own CloudFront distributions at `pr-<N>.transformmynotes.com` (e.g. `pr-5.pr.transformmynotes.com`) with **DNS-only (grey cloud) Cloudflare records** so ACM issues the cert directly — Cloudflare's free Universal SSL doesn't cover second-level wildcards.
 
 ### Stages
 
-- `production` is the only named stage — it gets the custom domain, and its Cognito user pool can use a custom Hosted-UI domain (`auth.{{WEB_DOMAIN}}`, wired in `infra/auth.ts`).
+- `production` is the only named stage — it gets the custom domain, and its Cognito user pool can use a custom Hosted-UI domain (`auth.transformmynotes.com`, wired in `infra/auth.ts`).
 - All other stage names are ephemeral (`pr-<N>`); they get auto-generated URLs. Because the Cognito user pool is a native AWS resource provisioned per stage, each `pr-<N>` gets its own pool automatically — no third-party dashboard step and no per-PR subdomain allow-listing.
-- CI/CD runs via GitHub Actions (`.github/workflows/deploy.yml` + `.github/workflows/teardown.yml`): push to `{{DEFAULT_BRANCH}}` deploys `production`; opening / updating a PR deploys `pr-<number>`; closing the PR tears that stage down.
+- CI/CD runs via GitHub Actions (`.github/workflows/deploy.yml` + `.github/workflows/teardown.yml`): push to `master` deploys `production`; opening / updating a PR deploys `pr-<number>`; closing the PR tears that stage down.
 
 ### Persistence — DynamoDB single-table design
 
@@ -126,7 +122,7 @@ Domain tables are defined in `infra/db.ts` and linked by both the application (`
 
 - `packages/application/proxy.ts` is the auth middleware (not `middleware.ts`): it verifies the Cognito-issued JWT with `aws-jwt-verify` (pool id + client id read from the `sst.Resource` binding) and protects the authed routes (e.g. `/dashboard`, `/account`, …).
 - Client sign-in / sign-up uses **AWS Amplify Auth** (`aws-amplify/auth`), configured from the user-pool id + app-client id. Those are **public** values (safe to expose via `NEXT_PUBLIC_`) — Cognito has no publishable/secret API-key pair like a third-party provider, so there is **no `sst.Secret` for auth**.
-- Production may attach a custom Hosted-UI domain (`auth.{{WEB_DOMAIN}}`) in `infra/auth.ts`; ephemeral stages use the default Cognito domain.
+- Production may attach a custom Hosted-UI domain (`auth.transformmynotes.com`) in `infra/auth.ts`; ephemeral stages use the default Cognito domain.
 - The IAM scope `application` needs for Cognito admin calls (e.g. `AdminInitiateAuth`, user management) is granted in `infra/application.ts`.
 
 Marketing has no auth and no DB. Its only server-side code is the contact form (`app/api/contact/route.ts`) which uses Cloudflare Turnstile + Resend; required envs are wired in `infra/marketing.ts`.
@@ -159,12 +155,12 @@ Four workflows live in `.github/workflows/` (plus `.github/release.yml`, the Git
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `deploy.yml` | push to `{{DEFAULT_BRANCH}}`; PR opened/synchronize/reopened | Runs the gates, then deploys `production` (push) or `pr-<number>` (PR). |
+| `deploy.yml` | push to `master`; PR opened/synchronize/reopened | Runs the gates, then deploys `production` (push) or `pr-<number>` (PR). |
 | `teardown.yml` | PR closed (merged or not) | `sst unlock → refresh → remove` of the `pr-<number>` stage. Skips `release-please--*` branches. |
-| `release.yml` | push to `{{DEFAULT_BRANCH}}`; `workflow_dispatch` | release-please maintains a Release PR; merging it tags `vX.Y.Z` + cuts a GitHub Release with AI-written notes (`packages/scripts/src/release-notes.ts`). |
+| `release.yml` | push to `master`; `workflow_dispatch` | release-please maintains a Release PR; merging it tags `vX.Y.Z` + cuts a GitHub Release with AI-written notes (`packages/scripts/src/release-notes.ts`). |
 | `pr-screenshots.yml` | PR opened/synchronize/reopened | Upserts a sticky PR comment embedding any images added under `docs/verification/` (pairs with the `/verify` skill). |
 
-- Push to `{{DEFAULT_BRANCH}}` → deploys `production` stage.
+- Push to `master` → deploys `production` stage.
 - Open / update / reopen a PR → deploys ephemeral `pr-<number>` stage.
 - Close a PR → removes `pr-<number>` stage (`sst unlock` → `sst refresh` → `sst remove`).
 - Concurrency group per stage; in-progress runs are cancelled when a newer commit lands.
@@ -177,14 +173,14 @@ Things worth knowing about these workflows:
 - **JS action runtimes are forced to Node 24** via `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` (Node 20 action runtime is deprecated). This is separate from the Node 22 that `setup-node` provisions for `npm`/`tsc`/`next`.
 - **Doc-only / config-only pushes don't deploy:** `deploy.yml` has `paths-ignore` for `**.md`, `.claude/**`, `.gitignore`, `LICENSE`. Editing CLAUDE.md or a skill won't trigger a deploy.
 - **"Surface deployment URLs"** parses the SST deploy log and emits the stage's URLs as `::notice::` banners + a job summary — handy for grabbing the `pr-<N>` URL from the run page (including on mobile).
-- **The `production` deploy is never auto-cancelled** (`cancel-in-progress` is false for `push`) so a `{{DEFAULT_BRANCH}}` deploy is never killed mid-apply; only superseded `pr-<N>` deploys are cancelled.
+- **The `production` deploy is never auto-cancelled** (`cancel-in-progress` is false for `push`) so a `master` deploy is never killed mid-apply; only superseded `pr-<N>` deploys are cancelled.
 - **Release notes use Claude:** `release.yml` installs `@anthropic-ai/claude-code` and runs `packages/scripts/src/release-notes.ts` with `CLAUDE_CODE_OAUTH_TOKEN` to AI-author the GitHub Release body. The `.github/release.yml` file controls the changelog category buckets (Features / Fixes / Documentation / Maintenance) by PR label — keep labels conventional so changes land in the right bucket.
 
 ### Required GitHub repository secrets
 
 Set under **Settings → Secrets and variables → Actions → Secrets** before the first run:
 
-- `AWS_ROLE_ARN` — ARN of the IAM role the workflows assume via GitHub OIDC, e.g. `{{AWS_DEPLOY_ROLE_ARN}}`. The role's trust policy must allow `token.actions.githubusercontent.com` for this repo; the role itself needs permissions to deploy this SST app.
+- `AWS_ROLE_ARN` — ARN of the IAM role the workflows assume via GitHub OIDC, e.g. `arn:aws:iam::<AWS_ACCOUNT_ID>:role/github-actions-deploy`. The role's trust policy must allow `token.actions.githubusercontent.com` for this repo; the role itself needs permissions to deploy this SST app.
 - `CLOUDFLARE_API_TOKEN` — same token used by the Cloudflare DNS records (also referenced in `deploy.yml`/`teardown.yml` env).
 - `CLAUDE_CODE_OAUTH_TOKEN` — used by `release.yml` to AI-author the GitHub Release notes via `packages/scripts/src/release-notes.ts`. (The built-in `GITHUB_TOKEN` is injected automatically by Actions — no setup needed.)
 - `COGNITO_TEST_USERNAME` / `COGNITO_TEST_PASSWORD` — credentials of the seeded test user used for headless `InitiateAuth` sign-in in the opt-in `[E2E]` authed application E2E job. With the offline `cognito-local` emulator these are arbitrary values you also seed at setup time; if you instead point the job at a real dev/test user pool, they must match a confirmed user in that pool. **Never a production user.**
@@ -196,7 +192,7 @@ SST application secrets (the `sst.Secret` entries in `infra/secrets.ts`) are sto
 
 ## GitHub tooling
 
-In Claude Code on the web, `gh` is installed and **authenticated** (as `{{GH_USERNAME}}` via `GH_TOKEN`) and github.com is reachable — so the full `gh` CLI is available, not just the MCP tools. Use the right tool for the job:
+In Claude Code on the web, `gh` is installed and **authenticated** (as `jasonp2323` via `GH_TOKEN`) and github.com is reachable — so the full `gh` CLI is available, not just the MCP tools. Use the right tool for the job:
 
 - **GitHub Projects (v2)**: use the `gh` CLI (`gh project ...`). The GitHub MCP server has no Projects tool, so `gh` is the only option.
 - **PRs, issues, comments, CI status, reviews, branches, releases, code search**: prefer the GitHub MCP tools (`mcp__github__*`) — they integrate with the PR-activity webhook subscriptions used to watch/autofix PRs. `gh` is a fine fallback for anything the MCP tools don't cover.
@@ -280,7 +276,7 @@ The helper resolves all field/item IDs at runtime via the `gh` CLI — no hardco
 
 ## Conventions
 
-- All cross-package imports go through workspace package names (`{{PKG_SCOPE}}/core/db`), not relative paths.
+- All cross-package imports go through workspace package names (`@transformmynotes/core/db`), not relative paths.
 - New DynamoDB access patterns: add the key builder in `packages/core/src/db/keys.ts` first; never inline `pk`/`sk` strings in route handlers.
 - New infra resources: create a module under `infra/` and import it from `sst.config.ts` in the right order (secrets → router → apps that attach to it). New configuration values go in `infra/secrets.ts` as `sst.Secret` and get seeded via the Console.
 - Use `$app.stage === "production"` (the `isProd` pattern) to gate anything that should only run for the named stage — don't hardcode against ephemeral stage names.
@@ -291,11 +287,11 @@ The helper resolves all field/item IDs at runtime via the `gh` CLI — no hardco
 ## Git Workflow
 
 - Provide a commit message to the user for any changes made to code.
-- **Conventional Commits are required.** Every commit message — and every PR title (squash-merge uses the PR title as the commit message) — must start with a Conventional Commit type (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, etc.), optionally scoped (e.g. `feat(application): …`). Release-please parses these on every push to `{{DEFAULT_BRANCH}}` to build the changelog and decide the version bump; a non-conforming message is silently omitted from the release.
-- Never commit or push directly to `{{DEFAULT_BRANCH}}`. Always work on a feature branch; if checked out on `{{DEFAULT_BRANCH}}`, branch off before staging.
+- **Conventional Commits are required.** Every commit message — and every PR title (squash-merge uses the PR title as the commit message) — must start with a Conventional Commit type (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, etc.), optionally scoped (e.g. `feat(application): …`). Release-please parses these on every push to `master` to build the changelog and decide the version bump; a non-conforming message is silently omitted from the release.
+- Never commit or push directly to `master`. Always work on a feature branch; if checked out on `master`, branch off before staging.
 - **Name the branch after what it delivers.** For milestone work, use `m<N>-phase-<P>-<slug>` (e.g. `m4-phase-2-command-palette`); for a whole milestone with no single phase, `m<N>-<slug>`. For anything that isn't milestone/phase work, name it after the issue/bug/task it resolves — `issue-<N>-<slug>` (or `fix-<slug>` / `chore-<slug>` when there's no issue number). Keep the slug short and kebab-case. **Always name the branch this way yourself — do NOT use a harness-assigned branch name (e.g. a `claude/…` name with a random suffix). If you start on such a branch, rename it (or create and switch to a properly named one) before committing.**
 - Run `npm run typecheck` and `npm run lint` from the repo root before every commit and before the final push. Both must exit 0. Never use `--no-verify` to bypass hooks — the same checks run in CI.
 - Discard build cache files before staging: `git checkout -- packages/*/tsconfig.tsbuildinfo`. They're local-only artifacts that pollute diffs.
-- **Don't push while a deploy is in flight for the same stage.** Before pushing to a branch with an open PR (its push deploys that `pr-<N>` stage) or to `{{DEFAULT_BRANCH}}` (deploys `production`), check for a running Deploy run on that stage and wait for it to finish — `gh run list --workflow Deploy --branch <branch> --status in_progress` (also check `--status queued`). Pushing mid-deploy trips the workflow's `cancel-in-progress`, which kills the in-flight deploy **mid-apply** and can leave SST/Pulumi state out of sync with AWS (e.g. AWS created a GSI but state never recorded it → the next deploy fails with "index already exists"). If a deploy is running, wait for it; recovering from a cancelled-mid-apply deploy means `sst refresh --stage <stage>` then redeploy.
-- When code changes are complete, committed, pushed, and the gates are green, **STOP — do NOT open a PR automatically.** See "🚫 HIGHEST PRIORITY — NEVER open a PR without the user's explicit permission" near the top of this file: opening a PR requires the user's explicit permission every time. Push the branch, summarize what's ready, and ask whether they want a PR opened. Only open one (targeting `{{DEFAULT_BRANCH}}` with a descriptive title/body and test plan) once they say yes. If an open PR already tracks the branch, push to update it instead of opening a duplicate.
-- After opening (or updating) a PR — **only ever done with the user's explicit permission** — **end the summary with three links, in this exact order**: (1) the **PR** — `https://github.com/{{REPO}}/pull/<pr#>`, (2) the **issue** it resolves — `https://github.com/{{REPO}}/issues/<issue#>`, (3) the **branch** — `https://github.com/{{REPO}}/tree/<branch>`. Label each line with its number (PR #, Issue #, branch name).
+- **Don't push while a deploy is in flight for the same stage.** Before pushing to a branch with an open PR (its push deploys that `pr-<N>` stage) or to `master` (deploys `production`), check for a running Deploy run on that stage and wait for it to finish — `gh run list --workflow Deploy --branch <branch> --status in_progress` (also check `--status queued`). Pushing mid-deploy trips the workflow's `cancel-in-progress`, which kills the in-flight deploy **mid-apply** and can leave SST/Pulumi state out of sync with AWS (e.g. AWS created a GSI but state never recorded it → the next deploy fails with "index already exists"). If a deploy is running, wait for it; recovering from a cancelled-mid-apply deploy means `sst refresh --stage <stage>` then redeploy.
+- When code changes are complete, committed, pushed, and the gates are green, **STOP — do NOT open a PR automatically.** See "🚫 HIGHEST PRIORITY — NEVER open a PR without the user's explicit permission" near the top of this file: opening a PR requires the user's explicit permission every time. Push the branch, summarize what's ready, and ask whether they want a PR opened. Only open one (targeting `master` with a descriptive title/body and test plan) once they say yes. If an open PR already tracks the branch, push to update it instead of opening a duplicate.
+- After opening (or updating) a PR — **only ever done with the user's explicit permission** — **end the summary with three links, in this exact order**: (1) the **PR** — `https://github.com/jasonp2323/transformmynotes/pull/<pr#>`, (2) the **issue** it resolves — `https://github.com/jasonp2323/transformmynotes/issues/<issue#>`, (3) the **branch** — `https://github.com/jasonp2323/transformmynotes/tree/<branch>`. Label each line with its number (PR #, Issue #, branch name).

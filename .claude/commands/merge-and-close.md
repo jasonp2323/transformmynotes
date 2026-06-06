@@ -27,14 +27,14 @@ condition below trips. Do not start new work after finishing.
   Conventional Commit (`feat:`, `fix:`, `chore:`, …). If the title isn't, fix it first
   (`gh pr edit --title` / `mcp__github__update_pull_request`) before merging.
 
-## 2. Merge into {{DEFAULT_BRANCH}}
-- Squash-merge into `{{DEFAULT_BRANCH}}` with `mcp__github__merge_pull_request` (`merge_method: "squash"`).
+## 2. Merge into master
+- Squash-merge into `master` with `mcp__github__merge_pull_request` (`merge_method: "squash"`).
 - Confirm it reports merged before continuing.
 
 ## 3. Delete the branch
-- `git checkout {{DEFAULT_BRANCH}} && git pull origin {{DEFAULT_BRANCH}}` first — you can't delete the branch you're on.
+- `git checkout master && git pull origin master` first — you can't delete the branch you're on.
 - Delete the **remote** branch via the **GitHub API**, not `git push --delete`:
-  `gh api --method DELETE repos/{{REPO}}/git/refs/heads/<branch>`
+  `gh api --method DELETE repos/jasonp2323/transformmynotes/git/refs/heads/<branch>`
   (the ref path keeps any slashes in the branch name, e.g. `heads/claude/my-branch`).
   If the squash-merge already deleted the branch, this returns 404/422 — treat that as
   "already gone", not a failure.
@@ -42,12 +42,12 @@ condition below trips. Do not start new work after finishing.
 
 ## 4. Update task status (the full CLAUDE.md flow)
 For the resolved issue number:
-- **Project Status → Done.** Project #{{PROJECT_NUMBER}}, owner `{{REPO_OWNER}}`:
+- **Project Status → Done.** Project #5, owner `jasonp2323`:
   ```bash
-  PID={{PROJECT_ID}}                        # {{PROJECT_NAME}}
-  FIELD={{STATUS_FIELD_ID}}                 # Status field
-  DONE={{STATUS_DONE}}                      # "Done" option
-  gh project item-list {{PROJECT_NUMBER}} --owner {{REPO_OWNER}} --format json   # find the item id for this issue
+  PID=PVT_kwHOAu5WHs4BZ5E3                        # Transform My Notes
+  FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0khY                 # Status field
+  DONE=98236657                      # "Done" option
+  gh project item-list 5 --owner jasonp2323 --format json   # find the item id for this issue
   gh project item-edit --project-id "$PID" --field-id "$FIELD" --id <ITEM_ID> --single-select-option-id "$DONE"
   ```
 - **Close the issue** (`gh issue close <n>` or `mcp__github__issue_write` state: closed).
@@ -56,7 +56,7 @@ For the resolved issue number:
 
 ## 5. Finish — then stop
 Print a short summary and stop (end the turn; don't pick up new work):
-- PR merged — link `https://github.com/{{REPO}}/pull/<pr#>`
+- PR merged — link `https://github.com/jasonp2323/transformmynotes/pull/<pr#>`
 - Branch `<branch>` deleted (local + remote)
 - Issue #<n> closed · Project Status = Done · cycle time stamped
 

@@ -10,13 +10,13 @@ description: On-demand test audit. Scans the current branch diff for new/changed
 ## Step 1 — Find what changed on this branch
 
 ```bash
-git diff --name-only {{DEFAULT_BRANCH}}...HEAD
+git diff --name-only master...HEAD
 ```
 
 Then inspect the full diff for new and modified source files:
 
 ```bash
-git diff {{DEFAULT_BRANCH}}...HEAD
+git diff master...HEAD
 ```
 
 Focus on:

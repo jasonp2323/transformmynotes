@@ -1,11 +1,11 @@
 name: Release
 
-# release-please keeps an open "Release PR" on every push to {{DEFAULT_BRANCH}};
+# release-please keeps an open "Release PR" on every push to master;
 # merging that PR creates the vX.Y.Z tag + GitHub Release (which can be rendered
 # on a marketing /changelog page). Merging the Release PR is the release action.
 on:
   push:
-    branches: ["{{DEFAULT_BRANCH}}"]
+    branches: ["master"]
   workflow_dispatch:
 
 permissions:

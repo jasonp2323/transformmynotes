@@ -16,8 +16,8 @@ IS the user's explicit "open the PR" authorization (the repo's default is human-
   If none applies, that's fine — just omit the `Closes #N` line.
 
 ## 2. Open the PR
-- Review the **full** branch diff vs `{{DEFAULT_BRANCH}}` (`git diff {{DEFAULT_BRANCH}}...HEAD`, all commits — not just the last one).
-- Open it with `mcp__github__create_pull_request` targeting `{{DEFAULT_BRANCH}}`. If a PR already tracks this
+- Review the **full** branch diff vs `master` (`git diff master...HEAD`, all commits — not just the last one).
+- Open it with `mcp__github__create_pull_request` targeting `master`. If a PR already tracks this
   branch, **update that one** instead of opening a duplicate.
 - **Title** must be a valid Conventional Commit (`feat:`, `fix:`, `chore:`, …) — squash-merge uses it
   as the commit subject. **Body**: a short Summary + a Test plan checklist + `Closes #<issue>` if there is one.
@@ -49,6 +49,6 @@ This is a babysit loop; getting CI+deploy green is the task, so don't skip CI ev
 
 ## Footer
 After opening (or updating) the PR, end that turn's summary with these three labelled links, in order:
-- PR #<n> — `https://github.com/{{REPO}}/pull/<n>`
-- Issue #<n> — `https://github.com/{{REPO}}/issues/<n>` (omit if no issue)
-- branch — `https://github.com/{{REPO}}/tree/<branch>`
+- PR #<n> — `https://github.com/jasonp2323/transformmynotes/pull/<n>`
+- Issue #<n> — `https://github.com/jasonp2323/transformmynotes/issues/<n>` (omit if no issue)
+- branch — `https://github.com/jasonp2323/transformmynotes/tree/<branch>`

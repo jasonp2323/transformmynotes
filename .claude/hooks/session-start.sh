@@ -5,7 +5,7 @@
 #    (its stdout is injected into the session context).
 set -uo pipefail
 
-REPO="{{REPO}}"
+REPO="jasonp2323/transformmynotes"
 
 # --- 1. Dependencies (remote web only; local devs manage their own tree) ---
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ -f package.json ]; then
