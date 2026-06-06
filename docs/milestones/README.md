@@ -9,6 +9,10 @@ This folder holds the version-controlled source of truth for each milestone (`M*
 file is mirrored in full into its **epic issue** on GitHub, and live status lives in that epic
 issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Project board.
 
+> 📅 **Delivery schedule, dependency graph, Gantt chart, and the parallel-dispatch (Wave) plan
+> live in [`ROADMAP.md`](./ROADMAP.md)** — mirrored onto board #5's `Wave` / `Start date` /
+> `Target date` fields and the GitHub milestone due dates.
+
 ## Locked stack & decisions
 
 - **AWS serverless**, **Next.js App Router** (frontend + route handlers), **SST v4** (`sst.aws.Nextjs`).
