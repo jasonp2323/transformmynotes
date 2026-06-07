@@ -9,9 +9,13 @@ export default $config({
       protect: isProd,
       home: "aws",
       providers: {
-        aws: { region: "us-east-1" },
-        // Cloudflare only needed for production custom-domain DNS.
-        ...(isProd ? { cloudflare: true } : {}),
+        aws: {
+          region: "us-east-1"
+        },
+        cloudflare: {
+          version: "6.15.0",
+          apiToken: process.env.CLOUDFLARE_API_TOKEN,
+        },
       },
     };
   },
