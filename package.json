@@ -1,0 +1,28 @@
+{
+  "name": "transformmynotes",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:marketing": "npm run dev -w @transformmynotes/marketing",
+    "dev:application": "npm run dev -w @transformmynotes/application",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:application": "npm run lint -w @transformmynotes/application",
+    "lint:marketing": "npm run lint -w @transformmynotes/marketing",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "echo \"[test:e2e] marketing E2E suite is added in M0.8 — scaffold placeholder passes\"",
+    "test:e2e:application": "echo \"[test:e2e:application] authed application E2E suite is added in M0.9 — scaffold placeholder passes\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
