@@ -97,7 +97,7 @@ PR stages (`pr-<N>`): both the application and marketing get their own CloudFron
 ### Stages
 
 - `production` is the only named stage — it gets the custom domain, and its Cognito user pool can use a custom Hosted-UI domain (`auth.transformmynotes.com`, wired in `infra/auth.ts`).
-- All other stage names are ephemeral (`pr-<N>`); they get auto-generated URLs. Because the Cognito user pool is a native AWS resource provisioned per stage, each `pr-<N>` gets its own pool automatically — no third-party dashboard step and no per-PR subdomain allow-listing.
+- All other stage names are ephemeral (`pr-<N>`); each gets its own **per-stage custom subdomain** (see "Routing" above for the exact hostnames and the grey-cloud Cloudflare/ACM setup), **not** an auto-generated URL. Because the Cognito user pool is a native AWS resource provisioned per stage, each `pr-<N>` gets its own pool automatically — no third-party dashboard step and no per-PR subdomain allow-listing.
 - CI/CD runs via GitHub Actions (`.github/workflows/deploy.yml` + `.github/workflows/teardown.yml`): push to `master` deploys `production`; opening / updating a PR deploys `pr-<number>`; closing the PR tears that stage down.
 
 ### Persistence — DynamoDB single-table design
@@ -125,7 +125,7 @@ Domain tables are defined in `infra/db.ts` and linked by both the application (`
 - Production may attach a custom Hosted-UI domain (`auth.transformmynotes.com`) in `infra/auth.ts`; ephemeral stages use the default Cognito domain.
 - The IAM scope `application` needs for Cognito admin calls (e.g. `AdminInitiateAuth`, user management) is granted in `infra/application.ts`.
 
-Marketing has no auth and no DB. Its only server-side code is the contact form (`app/api/contact/route.ts`) which uses Cloudflare Turnstile + Resend; required envs are wired in `infra/marketing.ts`.
+Marketing has no auth, no DB, and no contact form — the public site has no server-side form handlers. (Transactional email via Resend exists only in the app for M3 invite/welcome emails, not on the marketing site.)
 
 ### Configuration — SST secrets + Console environments
 
@@ -137,7 +137,7 @@ Secrets are declared in `infra/secrets.ts` as `sst.Secret` and seeded via the SS
 `CLOUDFLARE_API_TOKEN` is the exception: it is read as `process.env` in `app()` (before secrets load) and must be set as a Console **environment variable**, not a secret, in both environments.
 
 Stack-standard secrets to configure in Console (same names for both environments, different values):
-`WEB_DOMAIN`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`, `RESEND_API_KEY`, `CONTACT_TO_ADDRESS`, `CONTACT_FROM_ADDRESS`.
+`WEB_DOMAIN`. Feature-specific secrets (e.g. `RESEND_API_KEY` + `INVITE_FROM_ADDRESS` for M3 invite emails) are declared in the milestone that introduces the feature that consumes them, not up front.
 
 (Cognito needs no secret here — the app reads the user-pool id + app-client id from the `sst.Resource` binding, not from `sst.Secret`.)
 

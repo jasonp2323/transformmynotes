@@ -51,7 +51,7 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 | **M6** | Notebook library & full-text search (library home, NoteCards, note view, search index, empty/offline) | L | M5 |
 | **M7** | Sharing & collaboration (share-to-group/member, Shared tab, server-side authorization) | L | M6 |
 | **M8** | Review deck / spaced repetition (cards from highlights, SM-2-style scheduler, Review tab, due-count) | L | M6 |
-| **M9** | Marketing site (apex landing, brand story, contact form via Turnstile + Resend, SEO, e2e) | M | M0, M1 |
+| **M9** | Marketing site (apex landing, brand story, SEO, e2e) | M | M0, M1 |
 | **M10** | Hardening & launch (WCAG AA, resilient uploads, IAM audit, cost/perf, tagging, prod cutover, Resend domain, E2E) | L | all prior |
 
 ## Architecture summary
