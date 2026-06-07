@@ -1,7 +1,7 @@
 name: Deploy
 
 # SST deploy pipeline:
-#   - push to {{DEFAULT_BRANCH}} → production stage
+#   - push to master → production stage
 #   - PR opened / synchronized / reopened → pr-<number> stage
 #
 # PR teardown lives in a separate workflow (teardown.yml) so a closed-PR
@@ -9,7 +9,7 @@ name: Deploy
 
 on:
   push:
-    branches: ["{{DEFAULT_BRANCH}}"]
+    branches: ["master"]
     paths-ignore:
       - '**.md'
       - '.claude/**'
@@ -28,7 +28,7 @@ on:
 concurrency:
   group: deploy-${{ github.event_name == 'push' && 'production' || format('pr-{0}', github.event.pull_request.number) }}
   # Cancel superseded pr-<N> deploys (disposable stages), but NEVER cancel a
-  # production (push to {{DEFAULT_BRANCH}}) deploy — killing one mid-apply corrupts
+  # production (push to master) deploy — killing one mid-apply corrupts
   # SST/Pulumi state (e.g. AWS creates a GSI but state never records it).
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
@@ -79,8 +79,8 @@ jobs:
 
       - name: Resolve application-E2E gate
         id: e2e_app
-        # The authed application E2E suite is opt-in and {{DEFAULT_BRANCH}}-only: it
-        # runs only on a push to {{DEFAULT_BRANCH}} whose head commit message
+        # The authed application E2E suite is opt-in and master-only: it
+        # runs only on a push to master whose head commit message
         # contains [E2E]. On pull requests it never runs.
         run: echo "run=${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[E2E]') }}" >> "$GITHUB_OUTPUT"
 
@@ -111,7 +111,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Application E2E tests (authed, offline)
-        # Opt-in via [E2E] on a {{DEFAULT_BRANCH}} merge (see "Resolve application-E2E gate").
+        # Opt-in via [E2E] on a master merge (see "Resolve application-E2E gate").
         # Fully offline: the suite's globalSetup boots dynalite (in-memory DynamoDB)
         # and a local Cognito emulator (cognito-local) seeded with a test user, then
         # signs in headlessly via InitiateAuth against `next dev` on :3002 — no AWS.

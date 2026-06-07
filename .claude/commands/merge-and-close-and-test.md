@@ -12,7 +12,7 @@ if any **Abort** condition below trips. Do not start new work after finishing.
 
 This is identical to `/merge-and-close` except for **step 2**, where the squash commit message
 is given an `[E2E]` tag. The deploy workflow (`.github/workflows/deploy.yml`) runs the
-opt-in authed application E2E suite (`npm run test:e2e:application`) only on `{{DEFAULT_BRANCH}}` pushes
+opt-in authed application E2E suite (`npm run test:e2e:application`) only on `master` pushes
 whose head commit message contains the literal `[E2E]`, so tagging the squash commit is what
 triggers it.
 
@@ -42,8 +42,8 @@ triggers it.
   Conventional Commit (`feat:`, `fix:`, `chore:`, …). If the title isn't, fix it first
   (`gh pr edit --title` / `mcp__github__update_pull_request`) before merging.
 
-## 2. Merge into {{DEFAULT_BRANCH}} — with the `[E2E]` tag
-- Squash-merge into `{{DEFAULT_BRANCH}}` with `mcp__github__merge_pull_request` (`merge_method: "squash"`),
+## 2. Merge into master — with the `[E2E]` tag
+- Squash-merge into `master` with `mcp__github__merge_pull_request` (`merge_method: "squash"`),
   setting **both**:
   - `commit_title` — the PR title (the Conventional-Commit subject). **Leave it clean — do NOT
     put `[E2E]` here**, so release-please's generated changelog entry stays tidy.
@@ -55,16 +55,16 @@ triggers it.
 
     [E2E]
     ```
-- After the call, **verify the tag actually landed**: read the merge commit on `{{DEFAULT_BRANCH}}`
-  (`gh api repos/{{REPO}}/commits/{{DEFAULT_BRANCH}} --jq .commit.message`) and confirm the message
+- After the call, **verify the tag actually landed**: read the merge commit on `master`
+  (`gh api repos/jasonp2323/transformmynotes/commits/master --jq .commit.message`) and confirm the message
   contains `[E2E]`. If it does not (e.g. the body was dropped), **stop and say so** — without the
   tag the authed E2E won't run.
 - Confirm the merge reports merged before continuing.
 
 ## 3. Delete the branch
-- `git checkout {{DEFAULT_BRANCH}} && git pull origin {{DEFAULT_BRANCH}}` first — you can't delete the branch you're on.
+- `git checkout master && git pull origin master` first — you can't delete the branch you're on.
 - Delete the **remote** branch via the **GitHub API**, not `git push --delete`:
-  `gh api --method DELETE repos/{{REPO}}/git/refs/heads/<branch>`
+  `gh api --method DELETE repos/jasonp2323/transformmynotes/git/refs/heads/<branch>`
   (the ref path keeps any slashes in the branch name, e.g. `heads/claude/my-branch`).
   If the squash-merge already deleted the branch, this returns 404/422 — treat that as
   "already gone", not a failure.
@@ -72,12 +72,12 @@ triggers it.
 
 ## 4. Update task status (the full CLAUDE.md flow)
 For the resolved issue number:
-- **Project Status → Done.** Project #{{PROJECT_NUMBER}}, owner `{{REPO_OWNER}}`:
+- **Project Status → Done.** Project #5, owner `jasonp2323`:
   ```bash
-  PID={{PROJECT_ID}}                        # {{PROJECT_NAME}}
-  FIELD={{STATUS_FIELD_ID}}                 # Status field
-  DONE={{STATUS_DONE}}                      # "Done" option
-  gh project item-list {{PROJECT_NUMBER}} --owner {{REPO_OWNER}} --format json   # find the item id for this issue
+  PID=PVT_kwHOAu5WHs4BZ5E3                        # Transform My Notes
+  FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0khY                 # Status field
+  DONE=98236657                      # "Done" option
+  gh project item-list 5 --owner jasonp2323 --format json   # find the item id for this issue
   gh project item-edit --project-id "$PID" --field-id "$FIELD" --id <ITEM_ID> --single-select-option-id "$DONE"
   ```
 - **Close the issue** (`gh issue close <n>` or `mcp__github__issue_write` state: closed).
@@ -86,8 +86,8 @@ For the resolved issue number:
 
 ## 5. Finish — then stop
 Print a short summary and stop (end the turn; don't pick up new work):
-- PR merged with `[E2E]` tag — link `https://github.com/{{REPO}}/pull/<pr#>`
-- Authed application E2E will run on the `{{DEFAULT_BRANCH}}` deploy (watch the Deploy workflow run)
+- PR merged with `[E2E]` tag — link `https://github.com/jasonp2323/transformmynotes/pull/<pr#>`
+- Authed application E2E will run on the `master` deploy (watch the Deploy workflow run)
 - Branch `<branch>` deleted (local + remote)
 - Issue #<n> closed · Project Status = Done · cycle time stamped
 
