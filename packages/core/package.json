@@ -2,5 +2,15 @@
   "name": "@transformmynotes/core",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1063.0",
+    "@aws-sdk/lib-dynamodb": "^3.1063.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.20"
+  }
 }
