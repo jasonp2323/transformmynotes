@@ -97,7 +97,7 @@ PR stages (`pr-<N>`): both the application and marketing get their own CloudFron
 ### Stages
 
 - `production` is the only named stage — it gets the custom domain, and its Cognito user pool can use a custom Hosted-UI domain (`auth.transformmynotes.com`, wired in `infra/auth.ts`).
-- All other stage names are ephemeral (`pr-<N>`); they get auto-generated URLs. Because the Cognito user pool is a native AWS resource provisioned per stage, each `pr-<N>` gets its own pool automatically — no third-party dashboard step and no per-PR subdomain allow-listing.
+- All other stage names are ephemeral (`pr-<N>`); each gets its own **per-stage custom subdomain** (see "Routing" above for the exact hostnames and the grey-cloud Cloudflare/ACM setup), **not** an auto-generated URL. Because the Cognito user pool is a native AWS resource provisioned per stage, each `pr-<N>` gets its own pool automatically — no third-party dashboard step and no per-PR subdomain allow-listing.
 - CI/CD runs via GitHub Actions (`.github/workflows/deploy.yml` + `.github/workflows/teardown.yml`): push to `master` deploys `production`; opening / updating a PR deploys `pr-<number>`; closing the PR tears that stage down.
 
 ### Persistence — DynamoDB single-table design
