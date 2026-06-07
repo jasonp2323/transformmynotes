@@ -17,7 +17,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "echo \"[test:e2e] marketing E2E suite is added in M0.8 — scaffold placeholder passes\"",
+    "test:e2e": "playwright test",
     "test:e2e:application": "echo \"[test:e2e:application] authed application E2E suite is added in M0.9 — scaffold placeholder passes\""
   },
   "devDependencies": {
