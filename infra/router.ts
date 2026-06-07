@@ -3,12 +3,13 @@ import { webDomain } from "./secrets";
 
 const isProd = $app.stage === "production";
 
-export const router = isProd
-  ? new sst.aws.Router("Router", {
-      domain: {
+export const router = new sst.aws.Router("Router", {
+  domain: isProd
+    ? {
         name: webDomain.value,
-        aliases: [webDomain.value.apply((d) => `*.${d}`)],
-        dns: sst.cloudflare.dns(),
-      },
-    })
-  : undefined;
+        aliases: webDomain.value.apply((d) => [`app.${d}`]),
+        redirects: webDomain.value.apply((d) => [`www.${d}`]),
+        dns: sst.cloudflare.dns({ proxy: true }),
+      }
+    : undefined,
+});

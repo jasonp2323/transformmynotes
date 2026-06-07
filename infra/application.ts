@@ -1,9 +1,11 @@
 /// <reference path="../.sst/platform/config.d.ts" />
+import { router } from "./router";
 import { webDomain } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData } from "./db";
 
 const isProd = $app.stage === "production";
+const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
@@ -27,12 +29,16 @@ export const application = new sst.aws.Nextjs("Application", {
       resources: [userPool.arn],
     },
   ],
-  ...(isProd
+  domain: isPR
     ? {
-        domain: {
-          name: webDomain.value.apply((d) => `app.${d}`),
-          dns: sst.cloudflare.dns(),
-        },
+        name: $interpolate`app.${$app.stage}.${webDomain.value}`,
+        dns: sst.cloudflare.dns({ proxy: false }),
       }
-    : {}),
+    : undefined,
+  router: isProd
+    ? {
+        instance: router,
+        domain: $interpolate`app.${webDomain.value}`,
+      }
+    : undefined,
 });
