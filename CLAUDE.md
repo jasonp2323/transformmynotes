@@ -194,7 +194,7 @@ SST application secrets (the `sst.Secret` entries in `infra/secrets.ts`) are sto
 
 In Claude Code on the web, `gh` is installed and **authenticated** (as `jasonp2323` via `GH_TOKEN`) and github.com is reachable — so the full `gh` CLI is available, not just the MCP tools. Use the right tool for the job:
 
-- **GitHub Projects (v2)**: use the `gh` CLI (`gh project ...`). The GitHub MCP server has no Projects tool, so `gh` is the only option.
+- **GitHub Projects (v2)**: use `gh api graphql` (the GitHub MCP server has no Projects tool). **Do NOT use the `gh project …` subcommands** in the web environment: they resolve the owner's type (user vs org) first, which needs the `read:org` scope. The web `GH_TOKEN` is a classic PAT scoped to `project, repo` only (no `read:org`), so `gh project …` fails with `unknown owner type` — while raw GraphQL against `user(login:"jasonp2323"){ projectV2(number:5) }` works fine with just the `project` scope. See the GraphQL snippet below.
 - **PRs, issues, comments, CI status, reviews, branches, releases, code search**: prefer the GitHub MCP tools (`mcp__github__*`) — they integrate with the PR-activity webhook subscriptions used to watch/autofix PRs. `gh` is a fine fallback for anything the MCP tools don't cover.
 
 **⚠️ Keep the GitHub Project board Status current — every session, every task. This is a standing requirement, not a nicety.** GitHub Projects/Issues is the source of truth for the milestones and their phases. **The moment you start, advance, or finish work on an issue, move its Project Status in the same turn** — do NOT batch it for "later" or leave the board lagging behind the actual work. If you touch a task, its Status must reflect reality before you end the turn.
@@ -205,15 +205,20 @@ Status lifecycle (Project "Transform My Notes", single-select **Status** field):
 - **In review → Done** when the PR merges and the change is verified. Also close the issue (`state: closed`) and tick the epic's phase checklist.
 - **Ready** = scoped/queued but not yet started.
 
-Mechanism — the GitHub MCP server has **no** Projects tool, so `gh` is the only option (it's authenticated in this environment as `GH_TOKEN`):
+Mechanism — use `gh api graphql` (works with the `project` scope alone; the `gh project …` wrapper does **not** — see the Projects bullet above). Set an issue's Status in three steps: resolve the issue's node id, add it to the board (`addProjectV2ItemById` is idempotent — it returns the existing item id if the issue is already on the board), then set the field:
 ```bash
-PID=PVT_kwHOAu5WHs4BZ5E3                        # "Transform My Notes" (number 5, owner jasonp2323)
-FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0khY                 # the single-select "Status" field
+PID=PVT_kwHOAu5WHs4BZ5E3                        # project "Transform My Notes" (number 5, owner jasonp2323)
+STATUS_FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0khY          # the single-select "Status" field
 # Status option IDs: Backlog=f75ad846  Ready=61e4505c  In progress=47fc9ee4  In review=df73e18b  Done=98236657
-gh project item-list 5 --owner jasonp2323 --format json   # map an issue (content.number) → its item id
-gh project item-edit --project-id "$PID" --field-id "$FIELD" --id <ITEM_ID> --single-select-option-id <OPTION_ID>
+ISSUE=129; OPT=47fc9ee4                              # e.g. move #129 → In progress
+
+CID=$(gh api repos/jasonp2323/transformmynotes/issues/$ISSUE -q .node_id)
+ITEM=$(gh api graphql -f query='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}' \
+  -f p="$PID" -f c="$CID" -q '.data.addProjectV2ItemById.item.id')
+gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}' \
+  -f p="$PID" -f i="$ITEM" -f f="$STATUS_FIELD" -f o="$OPT"
 ```
-If these IDs ever go stale, re-derive them with `gh project field-list 5 --owner jasonp2323 --format json`. Whenever you change Status, also run the stamp helper: `start` when an issue leaves Backlog, `done` when it reaches Done (see the "Cycle-time tracking" section below).
+If these IDs ever go stale, re-derive them with GraphQL: `gh api graphql -f query='query{user(login:"jasonp2323"){projectV2(number:5){id field(name:"Status"){... on ProjectV2SingleSelectField{id options{id name}}}}}}'`. Whenever you change Status, also run the stamp helper: `start` when an issue leaves Backlog, `done` when it reaches Done (see the "Cycle-time tracking" section below).
 
 ### Task sizing — every issue gets a Size (required)
 
@@ -226,12 +231,13 @@ Rough rubric:
 - **L** — a full milestone phase: multiple components/routes, schema + UI + tests.
 - **XL** — epic-scale / multi-phase. Prefer to **decompose into phase sub-issues** rather than leave a single XL issue.
 
-Set it the same way as Status (single-select `item-edit`):
+Set it the same way as Status — same `gh api graphql` `updateProjectV2ItemFieldValue` mutation (resolve `CID`/`ITEM` exactly as in the Status snippet above), just point at the Size field:
 ```bash
 PID=PVT_kwHOAu5WHs4BZ5E3                        # "Transform My Notes"
-SIZE_FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0lLA              # the single-select "Size" field
+SIZE_FIELD=PVTSSF_lAHOAu5WHs4BZ5E3zhU0lLA            # the single-select "Size" field
 # Size option IDs: XS=6c6483d2  S=f784b110  M=7515a9f1  L=817d0097  XL=db339eb2
-gh project item-edit --project-id "$PID" --field-id "$SIZE_FIELD" --id <ITEM_ID> --single-select-option-id <OPTION_ID>
+gh api graphql -f query='mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}' \
+  -f p="$PID" -f i="$ITEM" -f f="$SIZE_FIELD" -f o="f784b110"   # e.g. Size=S
 ```
 
 ## Session continuity & memory model
