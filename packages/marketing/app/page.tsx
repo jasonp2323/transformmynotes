@@ -60,7 +60,7 @@ export default function HomePage() {
             textDecoration: 'none',
           }}
         >
-          Get early access
+          Request access
         </a>
       </div>
     </main>
