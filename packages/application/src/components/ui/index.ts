@@ -21,3 +21,24 @@ export type { CheckboxProps } from './Checkbox';
 
 export { Switch } from './Switch';
 export type { SwitchProps } from './Switch';
+
+export { HighlightText } from './HighlightText';
+export type { HighlightTextProps } from './HighlightText';
+
+export { Avatar } from './Avatar';
+export type { AvatarProps } from './Avatar';
+
+export { Badge } from './Badge';
+export type { BadgeProps } from './Badge';
+
+export { Tag } from './Tag';
+export type { TagProps } from './Tag';
+
+export { Card } from './Card';
+export type { CardProps } from './Card';
+
+export { NoteCard } from './NoteCard';
+export type { NoteCardProps } from './NoteCard';
+
+export { HandNote } from './HandNote';
+export type { HandNoteProps } from './HandNote';
