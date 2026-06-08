@@ -42,3 +42,15 @@ export type { NoteCardProps } from './NoteCard';
 
 export { HandNote } from './HandNote';
 export type { HandNoteProps } from './HandNote';
+
+export { Tabs } from './Tabs';
+export type { TabsProps, TabItem } from './Tabs';
+
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
+
+export { Toast } from './Toast';
+export type { ToastProps } from './Toast';
+
+export { Dialog } from './Dialog';
+export type { DialogProps } from './Dialog';
