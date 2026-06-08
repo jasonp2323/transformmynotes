@@ -9,3 +9,4 @@ dist/
 playwright-report/
 test-results/
 .vercel
+e2e/application/.e2e-runtime.json

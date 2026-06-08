@@ -1,19 +1,19 @@
 import { cookies } from 'next/headers';
-import { CognitoJwtVerifier } from 'aws-jwt-verify';
+import { verifyIdToken } from '@/lib/verify-id-token';
 
 export default async function DashboardPage() {
   const token = cookies().get('CognitoIdToken')?.value;
   let who = 'there';
   if (token) {
     try {
-      const verifier = CognitoJwtVerifier.create({
-        userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
-        clientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!,
-        tokenUse: 'id',
-      });
-      const claims = await verifier.verify(token);
-      who = (claims.email as string) ?? (claims['cognito:username'] as string) ?? 'there';
-    } catch { /* middleware should have redirected; fall through */ }
+      const claims = await verifyIdToken(token);
+      who =
+        (claims.email as string | undefined) ??
+        (claims['cognito:username'] as string | undefined) ??
+        'there';
+    } catch {
+      /* middleware should have redirected; fall through */
+    }
   }
   return (
     <main>
