@@ -1,0 +1,40 @@
+/* ============================================================
+   TransformMyNotes — Radius, shadow & motion tokens
+   ------------------------------------------------------------
+   Soft, organic rounding. Shadows are warm-tinted, low and
+   diffuse — paper resting on a warm desk, never harsh. Motion
+   is gentle and unhurried with a soft ease; nothing bounces or
+   snaps. The product should feel like a calm place to think.
+   ============================================================ */
+
+:root {
+  /* ---- Corner radius (organic, generous) ---- */
+  --radius-xs:  4px;
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  22px;
+  --radius-2xl: 28px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows (warm-tinted, soft) ---- */
+  --shadow-xs:  0 1px 2px rgba(50, 46, 37, 0.06);
+  --shadow-sm:  0 2px 6px rgba(50, 46, 37, 0.08);
+  --shadow-md:  0 6px 18px rgba(50, 46, 37, 0.10);
+  --shadow-lg:  0 14px 36px rgba(50, 46, 37, 0.14);
+  --shadow-xl:  0 28px 60px rgba(33, 30, 23, 0.18);
+  /* Inset for sunken inputs / wells */
+  --shadow-inset: inset 0 1px 2px rgba(50, 46, 37, 0.07);
+  /* Soft brand glow for active highlight states */
+  --shadow-brand: 0 8px 24px rgba(48, 127, 112, 0.22);
+
+  /* ---- Motion ---- */
+  --ease-soft:  cubic-bezier(0.32, 0.72, 0.26, 1); /* @kind other */ /* default — gentle settle */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* @kind other */
+
+  --dur-fast:   140ms; /* @kind other */
+  --dur-base:   240ms; /* @kind other */
+  --dur-slow:   380ms; /* @kind other */
+  --dur-slower: 600ms; /* @kind other */
+}
