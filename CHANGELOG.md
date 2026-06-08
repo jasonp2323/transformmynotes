@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.5.0...transformmynotes-v1.6.0) (2026-06-08)
+
+
+### Features
+
+* **marketing:** "How it works" three-step section (M9.4) ([#148](https://github.com/jasonp2323/transformmynotes/issues/148)) ([a9938b6](https://github.com/jasonp2323/transformmynotes/commit/a9938b6cfd5271e3cb8170575c04d9ae8e882363)), closes [#6](https://github.com/jasonp2323/transformmynotes/issues/6)
+
 ## [1.5.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.4.0...transformmynotes-v1.5.0) (2026-06-08)
 
 
