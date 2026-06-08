@@ -1,0 +1,132 @@
+/* ============================================================
+   TransformMyNotes — Color tokens
+   ------------------------------------------------------------
+   The brand palette is a single organic spectrum running from
+   deep stormy teal up into bright gold — the visual story of a
+   handwritten note being "transformed" into clean, highlighted
+   text. Teals/greens are the calm base; gold is the highlighter.
+   Surfaces are warm paper, never stark white; text is warm ink.
+   ============================================================ */
+
+:root {
+  /* ---- Brand spectrum (the "transform" ramp, given palette) ---- */
+  --spectrum-1: #16747e; /* stormy teal   */
+  --spectrum-2: #307f70; /* jungle teal   */
+  --spectrum-3: #4a8a62; /* sea green     */
+  --spectrum-4: #649554; /* sage green    */
+  --spectrum-5: #7ea046; /* sage green 2  */
+  --spectrum-6: #97ab38; /* lime moss     */
+  --spectrum-7: #b1b62a; /* lime moss 2   */
+  --spectrum-8: #cbc11c; /* golden glow   */
+  --spectrum-9: #e5cc0e; /* golden glow 2 */
+  --spectrum-10: #ffd700; /* gold         */
+
+  /* The signature brand gradient — use sparingly for hero / mark moments */
+  --gradient-transform: linear-gradient(
+    105deg,
+    var(--spectrum-1) 0%,
+    var(--spectrum-3) 34%,
+    var(--spectrum-6) 66%,
+    var(--spectrum-10) 100%
+  );
+  --gradient-teal: linear-gradient(135deg, var(--spectrum-1), var(--spectrum-3));
+  --gradient-highlighter: linear-gradient(120deg, var(--spectrum-9), var(--spectrum-10));
+
+  /* ---- Teal/green brand scale (primary) ---- */
+  --teal-50:  #e9f3f1;
+  --teal-100: #cbe4df;
+  --teal-200: #9fcdc4;
+  --teal-300: #6fb3a7;
+  --teal-400: #459688;
+  --teal-500: #307f70; /* jungle teal — primary */
+  --teal-600: #1f6d64;
+  --teal-700: #16747e; /* stormy teal — deep / pressed */
+  --teal-800: #12424a;
+  --teal-900: #0e3036;
+
+  /* ---- Gold / highlighter scale (accent) ---- */
+  --gold-50:  #fbf6d8;
+  --gold-100: #f6ecae;
+  --gold-200: #efde74;
+  --gold-300: #e5cc0e; /* golden glow 2 */
+  --gold-400: #ffd700; /* gold — accent */
+  --gold-500: #e6c000;
+  --gold-600: #b89800;
+
+  /* ---- Warm neutral "paper & ink" scale ---- */
+  --stone-50:  #faf7f0; /* lightest paper */
+  --stone-100: #f3eee2;
+  --stone-200: #e7e0d0;
+  --stone-300: #d6ccb8;
+  --stone-400: #b4a98f;
+  --stone-500: #8b8169;
+  --stone-600: #6a6250;
+  --stone-700: #4d473a;
+  --stone-800: #322e25;
+  --stone-900: #211e17; /* ink */
+
+  /* ---- Functional colors (derived — not in source palette) ---- */
+  --success-500: #4a8a62; /* sea green */
+  --success-50:  #e7f1ea;
+  --warning-500: #d99311; /* warm amber */
+  --warning-50:  #fbf0db;
+  --danger-500:  #c2542f; /* terracotta */
+  --danger-50:   #f8e7df;
+  --info-500:    #16747e; /* stormy teal */
+  --info-50:     #e3f0f1;
+
+  /* ============================================================
+     SEMANTIC ALIASES — prefer these in components
+     ============================================================ */
+
+  /* Surfaces (warm paper) */
+  --surface-app:      #f5f1e8; /* app background — warm ivory */
+  --surface-card:     #fffdf8; /* cards / sheets — soft paper white */
+  --surface-raised:   #ffffff; /* popovers, menus */
+  --surface-sunken:   #efe9db; /* wells, inputs at rest */
+  --surface-inverse:  var(--stone-900);
+  --surface-brand-soft: var(--teal-50);
+  --surface-accent-soft: var(--gold-50);
+
+  /* Text / ink */
+  --text-strong:  var(--stone-900);
+  --text-body:    var(--stone-800);
+  --text-muted:   var(--stone-600);
+  --text-subtle:  var(--stone-500);
+  --text-onbrand: #ffffff;
+  --text-onaccent: var(--stone-900); /* gold needs dark text */
+  --text-inverse: var(--stone-50);
+  --text-link:    var(--teal-700);
+
+  /* Borders / lines (warm, low contrast) */
+  --border-subtle:  #e7e0d0;
+  --border-default: #d8cfba;
+  --border-strong:  #c2b79e;
+  --border-brand:   var(--teal-500);
+
+  /* Brand roles */
+  --brand:         var(--teal-500);
+  --brand-hover:   var(--teal-600);
+  --brand-press:   var(--teal-700);
+  --brand-strong:  var(--teal-700);
+  --on-brand:      #ffffff;
+
+  --accent:        var(--gold-400);
+  --accent-hover:  var(--gold-500);
+  --accent-press:  var(--gold-600);
+  --on-accent:     var(--stone-900);
+
+  /* Highlighter — translucent gold for marking text (core brand motif) */
+  --highlighter:        rgba(255, 215, 0, 0.38);
+  --highlighter-strong: rgba(255, 215, 0, 0.55);
+  --highlighter-teal:   rgba(48, 127, 112, 0.18);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 3px rgba(48, 127, 112, 0.32);
+
+  /* Status roles */
+  --success: var(--success-500);
+  --warning: var(--warning-500);
+  --danger:  var(--danger-500);
+  --info:    var(--info-500);
+}
