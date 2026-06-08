@@ -214,6 +214,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     ...process.env,
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: poolId,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: clientId,
+    NEXT_PUBLIC_COGNITO_ENDPOINT: `http://127.0.0.1:${COGNITO_PORT}`,
     COGNITO_ISSUER: `http://127.0.0.1:${COGNITO_PORT}/${poolId}`,
     COGNITO_JWKS_URI: `http://127.0.0.1:${COGNITO_PORT}/${poolId}/.well-known/jwks.json`,
     AWS_ENDPOINT_URL_DYNAMODB: `http://127.0.0.1:${DYNALITE_PORT}`,
