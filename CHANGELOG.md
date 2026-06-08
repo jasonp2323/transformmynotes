@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.6.0...transformmynotes-v1.7.0) (2026-06-08)
+
+
+### Features
+
+* **core:** add UserData GSI1 status index + key builders (M2.1) ([04f248d](https://github.com/jasonp2323/transformmynotes/commit/04f248d488fa735ade7b3f2608a59dbcbe5e21fd)), closes [#33](https://github.com/jasonp2323/transformmynotes/issues/33)
+
 ## [1.6.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.5.0...transformmynotes-v1.6.0) (2026-06-08)
 
 
