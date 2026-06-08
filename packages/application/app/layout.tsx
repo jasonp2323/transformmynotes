@@ -1,3 +1,5 @@
+import '../src/styles/globals.css';
+
 export const metadata = { title: 'TransformMyNotes' };
 
 export default function RootLayout({
