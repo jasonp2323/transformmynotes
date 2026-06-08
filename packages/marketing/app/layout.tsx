@@ -7,8 +7,33 @@ import type { Metadata } from 'next';
 // app/apple-icon.png → <link rel="apple-touch-icon" ...>       (auto-wired by Next.js)
 // No explicit `icons` entry needed here; Next.js discovers them by filename.
 export const metadata: Metadata = {
+  metadataBase: new URL('https://transformmynotes.com'),
   title: 'TransformMyNotes — your handwriting, transformed',
   description: 'Turn your handwritten notes into organized, searchable digital notebooks.',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    title: 'TransformMyNotes — your handwriting, transformed',
+    description: 'Turn your handwritten notes into organized, searchable digital notebooks.',
+    url: 'https://transformmynotes.com',
+    siteName: 'TransformMyNotes',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'TransformMyNotes',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TransformMyNotes — your handwriting, transformed',
+    description: 'Turn your handwritten notes into organized, searchable digital notebooks.',
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({
