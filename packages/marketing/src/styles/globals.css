@@ -564,6 +564,48 @@ section { position: relative; }
 }
 
 /* ================================================================
+   How it works section
+   ================================================================ */
+.how { background: linear-gradient(180deg, transparent, rgba(48,127,112,0.035) 30%, rgba(48,127,112,0.035) 70%, transparent); }
+.how-head { text-align: center; max-width: 52ch; margin: 0 auto 56px; }
+.how-head .eyebrow { display: block; margin-bottom: 14px; }
+.steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+.steps__line {
+  position: absolute;
+  top: 27px;
+  left: 16%;
+  right: 16%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0 7px, transparent 7px 15px);
+  z-index: 0;
+}
+@media (max-width: 760px) {
+  .steps { grid-template-columns: 1fr; gap: 34px; max-width: 460px; margin-inline: auto; }
+  .steps__line { display: none; }
+}
+.step { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+@media (max-width: 760px) { .step { align-items: center; text-align: center; } }
+.step__num {
+  width: 54px; height: 54px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-card);
+  border: 1.5px solid var(--border-default);
+  font-family: var(--font-serif);
+  font-weight: var(--weight-semibold);
+  font-size: 22px;
+  color: var(--brand-strong);
+  box-shadow: var(--shadow-sm);
+}
+.step__title { font-family: var(--font-serif); font-weight: var(--weight-semibold); font-size: 22px; color: var(--text-strong); margin: 0; }
+.step__desc { font-family: var(--font-sans); font-size: 15px; line-height: var(--leading-normal); color: var(--text-muted); margin: 0; max-width: 34ch; }
+
+/* ================================================================
    Scroll reveal
    ================================================================ */
 [data-reveal] { opacity: 0; transform: translateY(18px); transition: opacity 640ms var(--ease-out), transform 640ms var(--ease-out); }
