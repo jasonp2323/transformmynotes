@@ -223,6 +223,28 @@ a { color: inherit; }
 .tmn-seg__btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .tmn-seg__btn--active { color: var(--brand-strong); background: var(--surface-card); box-shadow: var(--shadow-sm); }
 
+/* ---- Card (.tmn-card) ---- */
+.tmn-card {
+  font-family: var(--font-sans);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow var(--dur-base) var(--ease-soft), transform var(--dur-base) var(--ease-soft), border-color var(--dur-base) var(--ease-soft);
+}
+.tmn-card--pad { padding: 20px; }
+.tmn-card--interactive { cursor: pointer; }
+.tmn-card--interactive:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--border-default); }
+.tmn-card--interactive:active { transform: translateY(0); }
+.tmn-card--flat { box-shadow: none; }
+.tmn-card--ghost { background: transparent; border-style: dashed; border-color: var(--border-default); box-shadow: none; }
+.tmn-card__accent { height: 4px; background: var(--gradient-transform); }
+@media (prefers-reduced-motion: reduce) {
+  .tmn-card { transition: none; }
+  .tmn-card--interactive:hover { transform: none; }
+}
+
 /* ================================================================
    Site header
    ================================================================ */
@@ -238,6 +260,16 @@ section { position: relative; }
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--brand);
+}
+
+.section-heading {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--text-strong);
+  font-size: clamp(28px, 3.6vw, 40px);
+  margin: 0;
 }
 
 .site-header {
@@ -491,6 +523,44 @@ section { position: relative; }
 @media (max-width: 520px) {
   .hero__chip { left: 50%; transform: translateX(-50%); bottom: -16px; }
   .hero__chip--hidden { transform: translateX(-50%) translateY(6px); }
+}
+
+/* ================================================================
+   Capabilities section
+   ================================================================ */
+.cards-head { max-width: 60ch; margin-bottom: 48px; }
+.cards-head .eyebrow { display: block; margin-bottom: 14px; }
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 880px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .card-grid { grid-template-columns: 1fr; } }
+
+.cap-card { height: 100%; }
+.cap-card__inner { display: flex; flex-direction: column; gap: 13px; height: 100%; }
+.cap-icon {
+  width: 46px; height: 46px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--surface-brand-soft);
+  color: var(--brand-strong);
+}
+.cap-card--accent .cap-icon { background: var(--gold-100); color: var(--gold-600); }
+.cap-title {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-semibold);
+  font-size: 20px;
+  color: var(--text-strong);
+  margin: 2px 0 0;
+}
+.cap-desc {
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+  margin: 0;
 }
 
 /* ================================================================

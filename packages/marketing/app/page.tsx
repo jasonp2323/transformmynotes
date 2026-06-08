@@ -1,5 +1,6 @@
 import Header from '../src/components/Header';
 import Hero from '../src/components/Hero';
+import Capabilities from '../src/components/Capabilities';
 import RevealObserver from '../src/components/Reveal';
 
 export default function HomePage() {
@@ -8,6 +9,7 @@ export default function HomePage() {
       <Header />
       <main>
         <Hero />
+        <Capabilities />
         {/* RevealObserver is a client component that wires IntersectionObserver
             to all [data-reveal] elements — renders nothing to the DOM */}
         <RevealObserver />
