@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.4.0...transformmynotes-v1.5.0) (2026-06-08)
+
+
+### Features
+
+* **application:** ds-test showcase route + M1 verification screenshots (M1.9) ([#146](https://github.com/jasonp2323/transformmynotes/issues/146)) ([f10fcda](https://github.com/jasonp2323/transformmynotes/commit/f10fcda98e4d1ff2fee62cbd79b6caec3bf820b1)), closes [#23](https://github.com/jasonp2323/transformmynotes/issues/23)
+
 ## [1.4.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.3.0...transformmynotes-v1.4.0) (2026-06-08)
 
 
