@@ -618,3 +618,23 @@ section { position: relative; }
 @media (prefers-reduced-motion: reduce) {
   [data-reveal] { opacity: 1; transform: none; transition: none; }
 }
+
+/* ================================================================
+   Closing block
+   ================================================================ */
+.closing-wrap { padding-bottom: var(--section-y, 112px); }
+.closing {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  padding: clamp(44px, 6vw, 72px) 28px;
+}
+.closing__bar { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--gradient-transform); }
+.closing__title { font-family: var(--font-serif); font-weight: var(--weight-semibold); font-size: clamp(28px, 4vw, 40px); color: var(--text-strong); margin: 0 0 14px; letter-spacing: var(--tracking-tight); }
+.closing__note { font-family: var(--font-serif); font-size: var(--text-lg); line-height: var(--leading-relaxed); color: var(--text-muted); max-width: 46ch; margin: 0 auto 30px; }
+.closing__cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+@media (max-width: 420px) { .closing__cta { flex-direction: column; align-items: stretch; } }
