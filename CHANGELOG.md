@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.2.0...transformmynotes-v1.3.0) (2026-06-08)
+
+
+### Features
+
+* **application:** wire dashboard & login pages to design system (M1.8) ([#141](https://github.com/jasonp2323/transformmynotes/issues/141)) ([66513a7](https://github.com/jasonp2323/transformmynotes/commit/66513a7730c5718a5dcd7c4ee4cf0011f57f5dcd))
+
 ## [1.2.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.1.0...transformmynotes-v1.2.0) (2026-06-08)
 
 
