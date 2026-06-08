@@ -1,0 +1,22 @@
+/* TransformMyNotes — markdown body styles.
+   Applied to any element with the .md-body class that wraps renderMarkdown() output.
+   Ported from the tmn-md-css block in .design/app/ds-helpers.jsx (M1). */
+
+.md-body { font-family: var(--font-serif); font-size: 17px; line-height: 1.72; color: var(--text-body); }
+.md-body h2 { font-family: var(--font-serif); font-size: 22px; font-weight: 600; color: var(--text-strong); letter-spacing: -0.01em; margin: 22px 0 8px; }
+.md-body h3 { font-family: var(--font-serif); font-size: 18.5px; font-weight: 600; color: var(--text-strong); margin: 18px 0 6px; }
+.md-body h4 { font-family: var(--font-sans); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-strong); margin: 18px 0 6px; }
+.md-body p { margin: 0 0 14px; }
+.md-body ul, .md-body ol { margin: 0 0 14px; padding-left: 22px; }
+.md-body li { margin: 0 0 6px; }
+.md-body strong { font-weight: 700; color: var(--text-strong); }
+.md-body em { font-style: italic; }
+.md-body .md-code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-sunken); padding: 1px 6px; border-radius: 5px; color: var(--brand-strong); }
+.md-body .md-hl { background: var(--highlighter); padding: 0 3px; border-radius: 3px; color: inherit; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.md-body blockquote { margin: 0 0 14px; padding: 4px 0 4px 16px; border-left: 3px solid var(--teal-300); color: var(--text-muted); font-style: italic; }
+.md-body hr { border: none; border-top: 1px solid var(--border-subtle); margin: 22px 0; }
+.md-body .md-table { width: 100%; border-collapse: collapse; margin: 4px 0 18px; font-family: var(--font-sans); font-size: 14.5px; }
+.md-body .md-table th { text-align: left; font-weight: 700; color: var(--brand-strong); padding: 8px 12px; border-bottom: 2px solid var(--border-default); background: var(--surface-brand-soft); }
+.md-body .md-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); color: var(--text-body); }
+.md-body .md-table tr:last-child td { border-bottom: none; }
+.md-body .md-table td:first-child { font-family: var(--font-serif); font-weight: 600; color: var(--text-strong); }
