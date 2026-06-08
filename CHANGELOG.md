@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.3.0...transformmynotes-v1.4.0) (2026-06-08)
+
+
+### Features
+
+* **marketing:** feature/benefit cards section (M9.3) ([#144](https://github.com/jasonp2323/transformmynotes/issues/144)) ([d70397a](https://github.com/jasonp2323/transformmynotes/commit/d70397a3337dc6e7f0bf8f4cd0de130ffe4253a9))
+
 ## [1.3.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.2.0...transformmynotes-v1.3.0) (2026-06-08)
 
 
