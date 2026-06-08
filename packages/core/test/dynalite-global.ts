@@ -41,17 +41,29 @@ export default async function setup() {
     credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
   });
 
-  // Mirror infra/db.ts exactly: UserData table (pk HASH, sk RANGE, PAY_PER_REQUEST, streams).
+  // Mirror infra/db.ts exactly: UserData table (pk HASH, sk RANGE, GSI1, PAY_PER_REQUEST, streams).
   await ddbAdmin.send(
     new CreateTableCommand({
       TableName: USER_DATA_TABLE,
       AttributeDefinitions: [
         { AttributeName: 'pk', AttributeType: 'S' },
         { AttributeName: 'sk', AttributeType: 'S' },
+        { AttributeName: 'gsi1pk', AttributeType: 'S' },
+        { AttributeName: 'gsi1sk', AttributeType: 'S' },
       ],
       KeySchema: [
         { AttributeName: 'pk', KeyType: 'HASH' },
         { AttributeName: 'sk', KeyType: 'RANGE' },
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'GSI1',
+          KeySchema: [
+            { AttributeName: 'gsi1pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi1sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
       ],
       BillingMode: 'PAY_PER_REQUEST',
       StreamSpecification: {

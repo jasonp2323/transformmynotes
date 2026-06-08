@@ -5,8 +5,32 @@
  * their builders to this file as they are introduced.
  */
 
+/** Possible user lifecycle statuses stored in the GSI1 partition key. */
+export type UserStatus = 'pending' | 'active' | 'disabled';
+
 /** `UserData` table keys. PK = `USER#<userId>`, SK = `PROFILE`. */
 export const userDataKeys = {
   /** Profile record for a single user (one per Cognito sub). */
   profile: (userId: string) => ({ pk: `USER#${userId}`, sk: 'PROFILE' as const }),
+
+  /**
+   * GSI1 key attributes for a user profile item.
+   * gsi1pk = `STATUS#<status>`, gsi1sk = ISO-8601 createdAt.
+   * Attach these alongside the primary keys when writing/updating a profile.
+   */
+  statusIndex: (status: UserStatus, createdAt: string) => ({
+    gsi1pk: `STATUS#${status}`,
+    gsi1sk: createdAt,
+  }),
+
+  /**
+   * Query parameters for listing all users with a given status via GSI1,
+   * in ascending chronological order (oldest → newest).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listByStatus: (status: UserStatus) => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :gsi1pk',
+    ExpressionAttributeValues: { ':gsi1pk': `STATUS#${status}` },
+  }),
 };
