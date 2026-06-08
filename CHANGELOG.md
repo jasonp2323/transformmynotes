@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.1.0...transformmynotes-v1.2.0) (2026-06-08)
+
+
+### Features
+
+* **application:** pure Markdown renderer + .md-body styles (M1.7) ([#136](https://github.com/jasonp2323/transformmynotes/issues/136)) ([c93aede](https://github.com/jasonp2323/transformmynotes/commit/c93aedec1e4598e3488c9bc214b3316a14304138)), closes [#19](https://github.com/jasonp2323/transformmynotes/issues/19)
+* **marketing:** page shell & scaffold from design tokens (M9.1) ([#134](https://github.com/jasonp2323/transformmynotes/issues/134)) ([07337c2](https://github.com/jasonp2323/transformmynotes/commit/07337c2ab00760a7dc085e7e38b7c8109885bb61))
+
+
+### Bug Fixes
+
+* **scripts:** add missing release-notes-pure module ([#139](https://github.com/jasonp2323/transformmynotes/issues/139)) ([e43a2f0](https://github.com/jasonp2323/transformmynotes/commit/e43a2f03102164aab2212d8d587a34875eed94a0)), closes [#137](https://github.com/jasonp2323/transformmynotes/issues/137)
+
 ## [1.1.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.0.0...transformmynotes-v1.1.0) (2026-06-08)
 
 
