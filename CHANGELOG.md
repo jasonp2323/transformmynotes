@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.0.0...transformmynotes-v1.1.0) (2026-06-08)
+
+
+### Features
+
+* **application:** app shells — MobileShell, DesktopShell, AppShell (M1.6) ([#133](https://github.com/jasonp2323/transformmynotes/issues/133)) ([7470429](https://github.com/jasonp2323/transformmynotes/commit/7470429305e1dc4484b248034f4c43722194f326)), closes [#18](https://github.com/jasonp2323/transformmynotes/issues/18)
+
 ## 1.0.0 (2026-06-08)
 
 
