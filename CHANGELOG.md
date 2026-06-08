@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.7.0...transformmynotes-v1.8.0) (2026-06-08)
+
+
+### Features
+
+* **marketing:** "Request access" CTA strip (M9.5) ([#151](https://github.com/jasonp2323/transformmynotes/issues/151)) ([79126bc](https://github.com/jasonp2323/transformmynotes/commit/79126bcfb1c45fb15eda0d9a64da4131b83bd548)), closes [#7](https://github.com/jasonp2323/transformmynotes/issues/7)
+
 ## [1.7.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.6.0...transformmynotes-v1.7.0) (2026-06-08)
 
 
