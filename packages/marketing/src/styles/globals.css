@@ -1,0 +1,5 @@
+@import './fonts.css';
+
+body {
+  font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+}

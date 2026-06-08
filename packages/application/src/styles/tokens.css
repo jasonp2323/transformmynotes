@@ -1,0 +1,267 @@
+/* ============================================================
+   TransformMyNotes — CSS Design Tokens
+   ------------------------------------------------------------
+   Single :root block merging all four token files:
+     colors.css, typography.css, spacing.css, effects.css
+   Source: .design/_ds/transformmynotes-design-system-33c9b381/tokens/
+   Note: fonts are provided by fonts.css (self-hosted). The design
+   system fonts.css @import is intentionally excluded here.
+   ============================================================ */
+
+:root {
+  /* ================================================================
+     COLORS
+     ================================================================ */
+
+  /* ---- Brand spectrum (the "transform" ramp, given palette) ---- */
+  --spectrum-1: #16747e; /* stormy teal   */
+  --spectrum-2: #307f70; /* jungle teal   */
+  --spectrum-3: #4a8a62; /* sea green     */
+  --spectrum-4: #649554; /* sage green    */
+  --spectrum-5: #7ea046; /* sage green 2  */
+  --spectrum-6: #97ab38; /* lime moss     */
+  --spectrum-7: #b1b62a; /* lime moss 2   */
+  --spectrum-8: #cbc11c; /* golden glow   */
+  --spectrum-9: #e5cc0e; /* golden glow 2 */
+  --spectrum-10: #ffd700; /* gold         */
+
+  /* The signature brand gradient — use sparingly for hero / mark moments */
+  --gradient-transform: linear-gradient(
+    105deg,
+    var(--spectrum-1) 0%,
+    var(--spectrum-3) 34%,
+    var(--spectrum-6) 66%,
+    var(--spectrum-10) 100%
+  );
+  --gradient-teal: linear-gradient(135deg, var(--spectrum-1), var(--spectrum-3));
+  --gradient-highlighter: linear-gradient(120deg, var(--spectrum-9), var(--spectrum-10));
+
+  /* ---- Teal/green brand scale (primary) ---- */
+  --teal-50:  #e9f3f1;
+  --teal-100: #cbe4df;
+  --teal-200: #9fcdc4;
+  --teal-300: #6fb3a7;
+  --teal-400: #459688;
+  --teal-500: #307f70; /* jungle teal — primary */
+  --teal-600: #1f6d64;
+  --teal-700: #16747e; /* stormy teal — deep / pressed */
+  --teal-800: #12424a;
+  --teal-900: #0e3036;
+
+  /* ---- Gold / highlighter scale (accent) ---- */
+  --gold-50:  #fbf6d8;
+  --gold-100: #f6ecae;
+  --gold-200: #efde74;
+  --gold-300: #e5cc0e; /* golden glow 2 */
+  --gold-400: #ffd700; /* gold — accent */
+  --gold-500: #e6c000;
+  --gold-600: #b89800;
+
+  /* ---- Warm neutral "paper & ink" scale ---- */
+  --stone-50:  #faf7f0; /* lightest paper */
+  --stone-100: #f3eee2;
+  --stone-200: #e7e0d0;
+  --stone-300: #d6ccb8;
+  --stone-400: #b4a98f;
+  --stone-500: #8b8169;
+  --stone-600: #6a6250;
+  --stone-700: #4d473a;
+  --stone-800: #322e25;
+  --stone-900: #211e17; /* ink */
+
+  /* ---- Functional colors (derived — not in source palette) ---- */
+  --success-500: #4a8a62; /* sea green */
+  --success-50:  #e7f1ea;
+  --warning-500: #d99311; /* warm amber */
+  --warning-50:  #fbf0db;
+  --danger-500:  #c2542f; /* terracotta */
+  --danger-50:   #f8e7df;
+  --info-500:    #16747e; /* stormy teal */
+  --info-50:     #e3f0f1;
+
+  /* ---- Semantic aliases — prefer these in components ---- */
+
+  /* Surfaces (warm paper) */
+  --surface-app:      #f5f1e8; /* app background — warm ivory */
+  --surface-card:     #fffdf8; /* cards / sheets — soft paper white */
+  --surface-raised:   #ffffff; /* popovers, menus */
+  --surface-sunken:   #efe9db; /* wells, inputs at rest */
+  --surface-inverse:  var(--stone-900);
+  --surface-brand-soft: var(--teal-50);
+  --surface-accent-soft: var(--gold-50);
+
+  /* Text / ink */
+  --text-strong:  var(--stone-900);
+  --text-body:    var(--stone-800);
+  --text-muted:   var(--stone-600);
+  --text-subtle:  var(--stone-500);
+  --text-onbrand: #ffffff;
+  --text-onaccent: var(--stone-900); /* gold needs dark text */
+  --text-inverse: var(--stone-50);
+  --text-link:    var(--teal-700);
+
+  /* Borders / lines (warm, low contrast) */
+  --border-subtle:  #e7e0d0;
+  --border-default: #d8cfba;
+  --border-strong:  #c2b79e;
+  --border-brand:   var(--teal-500);
+
+  /* Brand roles */
+  --brand:         var(--teal-500);
+  --brand-hover:   var(--teal-600);
+  --brand-press:   var(--teal-700);
+  --brand-strong:  var(--teal-700);
+  --on-brand:      #ffffff;
+
+  --accent:        var(--gold-400);
+  --accent-hover:  var(--gold-500);
+  --accent-press:  var(--gold-600);
+  --on-accent:     var(--stone-900);
+
+  /* Highlighter — translucent gold for marking text (core brand motif) */
+  --highlighter:        rgba(255, 215, 0, 0.38);
+  --highlighter-strong: rgba(255, 215, 0, 0.55);
+  --highlighter-teal:   rgba(48, 127, 112, 0.18);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 3px rgba(48, 127, 112, 0.32);
+
+  /* Status roles */
+  --success: var(--success-500);
+  --warning: var(--warning-500);
+  --danger:  var(--danger-500);
+  --info:    var(--info-500);
+
+  /* ================================================================
+     TYPOGRAPHY
+     ================================================================ */
+
+  /* ---- Families ---- */
+  --font-serif:  'Newsreader', 'Iowan Old Style', Georgia, serif;       /* reading + display */
+  --font-sans:   'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif; /* UI chrome */
+  --font-hand:   'Caveat', 'Segoe Script', cursive;                      /* handwritten accent */
+  --font-mono:   'Spline Sans Mono', ui-monospace, 'SFMono-Regular', monospace; /* metadata */
+
+  /* ---- Weights ---- */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ---- Type scale (px, fluid-friendly) ---- */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-md:   18px;
+  --text-lg:   20px;
+  --text-xl:   24px;
+  --text-2xl:  30px;
+  --text-3xl:  38px;
+  --text-4xl:  48px;
+  --text-5xl:  60px;
+
+  /* ---- Line heights ---- */
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.7;  /* long-form reading */
+
+  /* ---- Letter spacing ---- */
+  --tracking-tight:  -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide:   0.04em;
+  --tracking-caps:   0.08em; /* small caps / eyebrows */
+
+  /* ---- Semantic type roles ---- */
+
+  /* Display — serif, the literary voice */
+  --type-display-font: var(--font-serif);
+  --type-display-weight: var(--weight-semibold);
+  --type-display-leading: var(--leading-tight);
+  --type-display-tracking: var(--tracking-tight);
+
+  /* Headings — serif */
+  --type-heading-font: var(--font-serif);
+  --type-heading-weight: var(--weight-semibold);
+  --type-heading-leading: var(--leading-snug);
+
+  /* Body — serif for reading surfaces, sans for chrome.
+     Reading body defaults to serif; UI body to sans. */
+  --type-read-font: var(--font-serif);
+  --type-read-leading: var(--leading-relaxed);
+  --type-ui-font: var(--font-sans);
+  --type-ui-leading: var(--leading-normal);
+
+  /* Label / eyebrow — sans, slight tracking */
+  --type-label-font: var(--font-sans);
+  --type-label-weight: var(--weight-semibold);
+  --type-label-tracking: var(--tracking-caps);
+
+  /* Meta / mono */
+  --type-meta-font: var(--font-mono);
+  --type-meta-weight: var(--weight-regular);
+
+  /* ================================================================
+     SPACING & SIZING
+     ================================================================ */
+
+  --space-0:   0;
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-7:   32px;
+  --space-8:   40px;
+  --space-9:   48px;
+  --space-10:  64px;
+  --space-11:  80px;
+  --space-12:  96px;
+
+  /* Layout */
+  --container-sm: 480px;   /* mobile reading column */
+  --container-md: 720px;   /* tablet / reading max */
+  --container-lg: 1040px;
+  --gutter: var(--space-5);
+
+  /* Touch targets — never below 44px on mobile */
+  --tap-min: 44px;
+
+  /* Reading measure */
+  --measure: 66ch;
+
+  /* ================================================================
+     RADIUS, SHADOW & MOTION (effects)
+     ================================================================ */
+
+  /* ---- Corner radius (organic, generous) ---- */
+  --radius-xs:  4px;
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  22px;
+  --radius-2xl: 28px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows (warm-tinted, soft) ---- */
+  --shadow-xs:  0 1px 2px rgba(50, 46, 37, 0.06);
+  --shadow-sm:  0 2px 6px rgba(50, 46, 37, 0.08);
+  --shadow-md:  0 6px 18px rgba(50, 46, 37, 0.10);
+  --shadow-lg:  0 14px 36px rgba(50, 46, 37, 0.14);
+  --shadow-xl:  0 28px 60px rgba(33, 30, 23, 0.18);
+  /* Inset for sunken inputs / wells */
+  --shadow-inset: inset 0 1px 2px rgba(50, 46, 37, 0.07);
+  /* Soft brand glow for active highlight states */
+  --shadow-brand: 0 8px 24px rgba(48, 127, 112, 0.22);
+
+  /* ---- Motion ---- */
+  --ease-soft:  cubic-bezier(0.32, 0.72, 0.26, 1); /* default — gentle settle */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-fast:   140ms;
+  --dur-base:   240ms;
+  --dur-slow:   380ms;
+  --dur-slower: 600ms;
+}
