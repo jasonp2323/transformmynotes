@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { PutCommand, GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { userDataKeys } from '../src/db/keys.js';
+import { buildUserProfileItem } from '../src/auth/profile.js';
 
 describe('UserData table — write/read round-trip', () => {
   it('reads back the exact item that was written', async () => {
@@ -171,5 +172,75 @@ describe('UserData table — GSI1 status index', () => {
       }),
     );
     expect(after!.some((i) => i.pk === `USER#${userId}`)).toBe(false);
+  });
+});
+
+describe('buildUserProfileItem — write/read round-trip via real DDB builder', () => {
+  it('writes and reads back a pending profile by primary key', async () => {
+    const sub = 'pc-int-1';
+    const profile = buildUserProfileItem({
+      sub,
+      email: 'a@b.com',
+      status: 'pending',
+      role: 'member',
+    });
+
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.UserData,
+        Item: profile,
+      }),
+    );
+
+    const { Item } = await ddb.send(
+      new GetCommand({
+        TableName: TableNames.UserData,
+        Key: userDataKeys.profile(sub),
+      }),
+    );
+
+    expect(Item).toBeDefined();
+    expect(Item!.pk).toBe(`USER#${sub}`);
+    expect(Item!.sk).toBe('PROFILE');
+    expect(Item!.sub).toBe(sub);
+    expect(Item!.email).toBe('a@b.com');
+    expect(Item!.status).toBe('pending');
+    expect(Item!.role).toBe('member');
+    expect(Item!.noteCount).toBe(0);
+    expect(Item!.groupIds).toEqual([]);
+    expect(Item!.name).toBe('');
+  });
+
+  it('includes the profile in a listByStatus("pending") GSI query', async () => {
+    // The previous test wrote pc-int-1 as pending — re-use that or write again.
+    const sub = 'pc-int-2';
+    const profile = buildUserProfileItem({
+      sub,
+      email: 'pc-int-2@b.com',
+      status: 'pending',
+      role: 'member',
+    });
+
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.UserData,
+        Item: profile,
+      }),
+    );
+
+    const { Items } = await ddb.send(
+      new QueryCommand({
+        TableName: TableNames.UserData,
+        ...userDataKeys.listByStatus('pending'),
+        FilterExpression: 'pk = :pk',
+        ExpressionAttributeValues: {
+          ...userDataKeys.listByStatus('pending').ExpressionAttributeValues,
+          ':pk': `USER#${sub}`,
+        },
+      }),
+    );
+
+    expect(Items).toBeDefined();
+    expect(Items!.some((i) => i.pk === `USER#${sub}`)).toBe(true);
   });
 });

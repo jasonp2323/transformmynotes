@@ -22,8 +22,8 @@ export default $config({
   async run() {
     await import("./infra/secrets");
     await import("./infra/router");
-    await import("./infra/auth");
     await import("./infra/db");
+    await import("./infra/auth");
     const { marketing } = await import("./infra/marketing");
     const { application } = await import("./infra/application");
     await import("./infra/jobs");
