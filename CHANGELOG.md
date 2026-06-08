@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.8.0...transformmynotes-v1.9.0) (2026-06-08)
+
+
+### Features
+
+* **auth:** Post-Confirmation Lambda for user provisioning (M2.2) ([#154](https://github.com/jasonp2323/transformmynotes/issues/154)) ([4e29224](https://github.com/jasonp2323/transformmynotes/commit/4e292242b94d24303c45ab85d009c9fb31f1e457))
+
 ## [1.8.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.7.0...transformmynotes-v1.8.0) (2026-06-08)
 
 
