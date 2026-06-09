@@ -6,3 +6,5 @@
 // custom domain only). App-specific secrets (e.g. transactional email) are added
 // in the milestone that introduces the feature that consumes them.
 export const webDomain = new sst.Secret("WEB_DOMAIN");
+
+export const bedrockInferenceProfileId = new sst.Secret("BEDROCK_MODEL_ID");
