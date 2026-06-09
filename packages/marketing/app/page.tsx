@@ -4,6 +4,7 @@ import Capabilities from '../src/components/Capabilities';
 import HowItWorks from '../src/components/HowItWorks';
 import Closing from '../src/components/Closing';
 import RevealObserver from '../src/components/Reveal';
+import Footer from '../src/components/Footer';
 
 export default function HomePage() {
   return (
@@ -18,6 +19,7 @@ export default function HomePage() {
             to all [data-reveal] elements — renders nothing to the DOM */}
         <RevealObserver />
       </main>
+      <Footer />
     </>
   );
 }
