@@ -17,7 +17,10 @@ test('landing page', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toContainText(/transform/i);
 
   // The logo is rendered as an <img alt="TransformMyNotes"> by the Header.
-  await expect(page.getByRole('img', { name: 'TransformMyNotes' })).toBeVisible();
+  // (The footer also renders the wordmark, so scope this to the banner/header.)
+  await expect(
+    page.getByRole('banner').getByRole('img', { name: 'TransformMyNotes' }),
+  ).toBeVisible();
 
   // "Request access" appears in both the header and the hero CTA — scope to the
   // hero section (#top) to assert the primary CTA links to the app sign-up.
