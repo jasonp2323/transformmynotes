@@ -1,6 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain, bedrockInferenceProfileId } from "./secrets";
+import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups } from "./db";
 import { notesBucket } from "./storage";
@@ -19,6 +19,8 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_Groups_name: groups.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_STAGE: $app.stage,
+    RESEND_API_KEY: resendApiKey.value,
+    INVITE_FROM_ADDRESS: inviteFromAddress.value,
   },
   permissions: [
     {
