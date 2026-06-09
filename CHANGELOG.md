@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.16.0...transformmynotes-v1.17.0) (2026-06-09)
+
+
+### 🚀 Features
+
+* **application:** admin invite create/revoke API routes (M3.4) ([#204](https://github.com/jasonp2323/transformmynotes/issues/204)) ([527f48b](https://github.com/jasonp2323/transformmynotes/commit/527f48b5ff15fb6fe3b020b7283f666f022a627b))
+
 ## [1.16.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.15.0...transformmynotes-v1.16.0) (2026-06-09)
 
 
