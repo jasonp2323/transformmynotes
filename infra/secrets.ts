@@ -8,3 +8,7 @@
 export const webDomain = new sst.Secret("WEB_DOMAIN");
 
 export const bedrockInferenceProfileId = new sst.Secret("BEDROCK_MODEL_ID");
+
+// M3 transactional email (Resend).
+export const resendApiKey = new sst.Secret("RESEND_API_KEY");
+export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
