@@ -3,7 +3,7 @@ import { verifyIdToken } from '@/lib/verify-id-token';
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get('CognitoIdToken')?.value;
-  const loginUrl = new URL('/auth/login', req.url);
+  const loginUrl = new URL('/login', req.url);
   if (!token) {
     return NextResponse.redirect(loginUrl);
   }
