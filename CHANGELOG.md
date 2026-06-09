@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.10.0...transformmynotes-v1.11.0) (2026-06-09)
+
+
+### Features
+
+* **application:** centralize Amplify Auth config at app root (M2.3) ([#158](https://github.com/jasonp2323/transformmynotes/issues/158)) ([c4f73a9](https://github.com/jasonp2323/transformmynotes/commit/c4f73a9ea955646616011d00d4c05dec477bf17f))
+
 ## [1.10.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.9.0...transformmynotes-v1.10.0) (2026-06-09)
 
 
