@@ -1,6 +1,6 @@
 # TransformMyNotes — Delivery Roadmap
 
-AI-paced schedule for the 11 milestones. Durations are compressed for agent-driven
+AI-paced schedule for the 13 milestones. Durations are compressed for agent-driven
 implementation (an `L` milestone is planned at ~3 days, `XL` at ~4, `M` at ~2), not the weeks a
 human team would take. Where milestones don't depend on each other they are scheduled **in
 parallel** and tagged with the same **Wave** — those can be dispatched to separate agents at the
@@ -10,8 +10,8 @@ This file is the source of truth; it's mirrored onto **Project board #5**
 (https://github.com/users/jasonp2323/projects/5) via the `Wave`, `Start date`, and `Target date`
 fields, and onto each GitHub **milestone's due date**.
 
-- **Window:** 2026-06-08 → 2026-07-03 (~26 calendar days)
-- **If run fully sequentially** it would be ~33 days; the parallel waves save ~1 week.
+- **Window:** 2026-06-08 → 2026-07-06 (~29 calendar days; M11/M12 post-launch run in one parallel wave)
+- **If run fully sequentially** it would be ~36 days; the parallel waves save ~1 week.
 
 ## Dependency graph
 
@@ -31,7 +31,13 @@ flowchart LR
   M7 --> M10
   M8 --> M10
   M9 --> M10
+  M10 --> M11["M11 · Security hardening (L)"]
+  M10 --> M12["M12 · Android app · Capacitor (L)"]
 ```
+
+> **Post-launch milestones (M11–M12)** run after the production cutover in M10. They are
+> independent of each other — Security (auth/app hardening) and the Android wrapper touch
+> different surfaces — so they share a wave and can be dispatched in parallel.
 
 ## Schedule (Gantt)
 
@@ -59,6 +65,9 @@ gantt
   M8 Review deck / SRS (L)      :m8, after m6, 3d
   section Launch
   M10 Hardening & launch (L)    :m10, after m8, 3d
+  section Wave 9 — Security ∥ Mobile
+  M11 Security hardening (L)    :m11, after m10, 3d
+  M12 Android app · Capacitor (L):m12, after m10, 3d
 ```
 
 ## Wave-by-wave dispatch plan
@@ -77,6 +86,7 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | **6** | **M6** | Jun 25–27 | Library + search depend on the saved-note shape from M5. |
 | **7** | **M7** ∥ **M8** | Jun 28–30 | Both extend the M6 note model independently — Sharing adds `SHARE` items + a recipient GSI; Review deck adds `CARD` items + a due GSI. No overlap beyond reading a saved note. |
 | **8** | **M10** | Jul 1–3 | Hardening/launch needs everything merged; run last, alone. |
+| **9** | **M11** ∥ **M12** | Jul 4–6 | Post-launch. Security hardening (Turnstile/headers/scanning on the app) and the Android Capacitor wrapper touch different surfaces and don't share code — safe in parallel. Both depend only on the launched production app (M10). |
 
 ### Parallelization notes / light coupling to watch
 - **M3 ∥ M4 (Wave 4):** both add DynamoDB access patterns. Keep new key builders in
@@ -103,9 +113,12 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | M7 | Sharing & collaboration | L | 7 | Jun 28 | Jun 30 | M6 | M8 |
 | M8 | Review deck / spaced repetition | L | 7 | Jun 28 | Jun 30 | M6 | M7 |
 | M10 | Hardening & launch | L | 8 | Jul 1 | Jul 3 | all prior | — |
+| M11 | Security hardening | L | 9 | Jul 4 | Jul 6 | M2, M3, M10 | M12 |
+| M12 | Android app · Capacitor | L | 9 | Jul 4 | Jul 6 | M10 | M11 |
 
-> Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10**.
-> Shortening any of these directly shortens the whole project; M3, M9, and M7 have slack.
+> Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12}**.
+> Shortening any of these directly shortens the whole project; M3, M9, and M7 have slack. The two
+> post-launch milestones (M11, M12) run in parallel after M10, so they add one wave (~3 days), not two.
 
 ## Sub-tasks on the timeline
 
