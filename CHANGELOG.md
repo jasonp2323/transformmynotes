@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.12.0...transformmynotes-v1.13.0) (2026-06-09)
+
+
+### Features
+
+* **marketing:** public /changelog page rendering GitHub Releases (M9.8) ([#163](https://github.com/jasonp2323/transformmynotes/issues/163)) ([e24fd37](https://github.com/jasonp2323/transformmynotes/commit/e24fd378373bf66415b879aeb2617877cd63fe9b))
+
 ## [1.12.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.11.0...transformmynotes-v1.12.0) (2026-06-09)
 
 
