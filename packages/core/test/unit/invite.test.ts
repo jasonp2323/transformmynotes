@@ -30,6 +30,14 @@ describe('hashInviteCode', () => {
   it('produces different hashes for different inputs', () => {
     expect(hashInviteCode('code-one')).not.toBe(hashInviteCode('code-two'));
   });
+
+  it('strips dashes so formatted and unformatted codes hash identically', () => {
+    expect(hashInviteCode('ABCD-EFGH')).toBe(hashInviteCode('ABCDEFGH'));
+  });
+
+  it('strips internal whitespace so spaced and raw codes hash identically', () => {
+    expect(hashInviteCode('abcd efgh')).toBe(hashInviteCode('abcdefgh'));
+  });
 });
 
 describe('evaluateInvite', () => {

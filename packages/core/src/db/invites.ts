@@ -1,4 +1,4 @@
-import { PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, UpdateCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { inviteKeys } from './keys.js';
 import { buildInviteItem, hashInviteCode, type InviteItem, type InviteType } from '../auth/invite.js';
@@ -171,6 +171,103 @@ export async function claimInvite(
       (err as { name: string }).name === 'ConditionalCheckFailedException'
     ) {
       return { ok: false, reason: 'unavailable' };
+    }
+    throw err;
+  }
+}
+
+/** Result of a successful revoke. */
+export interface RevokeInviteSuccess {
+  ok: true;
+  item: InviteItem;
+}
+
+/** Result of a failed revoke — invite not found or already revoked. */
+export interface RevokeInviteFailure {
+  ok: false;
+  reason: 'not_found' | 'already_revoked';
+}
+
+export type RevokeInviteResult = RevokeInviteSuccess | RevokeInviteFailure;
+
+/**
+ * Revokes an invite by its codeHash.
+ *
+ * Fetches the current item first to detect not-found / already-revoked, then
+ * does a conditional UpdateCommand that flips `status` to `'revoked'` and
+ * moves the GSI1 sort key to the `revoked#<createdAt>` partition so
+ * `inviteKeys.listByStatus('revoked')` finds it.
+ *
+ * @param codeHash   - The SHA-256 hash of the invite code (NOT the raw code).
+ * @param opts.auditNotes - Optional notes stored alongside the revocation.
+ * @param opts.now        - Timestamp to use for `updatedAt` (defaults to `new Date()`).
+ */
+export async function revokeInvite(
+  codeHash: string,
+  opts?: { auditNotes?: string; now?: Date },
+): Promise<RevokeInviteResult> {
+  const key = inviteKeys.invite(codeHash);
+  const now = opts?.now ?? new Date();
+
+  // Step 1: Get the current item to check existence and current status,
+  // and to read `createdAt` needed to build the new gsi1sk.
+  const { Item } = await ddb.send(
+    new GetCommand({
+      TableName: TableNames.Invites,
+      Key: key,
+    }),
+  );
+
+  if (Item === undefined) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  if ((Item as InviteItem).status === 'revoked') {
+    return { ok: false, reason: 'already_revoked' };
+  }
+
+  const createdAt = (Item as InviteItem).createdAt;
+  const updatedAt = now.toISOString();
+  const gsi1sk = `revoked#${createdAt}`;
+
+  // Step 2: Conditionally update the item to 'revoked'.
+  let updateExpression =
+    'SET #status = :revoked, gsi1sk = :gsi1sk, updatedAt = :updatedAt';
+  const expressionAttributeValues: UpdateCommandInput['ExpressionAttributeValues'] = {
+    ':revoked': 'revoked',
+    ':gsi1sk': gsi1sk,
+    ':updatedAt': updatedAt,
+  };
+
+  if (opts?.auditNotes !== undefined) {
+    updateExpression += ', auditNotes = :auditNotes';
+    expressionAttributeValues[':auditNotes'] = opts.auditNotes;
+  }
+
+  try {
+    const result = await ddb.send(
+      new UpdateCommand({
+        TableName: TableNames.Invites,
+        Key: key,
+        UpdateExpression: updateExpression,
+        ConditionExpression: 'attribute_exists(pk) AND #status <> :revoked',
+        ExpressionAttributeNames: {
+          '#status': 'status',
+        },
+        ExpressionAttributeValues: expressionAttributeValues,
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+
+    return { ok: true, item: result.Attributes as InviteItem };
+  } catch (err: unknown) {
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'name' in err &&
+      (err as { name: string }).name === 'ConditionalCheckFailedException'
+    ) {
+      return { ok: false, reason: 'already_revoked' };
     }
     throw err;
   }
