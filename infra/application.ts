@@ -2,18 +2,19 @@
 import { router } from "./router";
 import { webDomain } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
-import { userData } from "./db";
+import { userData, invites } from "./db";
 
 const isProd = $app.stage === "production";
 const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
-  link: [userPool, userPoolClient, userData],
+  link: [userPool, userPoolClient, userData, invites],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: userPoolClient.id,
     SST_RESOURCE_UserData_name: userData.name,
+    SST_RESOURCE_Invites_name: invites.name,
     SST_STAGE: $app.stage,
   },
   permissions: [

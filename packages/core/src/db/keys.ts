@@ -64,3 +64,46 @@ export const accessRequestKeys = {
     ExpressionAttributeValues: { ':gsi1pk': `ACCESSREQ_STATUS#${status}` },
   }),
 };
+
+/** Possible invite statuses stored in the GSI1 sort key prefix. */
+export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked';
+
+/** Possible invite types. */
+export type InviteType = 'email' | 'code';
+
+/** `Invites` table keys. PK = `INVITE#<codeHash>`, SK = `INVITE`. */
+export const inviteKeys = {
+  /** Primary key for a single invite record (one per unique code hash). */
+  invite: (codeHash: string) => ({ pk: `INVITE#${codeHash}`, sk: 'INVITE' as const }),
+
+  /**
+   * GSI1 key attributes for an invite item.
+   * gsi1pk = `INVITES` (all invites in one partition), gsi1sk = `<status>#<ISO-8601 createdAt>`.
+   * Attach these alongside the primary keys when writing/updating an invite.
+   */
+  statusIndex: (status: InviteStatus, createdAt: string) => ({
+    gsi1pk: 'INVITES',
+    gsi1sk: `${status}#${createdAt}`,
+  }),
+
+  /**
+   * Query parameters for listing all invites with a given status via GSI1,
+   * in ascending chronological order (oldest → newest).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listByStatus: (status: InviteStatus) => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :gsi1pk AND begins_with(gsi1sk, :prefix)',
+    ExpressionAttributeValues: { ':gsi1pk': 'INVITES', ':prefix': `${status}#` },
+  }),
+
+  /**
+   * Query parameters for listing all invites via GSI1 (all statuses).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listAll: () => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :gsi1pk',
+    ExpressionAttributeValues: { ':gsi1pk': 'INVITES' },
+  }),
+};

@@ -11,3 +11,4 @@
 export const DYNALITE_PORT = Number(process.env.DYNALITE_PORT) || 4569;
 export const DYNALITE_ENDPOINT = `http://127.0.0.1:${DYNALITE_PORT}`;
 export const USER_DATA_TABLE = 'UserData';
+export const INVITES_TABLE = 'Invites';
