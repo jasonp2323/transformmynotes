@@ -2,11 +2,17 @@ import { createHash, randomBytes } from 'node:crypto';
 import { inviteKeys, type InviteStatus, type InviteType } from '../db/keys.js';
 
 /**
- * Returns the SHA-256 hex digest of the trimmed, lowercased invite code.
+ * Returns the SHA-256 hex digest of the normalised invite code.
+ * Normalisation: trim leading/trailing whitespace, strip all non-alphanumeric
+ * characters (separators, dashes, internal spaces, etc.), then lowercase.
+ * This ensures formatted codes (e.g. `ABCD-EFGH`) hash identically to their
+ * raw counterparts (`ABCDEFGH`).
  * This is the canonical way to derive the DynamoDB key from a raw user-supplied code.
  */
 export function hashInviteCode(code: string): string {
-  return createHash('sha256').update(code.trim().toLowerCase()).digest('hex');
+  return createHash('sha256')
+    .update(code.trim().replace(/[^a-z0-9]/gi, '').toLowerCase())
+    .digest('hex');
 }
 
 /**

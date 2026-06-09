@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { inviteKeys } from '../src/db/keys.js';
-import { putInvite, getInviteByCode, claimInvite } from '../src/db/invites.js';
+import { putInvite, getInviteByCode, claimInvite, revokeInvite } from '../src/db/invites.js';
 import { hashInviteCode } from '../src/auth/invite.js';
 
 // ---------------------------------------------------------------------------
@@ -271,5 +271,90 @@ describe('claimInvite — concurrent redemption guard', () => {
     // Never over-redeemed past the cap.
     expect(finalItem!.usedCount).toBe(3);
     expect(finalItem!.status).toBe('used');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// revokeInvite
+// ---------------------------------------------------------------------------
+
+describe('revokeInvite', () => {
+  it('revokes a pending invite: ok:true, status=revoked, gsi1sk starts with revoked#', async () => {
+    const code = 'REVOKE-001';
+    const item = await putInvite({ code, type: 'code', maxUses: 5 });
+    const codeHash = hashInviteCode(code);
+
+    const result = await revokeInvite(codeHash);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.item.status).toBe('revoked');
+      expect(result.item.gsi1sk).toMatch(/^revoked#/);
+      expect(result.item.gsi1sk).toBe(`revoked#${item.createdAt}`);
+    }
+  });
+
+  it('revoked invite appears in listByStatus("revoked") GSI query', async () => {
+    const code = 'REVOKE-GSI-001';
+    await putInvite({ code, type: 'code', maxUses: 5 });
+    const codeHash = hashInviteCode(code);
+
+    const revokeResult = await revokeInvite(codeHash);
+    expect(revokeResult.ok).toBe(true);
+
+    const { Items } = await ddb.send(
+      new QueryCommand({
+        TableName: TableNames.Invites,
+        ...inviteKeys.listByStatus('revoked'),
+      }),
+    );
+
+    expect(Items).toBeDefined();
+    const revokedPks = Items!.map((i) => i.pk as string);
+    expect(revokedPks).toContain(`INVITE#${codeHash}`);
+  });
+
+  it('returns { ok: false, reason: "not_found" } for a non-existent codeHash', async () => {
+    const result = await revokeInvite('nonexistent-hash-that-does-not-exist-in-table');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('not_found');
+    }
+  });
+
+  it('returns { ok: false, reason: "already_revoked" } when revoking an already-revoked invite', async () => {
+    const code = 'REVOKE-DOUBLE-001';
+    const item = await putInvite({ code, type: 'code', maxUses: 5 });
+    const codeHash = hashInviteCode(code);
+
+    // First revoke succeeds.
+    const first = await revokeInvite(codeHash);
+    expect(first.ok).toBe(true);
+
+    // Second revoke of the same invite should fail.
+    const second = await revokeInvite(codeHash);
+    expect(second.ok).toBe(false);
+    if (!second.ok) {
+      expect(second.reason).toBe('already_revoked');
+    }
+
+    // Suppress unused variable warning.
+    void item;
+  });
+
+  it('persists auditNotes when provided', async () => {
+    const code = 'REVOKE-AUDIT-001';
+    await putInvite({ code, type: 'code', maxUses: 5 });
+    const codeHash = hashInviteCode(code);
+
+    const result = await revokeInvite(codeHash, { auditNotes: 'Revoked by admin for policy violation' });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect((result.item as { auditNotes?: string }).auditNotes).toBe(
+        'Revoked by admin for policy violation',
+      );
+    }
   });
 });
