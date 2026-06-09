@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.14.0...transformmynotes-v1.15.0) (2026-06-09)
+
+
+### Features
+
+* **application:** route gating — admin claim gate + active-status server gate (M2.8) ([#192](https://github.com/jasonp2323/transformmynotes/issues/192)) ([f78f9c0](https://github.com/jasonp2323/transformmynotes/commit/f78f9c0d39e37ac9c577107cb744cdb35ff96968))
+
 ## [1.14.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.13.0...transformmynotes-v1.14.0) (2026-06-09)
 
 
