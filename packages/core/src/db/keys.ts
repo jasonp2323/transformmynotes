@@ -107,3 +107,65 @@ export const inviteKeys = {
     ExpressionAttributeValues: { ':gsi1pk': 'INVITES' },
   }),
 };
+
+/** Possible roles a user can hold within a group. */
+export type GroupRole = 'member' | 'admin';
+
+/**
+ * `Groups` table keys.
+ *
+ * Two item shapes live in this table:
+ *   - Group metadata: PK = `GROUP#<groupId>`, SK = `META`
+ *   - Group membership: PK = `GROUP#<groupId>`, SK = `MEMBER#<userSub>`
+ *
+ * The membership item also carries GSI1 keys for the inverted user→groups index:
+ *   gsi1pk = `USER#<userSub>`, gsi1sk = `GROUP#<groupId>`
+ */
+export const groupKeys = {
+  /**
+   * Primary key for a group metadata item (one per group).
+   * PK = `GROUP#<groupId>`, SK = `META`.
+   */
+  groupMetaKey: (groupId: string) => ({ pk: `GROUP#${groupId}`, sk: 'META' as const }),
+
+  /**
+   * Primary key for a group membership item (one per group+user pair).
+   * PK = `GROUP#<groupId>`, SK = `MEMBER#<userSub>`.
+   */
+  groupMemberKey: (groupId: string, userSub: string) => ({
+    pk: `GROUP#${groupId}`,
+    sk: `MEMBER#${userSub}`,
+  }),
+
+  /**
+   * GSI1 key attributes for a membership item.
+   * gsi1pk = `USER#<userSub>`, gsi1sk = `GROUP#<groupId>`.
+   * Attach these alongside the primary keys when writing a membership item.
+   */
+  userGroupsIndexKey: (userSub: string, groupId: string) => ({
+    gsi1pk: `USER#${userSub}`,
+    gsi1sk: `GROUP#${groupId}`,
+  }),
+
+  /**
+   * Query parameters for listing all membership items in a group via the primary index.
+   * Matches SK values with prefix `MEMBER#`, so the META item is excluded.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listGroupMembers: (groupId: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: { ':pk': `GROUP#${groupId}`, ':prefix': 'MEMBER#' },
+  }),
+
+  /**
+   * Query parameters for listing all groups a user belongs to via GSI1.
+   * Matches gsi1sk values with prefix `GROUP#`, so only group membership items
+   * are returned (not any other USER# indexed items that might exist).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listUserGroups: (userSub: string) => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :gsi1pk AND begins_with(gsi1sk, :prefix)',
+    ExpressionAttributeValues: { ':gsi1pk': `USER#${userSub}`, ':prefix': 'GROUP#' },
+  }),
+};

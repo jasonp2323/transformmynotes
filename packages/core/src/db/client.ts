@@ -36,4 +36,7 @@ export const TableNames = {
   get Invites(): string {
     return requireTableName('SST_RESOURCE_Invites_name');
   },
+  get Groups(): string {
+    return requireTableName('SST_RESOURCE_Groups_name');
+  },
 } as const;
