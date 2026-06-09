@@ -1,4 +1,5 @@
 import '../src/styles/globals.css';
+import { AmplifyProvider } from './amplify-provider';
 
 export const metadata = { title: 'TransformMyNotes' };
 
@@ -9,7 +10,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AmplifyProvider />
+        {children}
+      </body>
     </html>
   );
 }

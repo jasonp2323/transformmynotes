@@ -1,8 +1,7 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { signIn, fetchAuthSession } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
-import { configureAmplify } from '../../../lib/amplify-config';
 import { Input, Button, IconButton } from '@/src/components/ui';
 
 function EyeIcon({ size = 18 }: { size?: number }) {
@@ -50,10 +49,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    configureAmplify();
-  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

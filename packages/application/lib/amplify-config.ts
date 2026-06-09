@@ -1,12 +1,18 @@
 'use client';
 import { Amplify } from 'aws-amplify';
+import { buildAmplifyAuthConfig } from './amplify-config-builder';
 
+/**
+ * Configure Amplify Auth on the client from the public Cognito env vars.
+ * `NEXT_PUBLIC_COGNITO_ENDPOINT` (optional) points Amplify at a local
+ * cognito-local emulator for offline dev/E2E; unset in deployed stages.
+ */
 export function configureAmplify() {
-  const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID;
-  const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
-  if (!userPoolId || !userPoolClientId) return;
-  Amplify.configure(
-    { Auth: { Cognito: { userPoolId, userPoolClientId } } },
-    { ssr: true },
-  );
+  const auth = buildAmplifyAuthConfig({
+    userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+    userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+    endpoint: process.env.NEXT_PUBLIC_COGNITO_ENDPOINT,
+  });
+  if (!auth) return;
+  Amplify.configure({ Auth: auth }, { ssr: true });
 }
