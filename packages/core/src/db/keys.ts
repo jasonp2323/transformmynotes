@@ -169,3 +169,33 @@ export const groupKeys = {
     ExpressionAttributeValues: { ':gsi1pk': `USER#${userSub}`, ':prefix': 'GROUP#' },
   }),
 };
+
+/** Possible transcription job statuses. */
+export type TranscriptionJobStatus = 'pending' | 'processing' | 'done' | 'error';
+
+/**
+ * `TranscriptionJob` item keys, stored in the `UserData` table under the
+ * user's own partition. PK = `USER#<cognitoSub>`, SK = `JOB#<jobId>`.
+ * Ephemeral OCR job tracker (M4); fetched by PK+SK only — no GSI.
+ */
+export const jobKeys = {
+  /** Partition key for all of a user's items (shared with their profile). */
+  pk: (sub: string) => `USER#${sub}`,
+  /** Sort key for a single transcription job. */
+  sk: (jobId: string) => `JOB#${jobId}`,
+  /** Convenience: the full primary key for a job item. */
+  job: (sub: string, jobId: string) => ({ pk: `USER#${sub}`, sk: `JOB#${jobId}` }),
+  /** No GSI for transcription jobs in M4 — fetched by PK+SK only. */
+  gsi: undefined,
+};
+
+/**
+ * S3 object key builders for note assets. User-scoped prefixes keep IAM
+ * conditions simple and prevent cross-user reads.
+ *   images/users/<sub>/<id>.jpg     — original photo (presigned PUT)
+ *   markdown/users/<sub>/<id>.md    — transcription output (written server-side)
+ */
+export const storageKeys = {
+  originalImage: (sub: string, id: string) => `images/users/${sub}/${id}.jpg`,
+  noteMarkdown: (sub: string, id: string) => `markdown/users/${sub}/${id}.md`,
+};
