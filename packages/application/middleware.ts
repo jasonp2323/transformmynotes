@@ -5,5 +5,11 @@
 export { middleware } from './proxy';
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/app/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/notes/:path*',
+    '/review/:path*',
+    '/account/:path*',
+    '/admin/:path*',
+  ],
 };
