@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.11.0...transformmynotes-v1.12.0) (2026-06-09)
+
+
+### Features
+
+* **application:** login + forgot/reset-password pages (M2.4) ([#161](https://github.com/jasonp2323/transformmynotes/issues/161)) ([bd85445](https://github.com/jasonp2323/transformmynotes/commit/bd854459be173eee2b5a5d9263fb16ca229b9461))
+
 ## [1.11.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.10.0...transformmynotes-v1.11.0) (2026-06-09)
 
 
