@@ -176,7 +176,7 @@ export default function LoginPage() {
               color: 'var(--text-muted)',
             }}
           >
-            <AuthLink href="/register">Request access</AuthLink>
+            <AuthLink href="/request-access">Request access</AuthLink>
             <AuthLink href="/forgot-password">Forgot password?</AuthLink>
           </div>
         </form>
