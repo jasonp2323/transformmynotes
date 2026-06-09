@@ -101,12 +101,23 @@ describe('UserData table — GSI1 status index', () => {
     );
 
     expect(Items).toBeDefined();
-    expect(Items!.length).toBe(3);
+    // At least the three seeded pending users must be present (other tests may add more).
+    expect(Items!.length).toBeGreaterThanOrEqual(3);
+
+    // The three seeded users must all be present.
+    const pksInResult = Items!.map((i) => i.pk as string);
+    expect(pksInResult).toContain('USER#gsi-pending-001');
+    expect(pksInResult).toContain('USER#gsi-pending-002');
+    expect(pksInResult).toContain('USER#gsi-pending-003');
 
     // GSI1 range key is the ISO-8601 createdAt — ascending = chronological (oldest first).
-    expect(Items![0].userId ?? Items![0].pk).toContain('001');
-    expect(Items![1].userId ?? Items![1].pk).toContain('002');
-    expect(Items![2].userId ?? Items![2].pk).toContain('003');
+    // Find the positions of the three seeded pending users and confirm ordering.
+    const seededItems = Items!.filter((i) =>
+      ['USER#gsi-pending-001', 'USER#gsi-pending-002', 'USER#gsi-pending-003'].includes(i.pk as string),
+    );
+    expect(seededItems[0].pk).toBe('USER#gsi-pending-001');
+    expect(seededItems[1].pk).toBe('USER#gsi-pending-002');
+    expect(seededItems[2].pk).toBe('USER#gsi-pending-003');
 
     // Verify the active user is absent.
     const pks = Items!.map((i) => i.pk as string);

@@ -32,6 +32,8 @@ export interface UserProfileItem {
   noteCount: number;
   createdAt: string;
   updatedAt: string;
+  /** Optional notes set during admin actions (e.g. rejection or revocation reason). */
+  auditNotes?: string;
 }
 
 /**
