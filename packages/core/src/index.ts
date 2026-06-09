@@ -3,6 +3,7 @@ export * from './db/keys';
 export * from './db/access-requests';
 export * from './db/groups';
 export * from './db/invites';
+export * from './db/transcription-jobs';
 export * from './db/users';
 export * from './auth/invite';
 export * from './auth/profile';
