@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.9.0...transformmynotes-v1.10.0) (2026-06-09)
+
+
+### Features
+
+* **marketing:** SEO, Open Graph & sitemap (M9.6) ([9f7b83d](https://github.com/jasonp2323/transformmynotes/commit/9f7b83d9e89e1450834aad3c343812c082d258fb)), closes [#8](https://github.com/jasonp2323/transformmynotes/issues/8)
+
 ## [1.9.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.8.0...transformmynotes-v1.9.0) (2026-06-08)
 
 
