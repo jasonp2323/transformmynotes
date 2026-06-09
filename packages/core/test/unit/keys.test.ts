@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { userDataKeys, accessRequestKeys } from '../../src/db/keys';
+import { userDataKeys, accessRequestKeys, groupKeys } from '../../src/db/keys';
 import type { UserStatus, AccessRequestStatus } from '../../src/db/keys';
 
 describe('userDataKeys', () => {
@@ -150,6 +150,113 @@ describe('accessRequestKeys', () => {
         const result = accessRequestKeys.listByStatus(status);
         expect(result.ExpressionAttributeValues[':gsi1pk']).toBe(`ACCESSREQ_STATUS#${status}`);
       }
+    });
+  });
+});
+
+describe('groupKeys', () => {
+  describe('groupMetaKey', () => {
+    it('returns pk = GROUP#<groupId> and sk = META', () => {
+      const result = groupKeys.groupMetaKey('grp-123');
+      expect(result).toEqual({ pk: 'GROUP#grp-123', sk: 'META' });
+    });
+
+    it('sk is always META regardless of groupId', () => {
+      expect(groupKeys.groupMetaKey('a').sk).toBe('META');
+      expect(groupKeys.groupMetaKey('z').sk).toBe('META');
+    });
+
+    it('pk prefixes the groupId with GROUP#', () => {
+      const groupId = 'my-group-uuid';
+      expect(groupKeys.groupMetaKey(groupId).pk).toBe(`GROUP#${groupId}`);
+    });
+  });
+
+  describe('groupMemberKey', () => {
+    it('returns pk = GROUP#<groupId> and sk = MEMBER#<userSub>', () => {
+      const result = groupKeys.groupMemberKey('grp-1', 'user-abc');
+      expect(result).toEqual({ pk: 'GROUP#grp-1', sk: 'MEMBER#user-abc' });
+    });
+
+    it('pk prefixes with GROUP# and sk prefixes with MEMBER#', () => {
+      const result = groupKeys.groupMemberKey('g-xyz', 'sub-999');
+      expect(result.pk).toBe('GROUP#g-xyz');
+      expect(result.sk).toBe('MEMBER#sub-999');
+    });
+
+    it('different userSubs produce different sk values for the same group', () => {
+      const key1 = groupKeys.groupMemberKey('g-1', 'user-a');
+      const key2 = groupKeys.groupMemberKey('g-1', 'user-b');
+      expect(key1.sk).not.toBe(key2.sk);
+      expect(key1.pk).toBe(key2.pk);
+    });
+  });
+
+  describe('userGroupsIndexKey', () => {
+    it('returns gsi1pk = USER#<userSub> and gsi1sk = GROUP#<groupId>', () => {
+      const result = groupKeys.userGroupsIndexKey('sub-abc', 'grp-123');
+      expect(result).toEqual({ gsi1pk: 'USER#sub-abc', gsi1sk: 'GROUP#grp-123' });
+    });
+
+    it('gsi1pk prefixes the userSub with USER#', () => {
+      const result = groupKeys.userGroupsIndexKey('cognito-sub-xyz', 'g-1');
+      expect(result.gsi1pk).toBe('USER#cognito-sub-xyz');
+    });
+
+    it('gsi1sk prefixes the groupId with GROUP#', () => {
+      const result = groupKeys.userGroupsIndexKey('u-1', 'group-456');
+      expect(result.gsi1sk).toBe('GROUP#group-456');
+    });
+
+    it('returns only gsi1pk and gsi1sk (no primary keys)', () => {
+      const result = groupKeys.userGroupsIndexKey('u', 'g');
+      expect(Object.keys(result)).toEqual(['gsi1pk', 'gsi1sk']);
+    });
+  });
+
+  describe('listGroupMembers', () => {
+    it('sets KeyConditionExpression to pk = :pk AND begins_with(sk, :prefix)', () => {
+      const result = groupKeys.listGroupMembers('grp-1');
+      expect(result.KeyConditionExpression).toBe('pk = :pk AND begins_with(sk, :prefix)');
+    });
+
+    it('sets :pk to GROUP#<groupId>', () => {
+      const result = groupKeys.listGroupMembers('grp-abc');
+      expect(result.ExpressionAttributeValues[':pk']).toBe('GROUP#grp-abc');
+    });
+
+    it('sets :prefix to MEMBER#', () => {
+      const result = groupKeys.listGroupMembers('grp-xyz');
+      expect(result.ExpressionAttributeValues[':prefix']).toBe('MEMBER#');
+    });
+
+    it('does not include IndexName (queries primary index)', () => {
+      const result = groupKeys.listGroupMembers('g');
+      expect('IndexName' in result).toBe(false);
+    });
+  });
+
+  describe('listUserGroups', () => {
+    it('sets IndexName to GSI1', () => {
+      const result = groupKeys.listUserGroups('user-abc');
+      expect(result.IndexName).toBe('GSI1');
+    });
+
+    it('sets KeyConditionExpression to gsi1pk = :gsi1pk AND begins_with(gsi1sk, :prefix)', () => {
+      const result = groupKeys.listUserGroups('user-abc');
+      expect(result.KeyConditionExpression).toBe(
+        'gsi1pk = :gsi1pk AND begins_with(gsi1sk, :prefix)',
+      );
+    });
+
+    it('sets :gsi1pk to USER#<userSub>', () => {
+      const result = groupKeys.listUserGroups('sub-xyz');
+      expect(result.ExpressionAttributeValues[':gsi1pk']).toBe('USER#sub-xyz');
+    });
+
+    it('sets :prefix to GROUP#', () => {
+      const result = groupKeys.listUserGroups('any-user');
+      expect(result.ExpressionAttributeValues[':prefix']).toBe('GROUP#');
     });
   });
 });
