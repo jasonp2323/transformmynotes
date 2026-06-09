@@ -1,20 +1,22 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain } from "./secrets";
+import { webDomain, bedrockInferenceProfileId } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites } from "./db";
+import { notesBucket } from "./storage";
 
 const isProd = $app.stage === "production";
 const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
-  link: [userPool, userPoolClient, userData, invites],
+  link: [userPool, userPoolClient, userData, invites, notesBucket],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: userPoolClient.id,
     SST_RESOURCE_UserData_name: userData.name,
     SST_RESOURCE_Invites_name: invites.name,
+    SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_STAGE: $app.stage,
   },
   permissions: [
@@ -28,6 +30,15 @@ export const application = new sst.aws.Nextjs("Application", {
         "cognito-idp:AdminListGroupsForUser",
       ],
       resources: [userPool.arn],
+    },
+    {
+      actions: [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+      ],
+      resources: [
+        $interpolate`arn:aws:bedrock:us-east-1::foundation-model/${bedrockInferenceProfileId.value}`,
+      ],
     },
   ],
   domain: isPR
