@@ -223,3 +223,53 @@ describe('Invites — GSI1 status index', () => {
     expect(pks).toContain(`INVITE#${hashInviteCode(USED_CODE)}`);
   });
 });
+
+// ---------------------------------------------------------------------------
+// claimInvite — concurrent double-redemption guard
+// ---------------------------------------------------------------------------
+
+describe('claimInvite — concurrent redemption guard', () => {
+  const NOW = new Date('2030-01-01T00:00:00.000Z'); // far future — never expires
+
+  it('single-use code (maxUses=1): exactly one of two concurrent claims succeeds', async () => {
+    const code = 'CONCURRENT-SINGLE-001';
+    await putInvite({ code, type: 'email', targetEmail: 'race@example.com', maxUses: 1 });
+
+    const results = await Promise.all([claimInvite(code, NOW), claimInvite(code, NOW)]);
+    const successes = results.filter((r) => r.ok);
+    const failures = results.filter((r) => !r.ok);
+
+    expect(successes).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+    // The failure must be reported as 'unavailable'.
+    failures.forEach((f) => {
+      if (!f.ok) expect(f.reason).toBe('unavailable');
+    });
+
+    // Final persisted state: usedCount capped at 1, status flipped to 'used'.
+    const finalItem = await getInviteByCode(code);
+    expect(finalItem).toBeDefined();
+    expect(finalItem!.usedCount).toBe(1);
+    expect(finalItem!.status).toBe('used');
+  });
+
+  it('capped code (maxUses=3): exactly three of five concurrent claims succeed', async () => {
+    const code = 'CONCURRENT-CAPPED-001';
+    await putInvite({ code, type: 'code', maxUses: 3 });
+
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => claimInvite(code, NOW)),
+    );
+    const successes = results.filter((r) => r.ok);
+    const failures = results.filter((r) => !r.ok);
+
+    expect(successes).toHaveLength(3);
+    expect(failures).toHaveLength(2);
+
+    const finalItem = await getInviteByCode(code);
+    expect(finalItem).toBeDefined();
+    // Never over-redeemed past the cap.
+    expect(finalItem!.usedCount).toBe(3);
+    expect(finalItem!.status).toBe('used');
+  });
+});
