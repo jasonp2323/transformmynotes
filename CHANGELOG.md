@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.16.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.15.0...transformmynotes-v1.16.0) (2026-06-09)
+
+
+### 🚀 Features
+
+* **application:** POST /api/notes/upload-url presigned S3 route (M4.3) ([#202](https://github.com/jasonp2323/transformmynotes/issues/202)) ([301fdf5](https://github.com/jasonp2323/transformmynotes/commit/301fdf50471d1e566924d998a2d2ec6cdd327f94))
+* **application:** Resend email helpers + INVITE_FROM_ADDRESS secret (M3.3) ([#201](https://github.com/jasonp2323/transformmynotes/issues/201)) ([b649f44](https://github.com/jasonp2323/transformmynotes/commit/b649f44db2b9a9e3c4789ece7ed9c80239fc649a)), closes [#47](https://github.com/jasonp2323/transformmynotes/issues/47)
+* **core:** Groups table, key builders + integration tests (M3.2) ([#199](https://github.com/jasonp2323/transformmynotes/issues/199)) ([6da1853](https://github.com/jasonp2323/transformmynotes/commit/6da185332315f5266d45a383e79df6b0d25df8aa))
+* **core:** TranscriptionJob + storage key builders + integration test (M4.2) ([#200](https://github.com/jasonp2323/transformmynotes/issues/200)) ([3baeb42](https://github.com/jasonp2323/transformmynotes/commit/3baeb42701f8e4f6629a9b5fdcd5c105d8776706)), closes [#32](https://github.com/jasonp2323/transformmynotes/issues/32)
+* **infra:** NotesBucket S3 + BEDROCK_MODEL_ID secret + scoped Bedrock IAM (M4.1) ([#197](https://github.com/jasonp2323/transformmynotes/issues/197)) ([9f55355](https://github.com/jasonp2323/transformmynotes/commit/9f55355971a7e8ec4cd353357d05f68d61e6407d)), closes [#29](https://github.com/jasonp2323/transformmynotes/issues/29)
+
+
+### 🐛 Fixes
+
+* **release:** surface all conventional commit types in release-please changelog ([#203](https://github.com/jasonp2323/transformmynotes/issues/203)) ([3f0812e](https://github.com/jasonp2323/transformmynotes/commit/3f0812e109a357cd95dccdf859cd4d4ab89f6c41))
+
+
+### ✅ Tests
+
+* **core:** concurrent double-redemption guard for invite claims (M3.1) ([#196](https://github.com/jasonp2323/transformmynotes/issues/196)) ([ccc87f7](https://github.com/jasonp2323/transformmynotes/commit/ccc87f7b390fab3303a9338bee4ff86d6dbd870a))
+
 ## [1.15.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.14.0...transformmynotes-v1.15.0) (2026-06-09)
 
 
