@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.13.0...transformmynotes-v1.14.0) (2026-06-09)
+
+
+### Features
+
+* **application:** invite-accept page + redemption infra (M2.7) ([#191](https://github.com/jasonp2323/transformmynotes/issues/191)) ([c9164c9](https://github.com/jasonp2323/transformmynotes/commit/c9164c99d6c1efccb0a4147eb9933a08bb94ce71))
+* **application:** Request Access page + capture endpoint (M2.5) ([#188](https://github.com/jasonp2323/transformmynotes/issues/188)) ([97fe87d](https://github.com/jasonp2323/transformmynotes/commit/97fe87d91361ae57245fb560b58328399d9778af))
+* **application:** request-received confirmation page (/pending) (M2.6) ([#190](https://github.com/jasonp2323/transformmynotes/issues/190)) ([88ba0a6](https://github.com/jasonp2323/transformmynotes/commit/88ba0a6ad8079d242c991c8fb9b438b6c26c4151)), closes [#43](https://github.com/jasonp2323/transformmynotes/issues/43)
+
 ## [1.13.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.12.0...transformmynotes-v1.13.0) (2026-06-09)
 
 
