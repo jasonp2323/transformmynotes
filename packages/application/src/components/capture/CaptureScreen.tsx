@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
 import { uploadImageForTranscription, CaptureUploadError } from '@/lib/capture';
-import type { TranscribeResult } from '@/lib/capture';
 import { ProcessingScreen } from './ProcessingScreen';
 import { ErrorScreen } from './ErrorScreen';
 
@@ -105,7 +104,7 @@ export function CaptureScreen() {
 
   // Upload status state machine
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
-  const [uploadResult, setUploadResult] = useState<TranscribeResult | null>(null);
+  const [capturedJobId, setCapturedJobId] = useState<string | null>(null);
   const [, setUploadError] = useState<string | null>(null);
 
   // Hidden file input ref
@@ -227,11 +226,10 @@ export function CaptureScreen() {
   const runUpload = useCallback(async (blob: Blob) => {
     setUploadStatus('processing');
     setUploadError(null);
-    setUploadResult(null);
 
     try {
-      const { result } = await uploadImageForTranscription(blob);
-      setUploadResult(result);
+      const { jobId } = await uploadImageForTranscription(blob);
+      setCapturedJobId(jobId);
       setUploadStatus('done');
     } catch (err) {
       let msg = 'Something went wrong. Please try again.';
@@ -305,13 +303,23 @@ export function CaptureScreen() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Navigate to review screen when transcription is done
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (uploadStatus === 'done' && capturedJobId) {
+      router.push(`/capture/review?jobId=${encodeURIComponent(capturedJobId)}`);
+    }
+  }, [uploadStatus, capturedJobId, router]);
+
+  // ---------------------------------------------------------------------------
   // Retake / capture another
   // ---------------------------------------------------------------------------
 
   const handleRetake = useCallback(() => {
     setUploadStatus('idle');
     setUploadError(null);
-    setUploadResult(null);
+    setCapturedJobId(null);
     // Re-acquire camera if it was available
     if (cameraAvailable) {
       startCamera(facingMode);
@@ -571,13 +579,11 @@ export function CaptureScreen() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 20,
+            gap: 16,
             zIndex: 10,
             padding: '0 32px',
           }}
         >
-          {/* ---- done ---- */}
-          {/* M5 will route this into the editor; for now just confirm success. */}
           <Icon name="check" size={48} color="var(--gold-400)" />
           <p
             style={{
@@ -588,11 +594,8 @@ export function CaptureScreen() {
               fontWeight: 600,
             }}
           >
-            Transcribed {uploadResult?.wordCount ?? 0} words
+            Opening review…
           </p>
-          <Button variant="accent" size="md" onClick={handleRetake}>
-            Capture another
-          </Button>
         </div>
       )}
     </div>

@@ -32,6 +32,8 @@ export interface NoteEditorHandle {
   setMarkdown(md: string): void;
   /** Focus the editor. */
   focus(): void;
+  /** Toggle the highlight mark on the current selection. */
+  toggleHighlight(): void;
 }
 
 export interface NoteEditorProps {
@@ -142,6 +144,9 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function NoteEd
         } else {
           editor?.commands.focus();
         }
+      },
+      toggleHighlight() {
+        editor?.chain().focus().toggleMark('highlight').run();
       },
     }),
     [editor, rawMode, rawValue],
