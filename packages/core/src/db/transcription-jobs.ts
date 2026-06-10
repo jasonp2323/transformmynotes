@@ -1,4 +1,4 @@
-import { PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { jobKeys, type TranscriptionJobStatus } from './keys.js';
 
@@ -78,6 +78,57 @@ export async function putTranscriptionJob(item: TranscriptionJobItem): Promise<v
     new PutCommand({
       TableName: TableNames.UserData,
       Item: item,
+    }),
+  );
+}
+
+/** Input for updating a transcription job's status. */
+export interface UpdateTranscriptionJobStatusInput {
+  sub: string;
+  jobId: string;
+  status: TranscriptionJobStatus;
+  /** Only written when status is `'error'`. */
+  errorMsg?: string;
+  /** ISO-8601; defaults to `new Date().toISOString()`. */
+  updatedAt?: string;
+}
+
+/**
+ * Updates the status (and optional errorMsg) of an existing transcription job.
+ *
+ * Always SETs `#status` and `updatedAt`. When `errorMsg` is provided it is
+ * also SET; when absent it is left untouched (DynamoDB rejects unused values so
+ * the expression is built dynamically).
+ *
+ * `status` is a DynamoDB reserved word — aliased via ExpressionAttributeNames.
+ * ConditionExpression `attribute_exists(pk)` ensures only existing jobs are
+ * updated; a missing job causes a `ConditionalCheckFailedException` to be thrown.
+ */
+export async function updateTranscriptionJobStatus(
+  input: UpdateTranscriptionJobStatusInput,
+): Promise<void> {
+  const { sub, jobId, status, errorMsg } = input;
+  const updatedAt = input.updatedAt ?? new Date().toISOString();
+
+  let updateExpression = 'SET #status = :status, updatedAt = :updatedAt';
+  const expressionAttributeValues: Record<string, unknown> = {
+    ':status': status,
+    ':updatedAt': updatedAt,
+  };
+
+  if (errorMsg !== undefined) {
+    updateExpression += ', errorMsg = :errorMsg';
+    expressionAttributeValues[':errorMsg'] = errorMsg;
+  }
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.UserData,
+      Key: jobKeys.job(sub, jobId),
+      UpdateExpression: updateExpression,
+      ConditionExpression: 'attribute_exists(pk)',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: expressionAttributeValues,
     }),
   );
 }
