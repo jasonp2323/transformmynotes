@@ -12,3 +12,4 @@ export * from './auth/access-request';
 export * from './ocr/bedrock';
 export * from './ocr/postprocess';
 export * from './ocr/retry';
+export * from './editor/serialize';
