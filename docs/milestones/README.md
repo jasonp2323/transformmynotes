@@ -61,6 +61,7 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 | **M16** | Assignments/practice, summaries, key-term glossaries & study guides generated from notes | L | M13 |
 | **M17** | Expand input from single-note to **notebook-wide / arbitrary note sets** — map-reduce synthesis + cross-note dedup + multi-source provenance | XL | M13, M15, M16, M6 |
 | **M18** | **Brazilian-Portuguese audio** (Amazon Polly neural TTS) for flashcards & written study content, cached by content hash in S3 | L | M8, M13, M14 |
+| **M19** | Admin AI settings — runtime-configurable generation (system prompt, model allowlist, inference params, guardrails, Polly voice, per-type enable + global kill-switch; `CONFIG#AI` DynamoDB item, `resolveAiConfig()`, version history + revert) | L | M3, M13 |
 
 ## Architecture summary
 
@@ -86,6 +87,11 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
   status: queued→running→ready|failed, body in S3); GSI4 list-by-user, GSI5 list-by-note; quiz attempts
   `ATTEMPT#<ulid>` on GSI6; AI flashcards reuse M8's `CARD#`/GSI3; pt-BR-focused Bedrock tool-use
   generation (typed JSON via Converse API); Polly neural TTS audio cached by content hash in S3.
+  **Runtime AI config (M19):** a global `CONFIG#AI` DynamoDB item (edited from the admin dashboard)
+  controls system prompt, generation model (vetted allowlist), inference params (maxTokens/temperature/topP),
+  guardrails (rate/notes/token caps), Polly voice/speed, and per-type enable + kill-switch toggles; the
+  `resolveAiConfig()` resolver reads this item first and falls back to `sst.Secret` defaults, with full
+  version history + revert support.
 - **Deploy** — shared `sst.aws.Router`: apex → marketing, `app.` → application; `production` named
   stage + ephemeral `pr-<N>` stages; secrets in SST; us-east-1 for the ACM/CloudFront cert.
 

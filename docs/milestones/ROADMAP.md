@@ -1,6 +1,6 @@
 # TransformMyNotes — Delivery Roadmap
 
-AI-paced schedule for the 19 milestones. Durations are compressed for agent-driven
+AI-paced schedule for the 20 milestones. Durations are compressed for agent-driven
 implementation (an `L` milestone is planned at ~3 days, `XL` at ~4, `M` at ~2), not the weeks a
 human team would take. Where milestones don't depend on each other they are scheduled **in
 parallel** and tagged with the same **Wave** — those can be dispatched to separate agents at the
@@ -10,7 +10,7 @@ This file is the source of truth; it's mirrored onto **Project board #5**
 (https://github.com/users/jasonp2323/projects/5) via the `Wave`, `Start date`, and `Target date`
 fields, and onto each GitHub **milestone's due date**.
 
-- **Window:** 2026-06-08 → 2026-07-27 (~49 calendar days; M11/M12 post-launch run in one parallel wave; M13–M18 post-launch AI study-material program begins Jul 7)
+- **Window:** 2026-06-08 → 2026-07-27 (~49 calendar days; M11/M12 post-launch run in one parallel wave; M13–M19 post-launch AI study-material program begins Jul 7)
 - **If run fully sequentially** it would be ~57 days; the parallel waves save ~1.5 weeks.
 
 ## Dependency graph
@@ -47,6 +47,8 @@ flowchart LR
   M13 --> M18["M18 · Audio / TTS (L)"]
   M14 --> M18
   M8 --> M18
+  M3 --> M19["M19 · Admin AI settings (L)"]
+  M13 --> M19
 ```
 
 > **Post-launch milestones (M11–M12)** run after the production cutover in M10. They are
@@ -88,10 +90,11 @@ gantt
   M12 Android app · Capacitor (L):m12, after m10, 3d
   section Wave 10 — AI Foundation
   M13 AI generation engine (XL) :m13, 2026-07-07, 4d
-  section Wave 11 — Flashcards ∥ Quizzes ∥ Guides
+  section Wave 11 — Flashcards ∥ Quizzes ∥ Guides ∥ Admin AI settings
   M14 AI flashcards → deck (L)  :m14, after m13, 3d
   M15 Quizzes & tests (XL)      :m15, after m13, 4d
   M16 Assignments & guides (L)  :m16, after m13, 3d
+  M19 Admin AI settings (L)     :m19, after m13, 3d
   section Wave 12 — Multi-note ∥ Audio
   M17 Multi-note generation (XL):m17, after m15, 4d
   M18 Audio / TTS (L)           :m18, after m14, 3d
@@ -115,7 +118,7 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | **8** | **M10** | Jul 1–3 | Hardening/launch needs everything merged; run last, alone. |
 | **9** | **M11** ∥ **M12** | Jul 4–6 | Post-launch. Security hardening (Turnstile/headers/scanning on the app) and the Android Capacitor wrapper touch different surfaces and don't share code — safe in parallel. Both depend only on the launched production app (M10). |
 | **10** | **M13** | Jul 7–10 | AI generation engine is the shared foundation for all study-material types; must be established alone before M14/M15/M16 can branch off it. |
-| **11** | **M14** ∥ **M15** ∥ **M16** | Jul 11–14 | All three depend only on M13 and build different material-type code paths — flashcards extend M8's CARD model, quizzes add MCQ/short-answer attempt logic, guides/summaries add new STUDYSET types — no shared files beyond the M13 `generate` wrapper. |
+| **11** | **M14** ∥ **M15** ∥ **M16** ∥ **M19** | Jul 11–14 | All four depend only on M13 (M19 also needs M3, already done). M14/M15/M16 build different material-type code paths — flashcards extend M8's CARD model, quizzes add MCQ/short-answer attempt logic, guides/summaries add new STUDYSET types — no shared files beyond the M13 `generate` wrapper. M19 builds the admin-settings surface (`CONFIG#AI` item + `resolveAiConfig()` resolver) — a different DynamoDB key shape and a different set of admin routes — so the only shared touchpoint is the `resolveAiConfig()` resolver introduced in M13, which M19 writes and M14/M15/M16 call read-only. |
 | **12** | **M17** ∥ **M18** | Jul 15–18 | Independent concerns: M17 generalises input scope from single-note to notebook-wide (map-reduce synthesis, note-set picker), while M18 adds Polly TTS audio (S3 cache, audio player). Different tables, routes, and AWS services — no overlap. |
 
 ### Parallelization notes / light coupling to watch
@@ -127,7 +130,7 @@ wave row are independent — dispatch one agent per milestone in parallel.
   `infra/db.ts`, land one PR, rebase the other (a single GSI-add per deploy avoids the
   "index already exists" SST/Pulumi hazard called out in CLAUDE.md).
 - **M2 ∥ M9 (Wave 3):** zero coupling — marketing has no auth/DB. Fully independent.
-- **M14 ∥ M15 ∥ M16 (Wave 11):** all call the M13 `generate` wrapper (read-only dependency). M14 writes new `CARD#` items (extends M8's GSI3); M15 writes `ATTEMPT#` items (new GSI6); M16 writes new STUDYSET types — different items, different GSIs, no collision.
+- **M14 ∥ M15 ∥ M16 ∥ M19 (Wave 11):** M14/M15/M16 all call the M13 `generate` wrapper (read-only dependency). M14 writes new `CARD#` items (extends M8's GSI3); M15 writes `ATTEMPT#` items (new GSI6); M16 writes new STUDYSET types — different items, different GSIs, no collision. M19 introduces the `CONFIG#AI` key + `resolveAiConfig()` resolver; M14/M15/M16 call it read-only, so they can land before or after M19 without conflict.
 - **M17 ∥ M18 (Wave 12):** fully orthogonal. M17 adds note-set picker UI + map-reduce generation routes; M18 adds Polly TTS Lambda + audio player component. Different routes, different AWS services, no shared state.
 
 ## Per-milestone detail
@@ -148,16 +151,17 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | M11 | Security hardening | L | 9 | Jul 4 | Jul 6 | M2, M3, M10 | M12 |
 | M12 | Android app · Capacitor | L | 9 | Jul 4 | Jul 6 | M10 | M11 |
 | M13 | AI generation engine & foundation | XL | 10 | Jul 7 | Jul 10 | M4, M5, M6 | — |
-| M14 | AI flashcards → review deck | L | 11 | Jul 11 | Jul 13 | M13, M8 | M15, M16 |
-| M15 | Quizzes & tests (auto-graded) | XL | 11 | Jul 11 | Jul 14 | M13 | M14, M16 |
-| M16 | Assignments, summaries & study guides | L | 11 | Jul 11 | Jul 13 | M13 | M14, M15 |
+| M14 | AI flashcards → review deck | L | 11 | Jul 11 | Jul 13 | M13, M8 | M15, M16, M19 |
+| M15 | Quizzes & tests (auto-graded) | XL | 11 | Jul 11 | Jul 14 | M13 | M14, M16, M19 |
+| M16 | Assignments, summaries & study guides | L | 11 | Jul 11 | Jul 13 | M13 | M14, M15, M19 |
+| M19 | Admin AI settings — runtime-configurable generation | L | 11 | Jul 11 | Jul 13 | M3, M13 | M14, M15, M16 |
 | M17 | Multi-note & notebook-wide generation | XL | 12 | Jul 15 | Jul 18 | M13, M15, M16, M6 | M18 |
 | M18 | Audio for flashcards & notes (TTS) | L | 12 | Jul 15 | Jul 17 | M8, M13, M14 | M17 |
 
 > Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12} → M13 → M15 → M17**.
-> Shortening any of these directly shortens the whole project; M3, M9, M7, M14, M16, and M18 have slack.
-> The AI study-material program adds three waves after launch: M13 alone (Wave 10), then M14/M15/M16 in parallel
-> (Wave 11), then M17/M18 in parallel (Wave 12) — so six milestones add only ~11 days, not ~22.
+> Shortening any of these directly shortens the whole project; M3, M9, M7, M14, M16, M18, and M19 have slack.
+> The AI study-material program adds three waves after launch: M13 alone (Wave 10), then M14/M15/M16/M19 in parallel
+> (Wave 11), then M17/M18 in parallel (Wave 12) — so seven milestones add only ~11 days, not ~25.
 
 ## Sub-tasks on the timeline
 
