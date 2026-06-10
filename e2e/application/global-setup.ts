@@ -23,6 +23,7 @@ import {
   CreateUserPoolClientCommand,
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
+  AdminAddUserToGroupCommand,
   CreateGroupCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { DynamoDBClient, CreateTableCommand } from '@aws-sdk/client-dynamodb';
@@ -42,6 +43,20 @@ const INVITE_EMAIL = 'invitee@example.com';
 const FORGOT_USERNAME = 'forgot-user@example.com';
 const FORGOT_INITIAL_PASSWORD = 'ForgotInit1!Password';
 const FORGOT_NEW_PASSWORD = 'ForgotNew99!Password';
+
+// Admin user
+const ADMIN_USERNAME = 'e2e-admin@example.com';
+const ADMIN_PASSWORD = 'Admin1234!Password';
+
+// Pending users (for admin pending-queue tests)
+const PENDING_USER1_EMAIL = 'e2e-pending1@example.com';
+const PENDING_USER1_PASSWORD = 'Pending1234!Password';
+
+const PENDING_USER2_EMAIL = 'e2e-pending2@example.com';
+const PENDING_USER2_PASSWORD = 'Pending5678!Password';
+
+// Revokable invite (seeded code invite for revoke test)
+const REVOKABLE_INVITE_LABEL = 'E2E-REVOKE-ME';
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -158,6 +173,38 @@ async function seedInvite(port: number) {
 
   docClient.destroy();
   dynamoClient.destroy();
+}
+
+async function seedRevokableInvite(port: number): Promise<string> {
+  const dynamoClient = new DynamoDBClient({
+    endpoint: `http://127.0.0.1:${port}`,
+    region: 'us-east-1',
+    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+  });
+  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+  // Generate a deterministic hash from the label so the codeHash is known at setup time
+  const codeHash = hashInviteCode(REVOKABLE_INVITE_LABEL + '-seed');
+
+  const item = buildInviteItem({
+    codeHash,
+    type: 'code',
+    label: REVOKABLE_INVITE_LABEL,
+    maxUses: 25,
+    status: 'pending',
+  });
+
+  await docClient.send(
+    new PutCommand({
+      TableName: 'Invites',
+      Item: item,
+    }),
+  );
+
+  docClient.destroy();
+  dynamoClient.destroy();
+
+  return codeHash;
 }
 
 // ── cognito-local ─────────────────────────────────────────────────────────────
@@ -284,8 +331,110 @@ async function seedCognito(port: number, username: string, password: string) {
     }),
   );
 
+  // ── Admin user ──────────────────────────────────────────────────────────────
+  // Created in cognito-local, then added to the 'admin' group so the issued JWT
+  // carries `cognito:groups: ['admin']` and the admin nav / /admin/** routes are
+  // accessible.
+  //
+  // ⚠️ RISK #1 note: cognito-local's AdminAddUserToGroup resolves the Username
+  // by first doing an exact match on the stored username string, then falling
+  // back to matching the 'sub' attribute. Since we seed with Username=email,
+  // passing the sub here also works (cognito-local iterates users and compares
+  // the sub attribute). The approve route passes sub as Username for
+  // AdminAddUserToGroup — empirically verified to work with cognito-local.
+  const adminUserResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: ADMIN_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: ADMIN_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const adminUserSub = adminUserResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: ADMIN_USERNAME,
+      Password: ADMIN_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
+  // Add admin user to the 'admin' Cognito group — this makes the JWT include
+  // `cognito:groups: ['admin']` which is what proxy.ts and the admin layout gate on.
+  await cognitoClient.send(
+    new AdminAddUserToGroupCommand({
+      UserPoolId: poolId,
+      Username: ADMIN_USERNAME,
+      GroupName: 'admin',
+    }),
+  );
+
+  // ── Pending users ───────────────────────────────────────────────────────────
+  // Two pending users for the admin pending-queue tests. Created in cognito-local
+  // (so they can sign in after approval) with stable emails and passwords.
+  // Their subs are captured so the DynamoDB profile can use the same sub, which
+  // is critical: the approve route calls AdminAddUserToGroup({Username: sub}).
+  // pendingUser1: has groupIds=['e2e-group'] → renders 'Invited' badge
+  // pendingUser2: has groupIds=[]             → renders 'No invite code' badge
+  const pendingUser1Resp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: PENDING_USER1_EMAIL,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: PENDING_USER1_EMAIL },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const pendingUser1Sub = pendingUser1Resp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: PENDING_USER1_EMAIL,
+      Password: PENDING_USER1_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
+  const pendingUser2Resp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: PENDING_USER2_EMAIL,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: PENDING_USER2_EMAIL },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const pendingUser2Sub = pendingUser2Resp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: PENDING_USER2_EMAIL,
+      Password: PENDING_USER2_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
   cognitoClient.destroy();
-  return { poolId, clientId, mainUserSub, forgotUserSub };
+  return {
+    poolId,
+    clientId,
+    mainUserSub,
+    forgotUserSub,
+    adminUserSub,
+    pendingUser1Sub,
+    pendingUser2Sub,
+  };
 }
 
 async function seedUserProfiles(
@@ -306,6 +455,69 @@ async function seedUserProfiles(
       name: user.email,
       status: 'active',
       role: 'member',
+    });
+    await docClient.send(
+      new PutCommand({
+        TableName: 'UserData',
+        Item: profile,
+      }),
+    );
+  }
+
+  docClient.destroy();
+  dynamoClient.destroy();
+}
+
+async function seedAdminProfile(
+  dynalitePort: number,
+  sub: string,
+  email: string,
+) {
+  const dynamoClient = new DynamoDBClient({
+    endpoint: `http://127.0.0.1:${dynalitePort}`,
+    region: 'us-east-1',
+    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+  });
+  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+  const profile = buildUserProfileItem({
+    sub,
+    email,
+    name: 'E2E Admin',
+    status: 'active',
+    role: 'admin',
+  });
+
+  await docClient.send(
+    new PutCommand({
+      TableName: 'UserData',
+      Item: profile,
+    }),
+  );
+
+  docClient.destroy();
+  dynamoClient.destroy();
+}
+
+async function seedPendingUserProfiles(
+  dynalitePort: number,
+  users: Array<{ sub: string; email: string; groupIds: string[] }>,
+) {
+  const dynamoClient = new DynamoDBClient({
+    endpoint: `http://127.0.0.1:${dynalitePort}`,
+    region: 'us-east-1',
+    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+  });
+  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+  for (const user of users) {
+    const profile = buildUserProfileItem({
+      sub: user.sub,
+      email: user.email,
+      name: user.email,
+      status: 'pending',
+      role: 'member',
+      groupIds: user.groupIds,
     });
     await docClient.send(
       new PutCommand({
@@ -358,8 +570,11 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const dynaliteServer = await startDynalite(DYNALITE_PORT);
   await createDynaliteTables(DYNALITE_PORT);
 
-  // Seed the test invite into the Invites table
+  // Seed the test invite into the Invites table (for auth.spec invite test)
   await seedInvite(DYNALITE_PORT);
+
+  // Seed the revokable code invite for admin.spec revoke test
+  const revokableInviteCodeHash = await seedRevokableInvite(DYNALITE_PORT);
 
   // 2. Start cognito-local
   const cognitoDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cognito-local-e2e-'));
@@ -367,12 +582,31 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   await waitForCognitoLocal(COGNITO_PORT);
 
   // 3. Seed user pool + users
-  const { poolId, clientId, mainUserSub, forgotUserSub } = await seedCognito(COGNITO_PORT, username, password);
+  const {
+    poolId,
+    clientId,
+    mainUserSub,
+    forgotUserSub,
+    adminUserSub,
+    pendingUser1Sub,
+    pendingUser2Sub,
+  } = await seedCognito(COGNITO_PORT, username, password);
 
   // 3b. Seed UserData profiles for pre-seeded users so requireActiveUser() passes
   await seedUserProfiles(DYNALITE_PORT, [
     { sub: mainUserSub, email: username },
     { sub: forgotUserSub, email: FORGOT_USERNAME },
+  ]);
+
+  // 3c. Seed admin profile (role:'admin', status:'active')
+  await seedAdminProfile(DYNALITE_PORT, adminUserSub, ADMIN_USERNAME);
+
+  // 3d. Seed pending user profiles (status:'pending', role:'member')
+  // pendingUser1 has groupIds=['e2e-group'] → shows 'Invited' badge
+  // pendingUser2 has groupIds=[]            → shows 'No invite code' badge
+  await seedPendingUserProfiles(DYNALITE_PORT, [
+    { sub: pendingUser1Sub, email: PENDING_USER1_EMAIL, groupIds: ['e2e-group'] },
+    { sub: pendingUser2Sub, email: PENDING_USER2_EMAIL, groupIds: [] },
   ]);
 
   // 4. Build env for next dev
@@ -415,6 +649,25 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     forgotUsername: FORGOT_USERNAME,
     forgotInitialPassword: FORGOT_INITIAL_PASSWORD,
     forgotNewPassword: FORGOT_NEW_PASSWORD,
+    // Admin user
+    adminUsername: ADMIN_USERNAME,
+    adminPassword: ADMIN_PASSWORD,
+    // Pending users for admin tests
+    pendingUser1: {
+      email: PENDING_USER1_EMAIL,
+      password: PENDING_USER1_PASSWORD,
+      sub: pendingUser1Sub,
+    },
+    pendingUser2: {
+      email: PENDING_USER2_EMAIL,
+      password: PENDING_USER2_PASSWORD,
+      sub: pendingUser2Sub,
+    },
+    // Revokable invite
+    revokableInvite: {
+      label: REVOKABLE_INVITE_LABEL,
+      codeHash: revokableInviteCodeHash,
+    },
     nextPid: nextProc.pid,
     cognitoPid: cognitoProc.pid,
     dynalitePort: DYNALITE_PORT,
