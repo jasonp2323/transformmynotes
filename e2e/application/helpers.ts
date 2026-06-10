@@ -45,6 +45,17 @@ export interface Runtime {
 
   // ── Seeded revokable invite ──
   revokableInvite: { label: string; codeHash: string };
+
+  // ── Primary user sub ──
+  mainUserSub: string;
+
+  // ── S3rver ──
+  s3Endpoint: string;
+  notesBucket: string;
+
+  // ── DynamoDB (capture-flow cleanup) ──
+  dynalitePort: number;
+  notesTable: string;
 }
 
 // ---------------------------------------------------------------------------
