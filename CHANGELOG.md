@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.31.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.30.0...transformmynotes-v1.31.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **core:** LowConfidence TipTap node + [?] serializer round-trip (M5 Wave 1) ([#385](https://github.com/jasonp2323/transformmynotes/issues/385)) ([7d7f2fb](https://github.com/jasonp2323/transformmynotes/commit/7d7f2fbcb2b889101f77545f9e77659a0c4fe9a2)), closes [#110](https://github.com/jasonp2323/transformmynotes/issues/110)
+
+
+### 📝 Documentation
+
+* **milestones:** reorganize M6–M21 sub-issues into Mx.x.x dotted wave structure ([7505bbe](https://github.com/jasonp2323/transformmynotes/commit/7505bbedf834e81bf5609e4f26f74688820a2afd))
+* **milestones:** reorganize M6–M21 sub-issues into Mx.x.x dotted wave structure ([2dee65b](https://github.com/jasonp2323/transformmynotes/commit/2dee65bc652715598448f2a706cd6fee452127b3))
+
 ## [1.30.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.29.0...transformmynotes-v1.30.0) (2026-06-10)
 
 
