@@ -115,11 +115,13 @@ Domain tables are defined in `infra/db.ts` and linked by both the application (`
 - Document each table's GSI names + their purpose here as you add them, so the access patterns stay discoverable.
 
 **Tables & their GSIs (keep current as you add them):**
-- **`Notes`** (M5) — permanent note records, single-table (PK `USER#<sub>` / SK `NOTE#<ulid>`). The note body Markdown lives in S3 (`bodyS3Key`); only metadata is in DynamoDB. Two item shapes share the table:
+- **`Notes`** (M5) — permanent note records, single-table (PK `USER#<sub>` / SK `NOTE#<ulid>`). The note body Markdown lives in S3 (`bodyS3Key`); only metadata is in DynamoDB. Three item shapes share the table:
   - *Main note item* — carries `tags: string[]` (display only) + the GSI1 keys.
   - *Tag-index item* — one per `(tag, note)` pair: PK `TAG#<tag>` / SK `USER#<sub>#NOTE#<ulid>`, written alongside the note in a `TransactWriteItems` (max 20 tags/note). The note's `noteId`/`sub` are encoded in the key and recovered via `noteKeys.parseTagItemSk` — they are NOT projected, see GSI2.
-  - **GSI1 `UserNotesByTime`** (projection ALL): `gsi1pk = USER#<sub>`, `gsi1sk = NOTE#<ulid>` — list a user's notes newest-first (query with `ScanIndexForward: false`).
+  - *Token-index item* (M6) — one per `(token, note)` pair for per-user full-text search: PK `USER#<sub>` / SK `TOKEN#<token>#NOTE#<noteId>`, built via `noteKeys.tokenItemKey` / `buildTokenIndexItem`. The `token`/`noteId` are encoded in the key and recovered via `noteKeys.parseTokenItemSk` — see GSI3. Token items are sparse on GSI1 (they carry no `gsi1*` keys) so they never appear in the recency/`listUserNotes` query.
+  - **GSI1 `UserNotesByTime`** (projection ALL): `gsi1pk = USER#<sub>`, `gsi1sk = NOTE#<ulid>` — list a user's notes newest-first (query with `ScanIndexForward: false`). The base-table `noteKeys.noteListRecentQuery` (M6) is the equivalent direct primary-index query, `begins_with(sk,'NOTE#')`, capped at 20.
   - **GSI2 `NotesByTag`** (projection KEYS_ONLY): `gsi2pk = TAG#<tag>`, `gsi2sk = USER#<sub>#NOTE#<ulid>` — find note ids for a tag. KEYS_ONLY means a tag query projects only the key attributes; recover the `noteId` from the sort key, never read a stored attribute off the result.
+  - **GSI3 `ByToken`** (M6, projection KEYS_ONLY): `gsi3pk = USER#<sub>`, `gsi3sk = TOKEN#<token>#NOTE#<noteId>` — per-user full-text search. Query via `noteKeys.tokenQueryKey(sub, term)` using `begins_with(gsi3sk, 'TOKEN#<term>')` for prefix match; KEYS_ONLY, so recover `noteId` from the sort key (`parseTokenItemSk`), then `BatchGetItem` the note metadata.
 
 > A per-user `UserData` table (settings, per-user encrypted credentials, etc.) is a common generic starting point. App-specific domain tables go here too — document them as you add them.
 

@@ -42,6 +42,15 @@ export interface TagIndexItem {
   noteId: string;
 }
 
+/** A token-index item (PK = `USER#<sub>`, SK = `TOKEN#<token>#NOTE#<noteId>`). */
+export interface TokenIndexItem {
+  pk: string;
+  sk: string;
+  gsi3pk: string;
+  gsi3sk: string;
+  noteId: string;
+}
+
 // ---------------------------------------------------------------------------
 // Pure item builders
 // ---------------------------------------------------------------------------
@@ -118,6 +127,27 @@ export function buildTagIndexItem(input: BuildTagIndexItemInput): TagIndexItem {
     sk: keys.sk,
     gsi2pk: noteKeys.gsi2pk(tag),
     gsi2sk: noteKeys.gsi2sk(sub, noteId),
+    noteId,
+  };
+}
+
+/** Input for building a token-index item. */
+export interface BuildTokenIndexItemInput {
+  token: string;
+  sub: string;
+  noteId: string;
+}
+
+/** Builds a `TokenIndexItem` with all DynamoDB keys populated. */
+export function buildTokenIndexItem(input: BuildTokenIndexItemInput): TokenIndexItem {
+  const { token, sub, noteId } = input;
+  const keys = noteKeys.tokenItemKey(sub, token, noteId);
+
+  return {
+    pk: keys.pk,
+    sk: keys.sk,
+    gsi3pk: noteKeys.gsi3pk(sub),
+    gsi3sk: noteKeys.gsi3sk(token, noteId),
     noteId,
   };
 }
@@ -226,6 +256,34 @@ export async function listNoteIdsByTag(tag: string): Promise<TagIndexItem[]> {
       sk: item.sk,
       gsi2pk: item.gsi2pk,
       gsi2sk: item.gsi2sk,
+      noteId,
+    };
+  });
+}
+
+/**
+ * Lists all token-index items matching a search term prefix for a user via GSI3 (`ByToken`).
+ *
+ * Returns KEYS_ONLY items (pk, sk, gsi3pk, gsi3sk, noteId).
+ * `noteId` is recovered from the sort key since GSI3 is KEYS_ONLY and does not project the stored `noteId` attribute.
+ * Returns an empty array if no notes contain tokens matching the given term.
+ */
+export async function listNoteIdsByToken(sub: string, term: string): Promise<TokenIndexItem[]> {
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TableNames.Notes,
+      ...noteKeys.tokenQueryKey(sub, term),
+    }),
+  );
+
+  return (Items ?? []).map((raw) => {
+    const item = raw as { pk: string; sk: string; gsi3pk: string; gsi3sk: string };
+    const { noteId } = noteKeys.parseTokenItemSk(item.sk);
+    return {
+      pk: item.pk,
+      sk: item.sk,
+      gsi3pk: item.gsi3pk,
+      gsi3sk: item.gsi3sk,
       noteId,
     };
   });
