@@ -284,7 +284,7 @@ export function ReviewScreen({
             <span className="tmn-review-label">Original</span>
             {lowConfCount > 0 && (
               <Badge tone="warning" dot>
-                {lowConfCount} words to check
+                {lowConfCount} {lowConfCount === 1 ? 'word' : 'words'} to check
               </Badge>
             )}
           </div>
