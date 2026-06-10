@@ -2,6 +2,7 @@
 @import './tokens.css';
 @import './components.css';
 @import './markdown.css';
+@import './editor.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,0 +1,415 @@
+/* ============================================================
+   TransformMyNotes — Editor styles
+   Covers: TipTap ProseMirror content, bubble menu, slash menu,
+   low-confidence tokens, raw/rich mode cross-fade.
+   ============================================================ */
+
+/* ---- Wrapper & layout ---- */
+
+.tmn-editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.tmn-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+
+.tmn-editor-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---- Cross-fade between rich and raw layers ---- */
+
+.tmn-editor-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-soft);
+}
+
+.tmn-editor-layer.is-visible {
+  position: relative;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-editor-layer {
+    transition: none;
+  }
+}
+
+/* ---- Raw markdown textarea ---- */
+
+.tmn-editor-raw {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--text-body);
+  background: var(--surface-sunken);
+  border: none;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+/* ---- ProseMirror / editor content ---- */
+
+.tmn-editor-content {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+  color: var(--text-body);
+  padding: var(--space-5) var(--space-6);
+  min-height: 240px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* Placeholder */
+.tmn-editor-content .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-subtle);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* Headings */
+.tmn-editor-content h2 {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+  margin: var(--space-7) 0 var(--space-3);
+}
+
+.tmn-editor-content h3 {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  color: var(--text-strong);
+  margin: var(--space-6) 0 var(--space-2);
+}
+
+.tmn-editor-content h4 {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  color: var(--text-strong);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+/* Paragraph */
+.tmn-editor-content p {
+  margin: 0 0 var(--space-3);
+}
+
+.tmn-editor-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lists */
+.tmn-editor-content ul,
+.tmn-editor-content ol {
+  padding-left: var(--space-6);
+  margin: 0 0 var(--space-3);
+}
+
+.tmn-editor-content ul {
+  list-style-type: disc;
+}
+
+.tmn-editor-content ol {
+  list-style-type: decimal;
+}
+
+.tmn-editor-content li + li {
+  margin-top: var(--space-1);
+}
+
+/* Blockquote */
+.tmn-editor-content blockquote {
+  border-left: 3px solid var(--brand);
+  padding: var(--space-2) var(--space-4);
+  margin: var(--space-4) 0;
+  color: var(--text-muted);
+  font-style: italic;
+  background: var(--surface-brand-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Code (inline) */
+.tmn-editor-content code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 1px 4px;
+  color: var(--text-strong);
+}
+
+/* Horizontal rule */
+.tmn-editor-content hr {
+  border: none;
+  border-top: 2px solid var(--border-subtle);
+  margin: var(--space-6) 0;
+}
+
+/* Highlight mark — background is set inline by the extension but we reinforce */
+.tmn-editor-content mark {
+  background: var(--highlighter);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Table */
+.tmn-editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-4) 0;
+  font-size: var(--text-sm);
+}
+
+.tmn-editor-content th,
+.tmn-editor-content td {
+  border: 1px solid var(--border-default);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+
+.tmn-editor-content th {
+  background: var(--surface-sunken);
+  font-weight: var(--weight-semibold);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ProseMirror selection */
+.tmn-editor-content .ProseMirror-selectednode {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* ---- Low-confidence [?] token ---- */
+
+.tmn-low-confidence {
+  border-bottom: 2px dotted var(--warning);
+  color: var(--warning);
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 0 1px;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-low-confidence:hover {
+  background: var(--warning-50);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-low-confidence {
+    transition: none;
+  }
+}
+
+/* Low-confidence tap-to-replace popover */
+.tmn-low-conf-popover {
+  position: absolute;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-md);
+}
+
+.tmn-low-conf-input {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-body);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  min-width: 160px;
+  outline: none;
+}
+
+.tmn-low-conf-input:focus {
+  border-color: var(--brand);
+  box-shadow: var(--focus-ring);
+}
+
+.tmn-low-conf-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--brand);
+  color: var(--on-brand);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex: none;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-low-conf-confirm:hover {
+  background: var(--brand-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-low-conf-confirm {
+    transition: none;
+  }
+}
+
+/* ---- Bubble menu (floating format toolbar) ---- */
+
+.tmn-bubble-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+}
+
+.tmn-bubble-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-soft),
+              color var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-bubble-btn:hover {
+  background: var(--surface-sunken);
+  color: var(--text-strong);
+}
+
+.tmn-bubble-btn.is-active {
+  background: var(--surface-brand-soft);
+  color: var(--brand-strong);
+}
+
+.tmn-bubble-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-bubble-btn {
+    transition: none;
+  }
+}
+
+/* ---- Slash menu ---- */
+
+.tmn-slash-menu {
+  position: absolute;
+  z-index: 999;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1);
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.tmn-slash-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-slash-menu__item:hover,
+.tmn-slash-menu__item.is-selected {
+  background: var(--surface-brand-soft);
+}
+
+.tmn-slash-menu__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-xs);
+  color: var(--brand-strong);
+  flex: none;
+}
+
+.tmn-slash-menu__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tmn-slash-menu__label {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  line-height: 1.2;
+}
+
+.tmn-slash-menu__desc {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-slash-menu__item {
+    transition: none;
+  }
+}
