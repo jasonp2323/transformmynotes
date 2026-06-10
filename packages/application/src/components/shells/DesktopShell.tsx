@@ -11,6 +11,8 @@ export interface DesktopShellProps {
   actions?: React.ReactNode;
   isAdmin?: boolean;
   search?: string;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   userName?: string;
   children: React.ReactNode;
 }
@@ -54,6 +56,8 @@ export function DesktopShell({
   actions,
   isAdmin = false,
   search = 'Search your notes',
+  searchValue,
+  onSearchChange,
   userName = 'You',
   children,
 }: DesktopShellProps) {
@@ -144,6 +148,13 @@ export function DesktopShell({
             <Input
               leadingIcon={<Icon name="search" size={17} />}
               placeholder={search}
+              {...(onSearchChange
+                ? {
+                    value: searchValue ?? '',
+                    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+                      onSearchChange(e.target.value),
+                  }
+                : {})}
             />
           </div>
           {actions && (
