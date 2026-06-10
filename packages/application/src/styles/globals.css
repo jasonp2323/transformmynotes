@@ -4,6 +4,8 @@
 @import './markdown.css';
 @import './editor.css';
 @import './review.css';
+@import './success.css';
+@import './note-view.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
