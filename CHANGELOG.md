@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.25.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.24.0...transformmynotes-v1.25.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **capture:** Processing + Error state screens in capture flow (M4.8) ([#280](https://github.com/jasonp2323/transformmynotes/issues/280)) ([3891889](https://github.com/jasonp2323/transformmynotes/commit/38918891e30391697f6f0af9b6d1e7925d3d7dbd))
+
+
+### 📝 Documentation
+
+* plan AI study-material generator program (M13–M21) ([#279](https://github.com/jasonp2323/transformmynotes/issues/279)) ([da8167c](https://github.com/jasonp2323/transformmynotes/commit/da8167c73c6b1fb42184fcc3040a8bca9c6d0322))
+
 ## [1.24.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.23.0...transformmynotes-v1.24.0) (2026-06-10)
 
 
