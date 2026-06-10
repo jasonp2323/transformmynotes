@@ -16,6 +16,8 @@ type InlineMark = 'bold' | 'italic' | 'code' | 'highlight';
 interface InlineSegment {
   text: string;
   marks: InlineMark[];
+  /** True when this segment represents an atomic [?] low-confidence token. */
+  lowConfidence?: boolean;
 }
 
 // ─── Inline tokenizer ────────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ function parseInline(input: string): InlineSegment[] {
     const italicMatch = s.match(/^(.*?)(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)(.*)/s);
 
     // Find which match occurs earliest (shortest "before" group)
-    type MatchInfo = { before: string; content: string; after: string; marks: InlineMark[] };
+    type MatchInfo = { before: string; content: string; after: string; marks: InlineMark[]; literal?: boolean };
     const candidates: MatchInfo[] = [];
 
     if (hlMatch) {
@@ -67,6 +69,12 @@ function parseInline(input: string): InlineSegment[] {
     }
     if (italicMatch) {
       candidates.push({ before: italicMatch[1], content: italicMatch[2], after: italicMatch[3], marks: ['italic'] });
+    }
+
+    // Low-confidence OCR token [?] — atomic, no inner parsing
+    const lcMatch = s.match(/^(.*?)\[\?\](.*)/s);
+    if (lcMatch) {
+      candidates.push({ before: lcMatch[1], content: '[?]', after: lcMatch[2], marks: [], literal: true });
     }
 
     if (candidates.length === 0) {
@@ -90,8 +98,13 @@ function parseInline(input: string): InlineSegment[] {
       parse(winner.before, activeMarks);
     }
 
-    // Emit the matched content with the new marks added
-    parse(winner.content, [...activeMarks, ...winner.marks]);
+    if (winner.literal) {
+      // Atomic token — emit directly without recursing into content (avoids infinite loop)
+      segments.push({ text: '[?]', marks: [...activeMarks], lowConfidence: true });
+    } else {
+      // Emit the matched content with the new marks added
+      parse(winner.content, [...activeMarks, ...winner.marks]);
+    }
 
     // Continue with the rest of the string
     parse(winner.after, activeMarks);
@@ -107,6 +120,13 @@ function parseInline(input: string): InlineSegment[] {
 function segmentsToNodes(segments: InlineSegment[]): JSONContent[] {
   if (segments.length === 0) return [];
   return segments.map((seg) => {
+    if (seg.lowConfidence) {
+      const node: JSONContent = { type: 'lowConfidence' };
+      if (seg.marks.length > 0) {
+        node.marks = seg.marks.map((m) => ({ type: m }));
+      }
+      return node;
+    }
     const node: JSONContent = { type: 'text', text: seg.text };
     if (seg.marks.length > 0) {
       node.marks = seg.marks.map((m) => ({ type: m }));
@@ -335,35 +355,48 @@ function markRank(m: InlineMark): number {
 
 /**
  * Serialize inline text nodes back to markdown.
+ *
+ * Strategy: group consecutive segments that share identical mark sets into
+ * a single "run", concatenate their texts (treating lowConfidence atoms as
+ * contributing the literal "[?]" text), and apply the shared marks once to
+ * the whole run.  This ensures that **fix [?] this** serializes as a single
+ * bold span rather than three independent **…** fragments.
  */
 function inlineNodesToMarkdown(nodes: JSONContent[]): string {
   if (!nodes || nodes.length === 0) return '';
 
-  // Collect segments
+  // Collect segments — lowConfidence atoms become text '[?]' with their marks
   const segs: InlineSegment[] = nodes.map((node) => {
+    if (node.type === 'lowConfidence') {
+      const marks: InlineMark[] = (node.marks ?? []).map((m) => m.type as InlineMark);
+      return { text: '[?]', marks, lowConfidence: true };
+    }
     const text = node.text ?? '';
     const marks: InlineMark[] = (node.marks ?? []).map((m) => m.type as InlineMark);
     return { text, marks };
   });
 
-  // Merge adjacent segments with identical mark sets
-  const merged: InlineSegment[] = [];
+  // Group consecutive segments with identical mark sets into runs.
+  // lowConfidence atoms are transparent for grouping — they don't break a run
+  // whose neighbours share the same marks.
+  type Run = { text: string; marks: InlineMark[] };
+  const runs: Run[] = [];
+
+  function marksKey(marks: InlineMark[]): string {
+    return [...marks].sort().join(',');
+  }
+
   for (const seg of segs) {
-    if (
-      merged.length > 0 &&
-      JSON.stringify([...merged[merged.length - 1].marks].sort()) ===
-        JSON.stringify([...seg.marks].sort())
-    ) {
-      merged[merged.length - 1] = {
-        text: merged[merged.length - 1].text + seg.text,
-        marks: merged[merged.length - 1].marks,
-      };
+    const prev = runs.length > 0 ? runs[runs.length - 1] : undefined;
+    if (prev && marksKey(prev.marks) === marksKey(seg.marks)) {
+      // Same mark set — append text to the current run
+      prev.text += seg.text;
     } else {
-      merged.push({ text: seg.text, marks: [...seg.marks] });
+      runs.push({ text: seg.text, marks: [...seg.marks] });
     }
   }
 
-  return merged.map((seg) => applyMarks(seg.text, seg.marks)).join('');
+  return runs.map((run) => applyMarks(run.text, run.marks)).join('');
 }
 
 /**
