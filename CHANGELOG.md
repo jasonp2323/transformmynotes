@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.17.0...transformmynotes-v1.18.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** approve/reject + user management API routes (M3.5) ([#206](https://github.com/jasonp2323/transformmynotes/issues/206)) ([5c182be](https://github.com/jasonp2323/transformmynotes/commit/5c182be2baab9d56d6c424133637f9c8b64b42fb))
+
 ## [1.17.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.16.0...transformmynotes-v1.17.0) (2026-06-09)
 
 
