@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.26.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.25.1...transformmynotes-v1.26.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **core:** Notes DynamoDB table, GSIs, key builders + integration tests (M5.1) ([#306](https://github.com/jasonp2323/transformmynotes/issues/306)) ([d6ed790](https://github.com/jasonp2323/transformmynotes/commit/d6ed79068462d93a79dc491e8f0d8a6b6105cb04))
+
+
+### 📝 Documentation
+
+* extend parallel-dispatch + milestone tables to M11–M21 ([fef5de2](https://github.com/jasonp2323/transformmynotes/commit/fef5de24c2bc27df6aa7fa8f254ba732d7898ca0))
+* extend README parallel-dispatch + milestone tables to M11–M21 ([ad6070f](https://github.com/jasonp2323/transformmynotes/commit/ad6070f4350ef70c644048a86867ca297fe2831c))
+
+
+### ✅ Tests
+
+* **ocr:** Bedrock retry-on-throttle + [?] marker assertions (M4.9) ([#304](https://github.com/jasonp2323/transformmynotes/issues/304)) ([bee503c](https://github.com/jasonp2323/transformmynotes/commit/bee503c86601986991c750e4aa6be56df8d9f850)), closes [#61](https://github.com/jasonp2323/transformmynotes/issues/61)
+
 ## [1.25.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.25.0...transformmynotes-v1.25.1) (2026-06-10)
 
 
