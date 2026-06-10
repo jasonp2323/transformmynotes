@@ -27,4 +27,20 @@ export const groups = new sst.aws.Dynamo("Groups", {
   stream: "new-and-old-images",
 });
 
-export const tables = { UserData: userData, Invites: invites, Groups: groups };
+export const notes = new sst.aws.Dynamo("Notes", {
+  fields: {
+    pk: "string",
+    sk: "string",
+    gsi1pk: "string",
+    gsi1sk: "string",
+    gsi2pk: "string",
+    gsi2sk: "string",
+  },
+  primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+  globalIndexes: {
+    GSI1: { hashKey: "gsi1pk", rangeKey: "gsi1sk", projection: "all" },
+    GSI2: { hashKey: "gsi2pk", rangeKey: "gsi2sk", projection: "keys-only" },
+  },
+});
+
+export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes };

@@ -114,6 +114,13 @@ Domain tables are defined in `infra/db.ts` and linked by both the application (`
 - Set the stream to `new-and-old-images` on any table a job consumes via DynamoDB Streams.
 - Document each table's GSI names + their purpose here as you add them, so the access patterns stay discoverable.
 
+**Tables & their GSIs (keep current as you add them):**
+- **`Notes`** (M5) — permanent note records, single-table (PK `USER#<sub>` / SK `NOTE#<ulid>`). The note body Markdown lives in S3 (`bodyS3Key`); only metadata is in DynamoDB. Two item shapes share the table:
+  - *Main note item* — carries `tags: string[]` (display only) + the GSI1 keys.
+  - *Tag-index item* — one per `(tag, note)` pair: PK `TAG#<tag>` / SK `USER#<sub>#NOTE#<ulid>`, written alongside the note in a `TransactWriteItems` (max 20 tags/note). The note's `noteId`/`sub` are encoded in the key and recovered via `noteKeys.parseTagItemSk` — they are NOT projected, see GSI2.
+  - **GSI1 `UserNotesByTime`** (projection ALL): `gsi1pk = USER#<sub>`, `gsi1sk = NOTE#<ulid>` — list a user's notes newest-first (query with `ScanIndexForward: false`).
+  - **GSI2 `NotesByTag`** (projection KEYS_ONLY): `gsi2pk = TAG#<tag>`, `gsi2sk = USER#<sub>#NOTE#<ulid>` — find note ids for a tag. KEYS_ONLY means a tag query projects only the key attributes; recover the `noteId` from the sort key, never read a stored attribute off the result.
+
 > A per-user `UserData` table (settings, per-user encrypted credentials, etc.) is a common generic starting point. App-specific domain tables go here too — document them as you add them.
 
 ### Auth — AWS Cognito
