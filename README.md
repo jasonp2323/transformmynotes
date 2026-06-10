@@ -30,9 +30,16 @@ by the **`Wave`** field to pull exactly the issues for the agents you're about t
 | **5** | **M5** — Review & Notion editor | Jun 21–24 | Builds directly on M4's transcription output; single focused track. |
 | **6** | **M6** — Library & full-text search | Jun 25–27 | Depends on the saved-note shape from M5. |
 | **7** | **M7** Sharing ∥ **M8** Review deck | Jun 28–30 | Independently extend the note model — different GSIs (`ByRecipient` vs `ByDue`). |
-| **8** | **M10** — Hardening & launch | Jul 1–3 | Needs everything merged; run last, alone. |
+| **8** | **M10** — Hardening & launch | Jul 1–3 | Needs everything merged; production cutover — run last, alone. |
+| **9** | **M11** Security hardening ∥ **M12** Android (Capacitor) | Jul 4–6 | Post-launch. App hardening vs. the Android wrapper touch different surfaces; both depend only on the launched app (M10). |
+| **10** | **M13** — AI generation engine & foundation | Jul 7–10 | The shared foundation for every study-material type; establish it alone before others branch off. |
+| **11** | **M14** Flashcards ∥ **M15** Quizzes ∥ **M16** Guides ∥ **M19** Admin AI settings | Jul 11–14 | All four depend only on M13 (M19 also on M3, done). Different item types / GSIs; only shared touchpoint is the read-only `resolveAiConfig()` resolver. |
+| **12** | **M17** Multi-note generation ∥ **M18** Audio / TTS | Jul 15–18 | Orthogonal: map-reduce note-set synthesis vs. Polly TTS audio. Different tables, routes, and AWS services. |
+| **13** | **M20** — Document sources (PDF/DOCX/EPUB/text) | Jul 19–22 | Reuses M17's map-reduce chunking; introduces the `SOURCE#` entity + GSI7 + `resolveSourceText()` that M21 builds on — run alone. |
+| **14** | **M21** — Web ingestion + AI security hardening | Jul 23–25 | Builds the URL-fetch path on M20's `SOURCE#` model + SSRF / prompt-injection guards. Security-sensitive — isolated wave keeps the review surface small. |
 
-> **Critical path:** M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10. **M3, M9, M7 have slack.**
+> **Critical path:** M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12} → M13 → M15 → M17 → M20 → M21.
+> **M3, M9, M7, M14, M16, M18, M19 have slack.**
 > Coupling to watch: when two parallel milestones each add a GSI to the same table, land one PR and
 > rebase the other to avoid SST's "index already exists" hazard (see ROADMAP.md).
 
@@ -51,6 +58,17 @@ by the **`Wave`** field to pull exactly the issues for the agents you're about t
 | M7 | Sharing & collaboration | L | 7 | Jun 28 | Jun 30 | M6 | M8 |
 | M8 | Review deck / spaced repetition | L | 7 | Jun 28 | Jun 30 | M6 | M7 |
 | M10 | Hardening & launch | L | 8 | Jul 1 | Jul 3 | all prior | — |
+| M11 | Security hardening | L | 9 | Jul 4 | Jul 6 | M2, M3, M10 | M12 |
+| M12 | Android app · Capacitor | L | 9 | Jul 4 | Jul 6 | M10 | M11 |
+| M13 | AI generation engine & foundation | XL | 10 | Jul 7 | Jul 10 | M4, M5, M6 | — |
+| M14 | AI flashcards → review deck | L | 11 | Jul 11 | Jul 13 | M13, M8 | M15, M16, M19 |
+| M15 | Quizzes & tests (auto-graded) | XL | 11 | Jul 11 | Jul 14 | M13 | M14, M16, M19 |
+| M16 | Assignments, summaries & study guides | L | 11 | Jul 11 | Jul 13 | M13 | M14, M15, M19 |
+| M19 | Admin AI settings — runtime-configurable generation | L | 11 | Jul 11 | Jul 13 | M3, M13 | M14, M15, M16 |
+| M17 | Multi-note & notebook-wide generation | XL | 12 | Jul 15 | Jul 18 | M13, M15, M16, M6 | M18 |
+| M18 | Audio for flashcards & notes (TTS) | L | 12 | Jul 15 | Jul 17 | M8, M13, M14 | M17 |
+| M20 | Document sources — PDF / DOCX / EPUB / text | XL | 13 | Jul 19 | Jul 22 | M4, M13, M17 | — |
+| M21 | Web article ingestion + AI security hardening | L | 14 | Jul 23 | Jul 25 | M13, M20 | — |
 
 Every milestone has an **epic issue** (full spec) tracking ~7–10 **sub-issues**, each with a Size,
 Wave, and dates on the board. See [`ROADMAP.md`](docs/milestones/ROADMAP.md) for the dependency
