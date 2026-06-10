@@ -8,6 +8,8 @@ const getAuthenticatedSubMock = vi.hoisted(() => vi.fn());
 const getTranscriptionJobMock = vi.hoisted(() => vi.fn());
 const updateTranscriptionJobStatusMock = vi.hoisted(() => vi.fn());
 const putNoteMock = vi.hoisted(() => vi.fn());
+const putNoteTokensMock = vi.hoisted(() => vi.fn());
+const tokeniseMock = vi.hoisted(() => vi.fn());
 const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
 const countHighlightsMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
@@ -20,6 +22,8 @@ vi.mock('@transformmynotes/core', () => ({
   getTranscriptionJob: getTranscriptionJobMock,
   updateTranscriptionJobStatus: updateTranscriptionJobStatusMock,
   putNote: putNoteMock,
+  putNoteTokens: putNoteTokensMock,
+  tokenise: tokeniseMock,
   postprocessMarkdown: postprocessMarkdownMock,
   countHighlights: countHighlightsMock,
   storageKeys: {
@@ -83,6 +87,8 @@ beforeEach(() => {
   getTranscriptionJobMock.mockResolvedValue(PENDING_JOB);
   updateTranscriptionJobStatusMock.mockResolvedValue(undefined);
   putNoteMock.mockResolvedValue({});
+  putNoteTokensMock.mockResolvedValue(undefined);
+  tokeniseMock.mockReturnValue(['my', 'note']);
   postprocessMarkdownMock.mockReturnValue({
     markdown: '## Notes\nSome content here.',
     wordCount: 4,
@@ -310,6 +316,13 @@ describe('POST /api/notes/save', () => {
           tags: ['school', 'biology'],
         }),
       );
+    });
+
+    it('calls putNoteTokens with tokenised title and markdown', async () => {
+      await POST(makeRequest());
+
+      expect(tokeniseMock).toHaveBeenCalled();
+      expect(putNoteTokensMock).toHaveBeenCalledOnce();
     });
   });
 

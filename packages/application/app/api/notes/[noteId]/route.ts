@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import {
   storageKeys,
   getNote,
@@ -8,6 +8,10 @@ import {
   postprocessMarkdown,
   countHighlights,
   NoteConflictError,
+  syncNoteTokens,
+  deleteNoteRecord,
+  tokenise,
+  type NoteItem,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -23,6 +27,67 @@ function requireBucketName(): string {
     );
   }
   return value;
+}
+
+// Helper: strips internal DynamoDB keys before sending to the client.
+// The note PK is USER#<sub> so getNote only ever returns the caller's own note —
+// a different user's note is simply not found → 404. A distinct 403 path is
+// unreachable with this key design.
+function toNoteMetadata(n: NoteItem) {
+  return {
+    noteId: n.noteId,
+    title: n.title,
+    tags: n.tags,
+    status: n.status,
+    words: n.words,
+    highlights: n.highlights,
+    langPair: n.langPair,
+    ocrConfidence: n.ocrConfidence,
+    createdAt: n.createdAt,
+    updatedAt: n.updatedAt,
+    ...(n.groupId !== undefined ? { groupId: n.groupId } : {}),
+  };
+}
+
+export async function GET(
+  req: Request,
+  { params }: { params: { noteId: string } },
+) {
+  const sub = await getAuthenticatedSub();
+  if (!sub) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { noteId } = params;
+  if (typeof noteId !== 'string' || !noteId) {
+    return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
+  }
+
+  try {
+    const bucket = requireBucketName();
+
+    // The note PK is USER#<sub>, so getNote only ever returns the caller's own note.
+    // A different user's noteId resolves to a different PK → not found → 404.
+    const existing = await getNote(sub, noteId);
+    if (!existing) {
+      return NextResponse.json({ ok: false, error: 'Note not found.' }, { status: 404 });
+    }
+
+    // Fetch markdown body from S3 (best-effort; default '' if missing).
+    let body = '';
+    try {
+      const s3 = new S3Client({});
+      const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: existing.bodyS3Key }));
+      body = await (res.Body as { transformToString(): Promise<string> }).transformToString();
+    } catch (s3Err) {
+      console.error('[notes/get] Could not fetch body from S3', s3Err);
+    }
+
+    return NextResponse.json({ metadata: toNoteMetadata(existing), body });
+  } catch (err) {
+    console.error('[notes/get] Unexpected error fetching note', err);
+    return NextResponse.json({ ok: false, error: 'Could not fetch note.' }, { status: 500 });
+  }
 }
 
 export async function PATCH(
@@ -103,8 +168,18 @@ export async function PATCH(
     const meta = postprocessMarkdown(markdown);
     const highlights = countHighlights(markdown);
 
-    // Write markdown to S3.
+    // Fetch old markdown body for token diff (best-effort; default '' on error).
     const s3 = new S3Client({});
+    let oldBody = '';
+    try {
+      const oldRes = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: existing.bodyS3Key }));
+      oldBody = await (oldRes.Body as { transformToString(): Promise<string> }).transformToString();
+    } catch {
+      // best-effort — missing body defaults to ''
+    }
+    const oldTokens = tokenise((existing.title ?? '') + ' ' + oldBody);
+
+    // Write markdown to S3.
     await s3.send(
       new PutObjectCommand({
         Bucket: bucket,
@@ -145,6 +220,10 @@ export async function PATCH(
       throw err;
     }
 
+    // Sync token index.
+    const newTokens = tokenise((title || 'Untitled note') + ' ' + markdown);
+    await syncNoteTokens(sub, noteId, oldTokens, newTokens);
+
     return NextResponse.json({
       noteId,
       title: title || 'Untitled note',
@@ -160,5 +239,63 @@ export async function PATCH(
       { ok: false, error: 'Could not update note.' },
       { status: 500 },
     );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { noteId: string } },
+) {
+  const sub = await getAuthenticatedSub();
+  if (!sub) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { noteId } = params;
+  if (typeof noteId !== 'string' || !noteId) {
+    return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
+  }
+
+  try {
+    const bucket = requireBucketName();
+
+    const existing = await getNote(sub, noteId);
+    if (!existing) {
+      return NextResponse.json({ ok: false, error: 'Note not found.' }, { status: 404 });
+    }
+
+    // Reconstruct tokens from stored body (best-effort; '' on error).
+    let body = '';
+    try {
+      const s3 = new S3Client({});
+      const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: existing.bodyS3Key }));
+      body = await (res.Body as { transformToString(): Promise<string> }).transformToString();
+    } catch {
+      // best-effort — missing body: token cleanup will use empty body
+    }
+    const tokens = tokenise((existing.title ?? '') + ' ' + body);
+
+    // Delete all DynamoDB records (note + tag-index + token-index items).
+    await deleteNoteRecord(sub, noteId, existing.tags ?? [], tokens);
+
+    // Delete S3 objects best-effort (DynamoDB delete is the source of truth).
+    const s3 = new S3Client({});
+    try {
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: existing.bodyS3Key }));
+    } catch (e) {
+      console.error('[notes/delete] Could not delete markdown from S3', e);
+    }
+    if (existing.originalImageS3Key) {
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: existing.originalImageS3Key }));
+      } catch (e) {
+        console.error('[notes/delete] Could not delete image from S3', e);
+      }
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[notes/delete] Unexpected error deleting note', err);
+    return NextResponse.json({ ok: false, error: 'Could not delete note.' }, { status: 500 });
   }
 }

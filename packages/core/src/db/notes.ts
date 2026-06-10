@@ -3,9 +3,12 @@ import {
   GetCommand,
   QueryCommand,
   TransactWriteCommand,
+  BatchWriteCommand,
+  BatchGetCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { noteKeys, type NoteStatus } from './keys.js';
+import { diffTokens } from '../search/tokenise.js';
 
 // ---------------------------------------------------------------------------
 // Item type definitions
@@ -448,4 +451,235 @@ export async function updateNote(input: UpdateNoteInput): Promise<NoteItem> {
   }
 
   return noteItem;
+}
+
+// ---------------------------------------------------------------------------
+// Token-index maintenance helpers (M6.2.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Splits an array into consecutive chunks of at most `size` elements.
+ *
+ * @param arr  - Source array.
+ * @param size - Maximum chunk length (must be > 0).
+ * @returns Array of sub-arrays, each at most `size` long.
+ */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
+/**
+ * Retries a batch of `BatchWriteCommand` requests until `UnprocessedItems` is
+ * empty, or up to `maxRetries` additional attempts after the first call.
+ *
+ * @param tableName   - DynamoDB table name to target.
+ * @param requests    - Initial `RequestItems` value (already chunked to ≤25).
+ * @param maxRetries  - Number of retry passes (default 3).
+ */
+async function batchWriteWithRetry(
+  tableName: string,
+  requests: Record<string, unknown>[],
+  maxRetries = 3,
+): Promise<void> {
+  let remaining: Record<string, unknown>[] = requests;
+  let attempt = 0;
+
+  while (remaining.length > 0 && attempt <= maxRetries) {
+    const result = await ddb.send(
+      new BatchWriteCommand({
+        RequestItems: { [tableName]: remaining },
+      }),
+    );
+    const unprocessed = result.UnprocessedItems?.[tableName] ?? [];
+    remaining = unprocessed as Record<string, unknown>[];
+    attempt++;
+  }
+}
+
+/**
+ * Writes one token-index item per token for a given note.
+ *
+ * - No-op when `tokens` is empty.
+ * - De-duplicates `tokens` before writing.
+ * - Uses `BatchWriteItem` in chunks of 25 (DynamoDB limit) with up to 3
+ *   retries for `UnprocessedItems`, so a throttled batch still completes.
+ *
+ * @param sub     - Cognito user sub.
+ * @param noteId  - ULID note identifier.
+ * @param tokens  - Normalised token strings to index.
+ */
+export async function putNoteTokens(
+  sub: string,
+  noteId: string,
+  tokens: string[],
+): Promise<void> {
+  const unique = [...new Set(tokens)];
+  if (unique.length === 0) return;
+
+  const requests = unique.map((token) => ({
+    PutRequest: { Item: buildTokenIndexItem({ token, sub, noteId }) },
+  }));
+
+  for (const batch of chunk(requests, 25)) {
+    await batchWriteWithRetry(TableNames.Notes, batch as Record<string, unknown>[]);
+  }
+}
+
+/**
+ * Deletes one token-index item per token for a given note.
+ *
+ * - No-op when `tokens` is empty.
+ * - De-duplicates `tokens` before deleting.
+ * - Uses `BatchWriteItem` `DeleteRequest` in chunks of 25 with up to 3
+ *   retries for `UnprocessedItems`.
+ *
+ * @param sub     - Cognito user sub.
+ * @param noteId  - ULID note identifier.
+ * @param tokens  - Normalised token strings to remove from the index.
+ */
+export async function deleteNoteTokens(
+  sub: string,
+  noteId: string,
+  tokens: string[],
+): Promise<void> {
+  const unique = [...new Set(tokens)];
+  if (unique.length === 0) return;
+
+  const requests = unique.map((token) => ({
+    DeleteRequest: { Key: noteKeys.tokenItemKey(sub, token, noteId) },
+  }));
+
+  for (const batch of chunk(requests, 25)) {
+    await batchWriteWithRetry(TableNames.Notes, batch as Record<string, unknown>[]);
+  }
+}
+
+/**
+ * Incrementally synchronises a note's token index by diffing the old and new
+ * token sets and issuing only the minimal add / remove operations.
+ *
+ * Uses `diffTokens` to compute `{ toAdd, toRemove }`, then:
+ *   1. Deletes stale token-index items (`toRemove`).
+ *   2. Writes new token-index items (`toAdd`).
+ * Either step is skipped when the respective array is empty.
+ *
+ * @param sub        - Cognito user sub.
+ * @param noteId     - ULID note identifier.
+ * @param oldTokens  - Previously indexed tokens.
+ * @param newTokens  - Freshly computed tokens.
+ */
+export async function syncNoteTokens(
+  sub: string,
+  noteId: string,
+  oldTokens: string[],
+  newTokens: string[],
+): Promise<void> {
+  const { toAdd, toRemove } = diffTokens(oldTokens, newTokens);
+
+  if (toRemove.length > 0) {
+    await deleteNoteTokens(sub, noteId, toRemove);
+  }
+  if (toAdd.length > 0) {
+    await putNoteTokens(sub, noteId, toAdd);
+  }
+}
+
+/**
+ * Hard-deletes the complete DynamoDB footprint of a note:
+ *   - The main note item (`USER#<sub>` / `NOTE#<noteId>`).
+ *   - One tag-index item per tag (`TAG#<tag>` / `USER#<sub>#NOTE#<noteId>`).
+ *   - One token-index item per token (`USER#<sub>` / `TOKEN#<token>#NOTE#<noteId>`).
+ *
+ * Builds a single list of `DeleteRequest` entries (de-duplicating `tags` and
+ * `tokens` first), then BatchWrites them in chunks of 25 with up to 3 retries
+ * for `UnprocessedItems`.
+ *
+ * @param sub     - Cognito user sub.
+ * @param noteId  - ULID note identifier.
+ * @param tags    - Tags associated with the note (drives tag-index cleanup).
+ * @param tokens  - Tokens indexed for the note (drives token-index cleanup).
+ */
+export async function deleteNoteRecord(
+  sub: string,
+  noteId: string,
+  tags: string[],
+  tokens: string[],
+): Promise<void> {
+  const uniqueTags = [...new Set(tags)];
+  const uniqueTokens = [...new Set(tokens)];
+
+  const requests: Record<string, unknown>[] = [
+    // Main note item
+    { DeleteRequest: { Key: noteKeys.note(sub, noteId) } },
+    // Tag-index items
+    ...uniqueTags.map((tag) => ({
+      DeleteRequest: { Key: noteKeys.tagItem(tag, sub, noteId) },
+    })),
+    // Token-index items
+    ...uniqueTokens.map((token) => ({
+      DeleteRequest: { Key: noteKeys.tokenItemKey(sub, token, noteId) },
+    })),
+  ];
+
+  for (const batch of chunk(requests, 25)) {
+    await batchWriteWithRetry(TableNames.Notes, batch);
+  }
+}
+
+/**
+ * Queries the base-table primary index for a user's notes, newest-first, capped at 20.
+ *
+ * Uses `noteKeys.noteListRecentQuery` (a `begins_with(sk, 'NOTE#')` on the base-table
+ * primary index with `ScanIndexForward: false` and `Limit: 20`), rather than GSI1.
+ * Returns an empty array if the user has no notes.
+ */
+export async function listRecentNotes(sub: string): Promise<NoteItem[]> {
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TableNames.Notes,
+      ...noteKeys.noteListRecentQuery(sub),
+    }),
+  );
+  return (Items ?? []) as NoteItem[];
+}
+
+/**
+ * Fetches multiple note items by id in a single BatchGetItem, chunked at 100.
+ * De-duplicates input ids. Retries UnprocessedKeys up to 3 times. Order not guaranteed.
+ */
+export async function batchGetNotes(sub: string, noteIds: string[]): Promise<NoteItem[]> {
+  // De-duplicate
+  const unique = [...new Set(noteIds)];
+  if (unique.length === 0) return [];
+
+  const results: NoteItem[] = [];
+  // BatchGetItem max is 100 items per request
+  const batches = chunk(unique, 100);
+
+  for (const batch of batches) {
+    let keys = batch.map((id) => noteKeys.note(sub, id));
+    let retries = 0;
+
+    while (keys.length > 0 && retries <= 3) {
+      const result = await ddb.send(
+        new BatchGetCommand({
+          RequestItems: {
+            [TableNames.Notes]: { Keys: keys },
+          },
+        }),
+      );
+      const fetched = (result.Responses?.[TableNames.Notes] ?? []) as NoteItem[];
+      results.push(...fetched);
+
+      const unprocessed = result.UnprocessedKeys?.[TableNames.Notes]?.Keys ?? [];
+      keys = unprocessed as { pk: string; sk: string }[];
+      retries++;
+    }
+  }
+
+  return results;
 }
