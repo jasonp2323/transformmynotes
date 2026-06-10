@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.31.1...transformmynotes-v1.32.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **core:** M6.1 search foundations — list-recent, tokenise, ByToken index ([#390](https://github.com/jasonp2323/transformmynotes/issues/390)) ([1fd7906](https://github.com/jasonp2323/transformmynotes/commit/1fd7906c39024930acacdcefd761c40c9b5950b1))
+
 ## [1.31.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.31.0...transformmynotes-v1.31.1) (2026-06-10)
 
 
