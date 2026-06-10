@@ -202,3 +202,90 @@ export const storageKeys = {
   originalImage: (sub: string, id: string) => `images/users/${sub}/${id}.jpg`,
   noteMarkdown: (sub: string, id: string) => `markdown/users/${sub}/${id}.md`,
 };
+
+/** Possible note processing statuses. */
+export type NoteStatus = 'original' | 'clean';
+
+/**
+ * `Notes` table keys.
+ *
+ * Two item shapes live in this table:
+ *   - Main note item: PK = `USER#<cognitoSub>`, SK = `NOTE#<ulid>`
+ *   - Tag-index item: PK = `TAG#<tag>`, SK = `USER#<sub>#NOTE#<ulid>`
+ *
+ * GSI1 (`UserNotesByTime`): gsi1pk = `USER#<sub>`, gsi1sk = `NOTE#<ulid>`
+ *   — on main note items only; ULID lexicographic order = time order.
+ * GSI2 (`NotesByTag`): gsi2pk = `TAG#<tag>`, gsi2sk = `USER#<sub>#NOTE#<ulid>`
+ *   — on tag-index items only; KEYS_ONLY projection.
+ *
+ * Tags are NOT stored as GSI2 keys on the main note. Each tag gets its own
+ * separate tag-index item so multiple tags per note can be indexed.
+ */
+export const noteKeys = {
+  /** Partition key for a user's notes. */
+  pk: (sub: string) => `USER#${sub}`,
+
+  /** Sort key for a single note. */
+  sk: (noteId: string) => `NOTE#${noteId}`,
+
+  /** Full primary key for a main note item. */
+  note: (sub: string, noteId: string) => ({ pk: `USER#${sub}`, sk: `NOTE#${noteId}` }),
+
+  /** GSI1 partition key for a note item (user-recency GSI). */
+  gsi1pk: (sub: string) => `USER#${sub}`,
+
+  /** GSI1 sort key for a note item (ULID = time-ordered). */
+  gsi1sk: (noteId: string) => `NOTE#${noteId}`,
+
+  /**
+   * Full primary key for a tag-index item.
+   * PK = `TAG#<tag>`, SK = `USER#<sub>#NOTE#<ulid>`.
+   */
+  tagItem: (tag: string, sub: string, noteId: string) => ({
+    pk: `TAG#${tag}`,
+    sk: `USER#${sub}#NOTE#${noteId}`,
+  }),
+
+  /** GSI2 partition key for a tag-index item. */
+  gsi2pk: (tag: string) => `TAG#${tag}`,
+
+  /** GSI2 sort key for a tag-index item. */
+  gsi2sk: (sub: string, noteId: string) => `USER#${sub}#NOTE#${noteId}`,
+
+  /**
+   * Parses a tag-index sort key (`USER#<sub>#NOTE#<ulid>`) back into its parts.
+   * GSI2 is KEYS_ONLY, so a tag query projects only the key attributes — the
+   * `sub`/`noteId` must be recovered from the key, never read from a stored
+   * attribute (which is not projected). Throws on a malformed key.
+   */
+  parseTagItemSk: (sk: string): { sub: string; noteId: string } => {
+    const match = /^USER#(.+?)#NOTE#(.+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`noteKeys.parseTagItemSk: malformed tag-index sort key "${sk}"`);
+    }
+    return { sub: match[1], noteId: match[2] };
+  },
+
+  /**
+   * Query parameters for listing all notes for a user via GSI1, newest-first
+   * (ScanIndexForward: false so descending ULID order = newest first).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listUserNotes: (sub: string) => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :pk AND begins_with(gsi1sk, :sk)',
+    ExpressionAttributeValues: { ':pk': `USER#${sub}`, ':sk': 'NOTE#' },
+    ScanIndexForward: false,
+  }),
+
+  /**
+   * Query parameters for listing all tag-index items for a given tag via GSI2.
+   * Returns KEYS_ONLY items (pk, sk, gsi2pk, gsi2sk, noteId).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listNotesByTag: (tag: string) => ({
+    IndexName: 'GSI2',
+    KeyConditionExpression: 'gsi2pk = :pk',
+    ExpressionAttributeValues: { ':pk': `TAG#${tag}` },
+  }),
+};

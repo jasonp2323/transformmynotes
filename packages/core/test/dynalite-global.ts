@@ -14,7 +14,7 @@
 import dynalite from 'dynalite';
 import { DynamoDBClient, CreateTableCommand } from '@aws-sdk/client-dynamodb';
 import type { Server } from 'node:http';
-import { DYNALITE_PORT, DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE } from './dynalite-config.js';
+import { DYNALITE_PORT, DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE } from './dynalite-config.js';
 
 function startServer(server: Server, port: number): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -134,6 +134,45 @@ export default async function setup() {
         StreamEnabled: true,
         StreamViewType: 'NEW_AND_OLD_IMAGES',
       },
+    }),
+  );
+
+  // Mirror infra/db.ts: Notes table — pk/sk primary + GSI1 (UserNotesByTime, ALL) +
+  // GSI2 (NotesByTag, KEYS_ONLY). No StreamSpecification — notes has no stream.
+  await ddbAdmin.send(
+    new CreateTableCommand({
+      TableName: NOTES_TABLE,
+      AttributeDefinitions: [
+        { AttributeName: 'pk', AttributeType: 'S' },
+        { AttributeName: 'sk', AttributeType: 'S' },
+        { AttributeName: 'gsi1pk', AttributeType: 'S' },
+        { AttributeName: 'gsi1sk', AttributeType: 'S' },
+        { AttributeName: 'gsi2pk', AttributeType: 'S' },
+        { AttributeName: 'gsi2sk', AttributeType: 'S' },
+      ],
+      KeySchema: [
+        { AttributeName: 'pk', KeyType: 'HASH' },
+        { AttributeName: 'sk', KeyType: 'RANGE' },
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'GSI1',
+          KeySchema: [
+            { AttributeName: 'gsi1pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi1sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'GSI2',
+          KeySchema: [
+            { AttributeName: 'gsi2pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi2sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'KEYS_ONLY' },
+        },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
     }),
   );
 
