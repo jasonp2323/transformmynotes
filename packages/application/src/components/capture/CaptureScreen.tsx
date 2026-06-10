@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
 import { uploadImageForTranscription, CaptureUploadError } from '@/lib/capture';
 import type { TranscribeResult } from '@/lib/capture';
+import { ProcessingScreen } from './ProcessingScreen';
+import { ErrorScreen } from './ErrorScreen';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,7 +106,7 @@ export function CaptureScreen() {
   // Upload status state machine
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [uploadResult, setUploadResult] = useState<TranscribeResult | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [, setUploadError] = useState<string | null>(null);
 
   // Hidden file input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -319,8 +321,6 @@ export function CaptureScreen() {
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
-
-  const isProcessingOrDone = uploadStatus === 'processing' || uploadStatus === 'done' || uploadStatus === 'error';
 
   return (
     <div
@@ -553,7 +553,15 @@ export function CaptureScreen() {
       <canvas ref={canvasRef} style={{ display: 'none' }} aria-hidden="true" />
 
       {/* ------------------------------------------------------- Status overlays */}
-      {isProcessingOrDone && (
+      {uploadStatus === 'processing' && (
+        <ProcessingScreen prefersReducedMotion={prefersReducedMotion} />
+      )}
+
+      {uploadStatus === 'error' && (
+        <ErrorScreen onRetake={handleRetake} onUpload={handleUploadClick} />
+      )}
+
+      {uploadStatus === 'done' && (
         <div
           style={{
             position: 'fixed',
@@ -568,98 +576,23 @@ export function CaptureScreen() {
             padding: '0 32px',
           }}
         >
-          {/* ---- processing ---- */}
-          {uploadStatus === 'processing' && (
-            // M4.8 will replace this minimal overlay with the full ProcessingScreen.
-            <>
-              <Icon name="sparkles" size={48} color="var(--gold-400)" />
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 17,
-                  color: '#fff',
-                  margin: 0,
-                  fontWeight: 600,
-                }}
-              >
-                Transforming…
-              </p>
-              {!prefersReducedMotion && (
-                <div
-                  style={{
-                    width: 200,
-                    height: 4,
-                    borderRadius: 2,
-                    background: 'rgba(255,255,255,0.15)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '40%',
-                      height: '100%',
-                      background: 'var(--gold-400)',
-                      borderRadius: 2,
-                      animation: 'tmn-capture-slide 1.4s ease-in-out infinite',
-                    }}
-                  />
-                </div>
-              )}
-              {/* Inline keyframe (scoped) */}
-              <style>{`
-                @keyframes tmn-capture-slide {
-                  0%   { transform: translateX(-100%); }
-                  50%  { transform: translateX(250%); }
-                  100% { transform: translateX(-100%); }
-                }
-              `}</style>
-            </>
-          )}
-
-          {/* ---- error ---- */}
-          {uploadStatus === 'error' && (
-            // M4.8 will replace this with the full ErrorScreen.
-            <>
-              <Icon name="image-off" size={48} color="rgba(255,255,255,0.6)" />
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
-                  color: 'rgba(255,255,255,0.85)',
-                  margin: 0,
-                  textAlign: 'center',
-                  lineHeight: 1.55,
-                }}
-              >
-                {uploadError ?? 'Something went wrong.'}
-              </p>
-              <Button variant="secondary" size="md" onClick={handleRetake}>
-                Retake
-              </Button>
-            </>
-          )}
-
           {/* ---- done ---- */}
-          {uploadStatus === 'done' && (
-            // M5 will route this into the editor; for now just confirm success.
-            <>
-              <Icon name="check" size={48} color="var(--gold-400)" />
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 17,
-                  color: '#fff',
-                  margin: 0,
-                  fontWeight: 600,
-                }}
-              >
-                Transcribed {uploadResult?.wordCount ?? 0} words
-              </p>
-              <Button variant="accent" size="md" onClick={handleRetake}>
-                Capture another
-              </Button>
-            </>
-          )}
+          {/* M5 will route this into the editor; for now just confirm success. */}
+          <Icon name="check" size={48} color="var(--gold-400)" />
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 17,
+              color: '#fff',
+              margin: 0,
+              fontWeight: 600,
+            }}
+          >
+            Transcribed {uploadResult?.wordCount ?? 0} words
+          </p>
+          <Button variant="accent" size="md" onClick={handleRetake}>
+            Capture another
+          </Button>
         </div>
       )}
     </div>
