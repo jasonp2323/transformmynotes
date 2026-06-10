@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.25.0...transformmynotes-v1.25.1) (2026-06-10)
+
+
+### ✅ Tests
+
+* **application:** E2E admin panel + invite flow suite (M3.10) ([#302](https://github.com/jasonp2323/transformmynotes/issues/302)) ([2a38a3e](https://github.com/jasonp2323/transformmynotes/commit/2a38a3ef2d46e5c3987f2ef889f6d8a6bd61daf1)), closes [#62](https://github.com/jasonp2323/transformmynotes/issues/62)
+
 ## [1.25.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.24.0...transformmynotes-v1.25.0) (2026-06-10)
 
 
