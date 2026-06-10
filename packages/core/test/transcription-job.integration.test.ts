@@ -15,6 +15,12 @@ import { describe, it, expect } from 'vitest';
 import { PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { jobKeys } from '../src/db/keys.js';
+import {
+  buildTranscriptionJobItem,
+  putTranscriptionJob,
+  getTranscriptionJob,
+  updateTranscriptionJobStatus,
+} from '../src/db/transcription-jobs.js';
 
 describe('TranscriptionJob — write/read round-trip', () => {
   it('reads back the exact item that was written (Test A)', async () => {
@@ -112,5 +118,68 @@ describe('TranscriptionJob — write/read round-trip', () => {
     );
 
     expect(Item).toBeUndefined();
+  });
+});
+
+describe('updateTranscriptionJobStatus — write→update→read round-trip', () => {
+  it('moves a pending job to done and persists the new updatedAt (Test D)', async () => {
+    const sub = 'cognito-sub-d4e5f6a1b2c3';
+    const jobId = '01JDEF0123456789012DEFGHIJ';
+    const createdAt = '2024-07-01T09:00:00.000Z';
+    const doneAt = '2024-07-01T09:30:00.000Z';
+
+    const item = buildTranscriptionJobItem({
+      sub,
+      jobId,
+      s3Key: `images/users/${sub}/${jobId}.jpg`,
+      status: 'pending',
+      createdAt,
+    });
+    await putTranscriptionJob(item);
+
+    await updateTranscriptionJobStatus({ sub, jobId, status: 'done', updatedAt: doneAt });
+
+    const result = await getTranscriptionJob(sub, jobId);
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe('done');
+    expect(result!.updatedAt).toBe(doneAt);
+    // createdAt must be unchanged
+    expect(result!.createdAt).toBe(createdAt);
+    // errorMsg must be absent
+    expect(result!.errorMsg).toBeUndefined();
+  });
+
+  it('moves a job to error and persists errorMsg (Test E)', async () => {
+    const sub = 'cognito-sub-e5f6a1b2c3d4';
+    const jobId = '01JEFG01234567890123EFGHIJK';
+    const createdAt = '2024-07-02T10:00:00.000Z';
+    const errorAt = '2024-07-02T10:05:00.000Z';
+    const errorMsg = 'OCR service timed out after 30 s';
+
+    const item = buildTranscriptionJobItem({
+      sub,
+      jobId,
+      s3Key: `images/users/${sub}/${jobId}.jpg`,
+      status: 'processing',
+      createdAt,
+    });
+    await putTranscriptionJob(item);
+
+    await updateTranscriptionJobStatus({ sub, jobId, status: 'error', errorMsg, updatedAt: errorAt });
+
+    const result = await getTranscriptionJob(sub, jobId);
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe('error');
+    expect(result!.errorMsg).toBe(errorMsg);
+    expect(result!.updatedAt).toBe(errorAt);
+  });
+
+  it('rejects with ConditionalCheckFailedException when the job does not exist (Test F)', async () => {
+    const sub = 'cognito-sub-f6a1b2c3d4e5';
+    const jobId = '01JFGH012345678901234FGHIJKL';
+
+    await expect(
+      updateTranscriptionJobStatus({ sub, jobId, status: 'done' }),
+    ).rejects.toMatchObject({ name: 'ConditionalCheckFailedException' });
   });
 });
