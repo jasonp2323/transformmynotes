@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.26.0...transformmynotes-v1.27.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **core:** Markdown ↔ TipTap serialization layer + unit tests (M5.2) ([#308](https://github.com/jasonp2323/transformmynotes/issues/308)) ([f0edd3d](https://github.com/jasonp2323/transformmynotes/commit/f0edd3dee26d41e41f62191ef7f2ceb48460f477))
+
 ## [1.26.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.25.1...transformmynotes-v1.26.0) (2026-06-10)
 
 
