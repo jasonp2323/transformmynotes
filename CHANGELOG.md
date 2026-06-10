@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.22.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.21.0...transformmynotes-v1.22.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** AdminPending registrations queue page (M3.7) ([#214](https://github.com/jasonp2323/transformmynotes/issues/214)) ([1fd37d9](https://github.com/jasonp2323/transformmynotes/commit/1fd37d9d1c555f1cfb05b323c7adb81b08854829))
+* **application:** AdminUsers members management page (M3.8) ([#217](https://github.com/jasonp2323/transformmynotes/issues/217)) ([3e5cc35](https://github.com/jasonp2323/transformmynotes/commit/3e5cc351d88e294df2d89ff46693e1ad023c912b))
+* **application:** POST /api/transcribe route handler (M4.6) ([#216](https://github.com/jasonp2323/transformmynotes/issues/216)) ([0c60839](https://github.com/jasonp2323/transformmynotes/commit/0c60839703d08e5482f580aefe71cb1ae7cca59b)), closes [#54](https://github.com/jasonp2323/transformmynotes/issues/54)
+
 ## [1.21.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.20.0...transformmynotes-v1.21.0) (2026-06-10)
 
 
