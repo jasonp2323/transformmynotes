@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.18.0...transformmynotes-v1.19.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **capture:** client-side image resize + presigned upload pipeline (M4.4) ([#207](https://github.com/jasonp2323/transformmynotes/issues/207)) ([94320ec](https://github.com/jasonp2323/transformmynotes/commit/94320ecf9e319a26d6c055e9151f4a729e12b3a7))
+
 ## [1.18.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.17.0...transformmynotes-v1.18.0) (2026-06-10)
 
 
