@@ -8,7 +8,8 @@
  * Services started:
  *  1. dynalite (in-process) on port 4570 — in-memory DynamoDB
  *  2. cognito-local (child process) on port 9229 — Cognito emulator
- *  3. next dev -p 3002 (child process) with env pointing at both
+ *  3. s3rver (in-process) on port 4572 — in-memory S3
+ *  4. next dev -p 3002 (child process) with env pointing at all three
  */
 
 import os from 'node:os';
@@ -16,6 +17,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import dynalite from 'dynalite';
+import S3rver from 's3rver';
 import type { Server } from 'node:http';
 import {
   CognitoIdentityProviderClient,
@@ -32,7 +34,9 @@ import { buildInviteItem, hashInviteCode, buildUserProfileItem } from '@transfor
 
 const DYNALITE_PORT = 4570; // distinct from integration harness port (4569)
 const COGNITO_PORT = 9229;
+const S3RVER_PORT = 4572;
 const NEXT_PORT = 3002;
+const NOTES_BUCKET = 'notes-bucket';
 const RUNTIME_FILE = path.join(__dirname, '.e2e-runtime.json');
 
 // Test invite constants
@@ -143,6 +147,44 @@ async function createDynaliteTables(port: number) {
     }),
   );
 
+  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag, to match infra/db.ts)
+  await client.send(
+    new CreateTableCommand({
+      TableName: 'Notes',
+      AttributeDefinitions: [
+        { AttributeName: 'pk', AttributeType: 'S' },
+        { AttributeName: 'sk', AttributeType: 'S' },
+        { AttributeName: 'gsi1pk', AttributeType: 'S' },
+        { AttributeName: 'gsi1sk', AttributeType: 'S' },
+        { AttributeName: 'gsi2pk', AttributeType: 'S' },
+        { AttributeName: 'gsi2sk', AttributeType: 'S' },
+      ],
+      KeySchema: [
+        { AttributeName: 'pk', KeyType: 'HASH' },
+        { AttributeName: 'sk', KeyType: 'RANGE' },
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'GSI1',
+          KeySchema: [
+            { AttributeName: 'gsi1pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi1sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'GSI2',
+          KeySchema: [
+            { AttributeName: 'gsi2pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi2sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'KEYS_ONLY' },
+        },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+    }),
+  );
+
   client.destroy();
 }
 
@@ -205,6 +247,26 @@ async function seedRevokableInvite(port: number): Promise<string> {
   dynamoClient.destroy();
 
   return codeHash;
+}
+
+// ── s3rver ────────────────────────────────────────────────────────────────────
+
+async function startS3rver(port: number, directory: string): Promise<S3rver> {
+  const s3 = new S3rver({
+    port,
+    address: '127.0.0.1',
+    silent: true,
+    directory,
+    resetOnClose: true,
+    // Use path-style addressing (http://host:port/bucket/key)
+    // rather than virtual-host style (http://bucket.host:port/key)
+    vhostBuckets: false,
+    // Skip AWS signature validation — test credentials ('test/test') are not real
+    allowMismatchedSignatures: true,
+    configureBuckets: [{ name: NOTES_BUCKET, configs: [] }],
+  });
+  await s3.run();
+  return s3;
 }
 
 // ── cognito-local ─────────────────────────────────────────────────────────────
@@ -570,6 +632,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const dynaliteServer = await startDynalite(DYNALITE_PORT);
   await createDynaliteTables(DYNALITE_PORT);
 
+  // 1b. Start s3rver (in-memory S3)
+  const s3DataDir = fs.mkdtempSync(path.join(os.tmpdir(), 's3rver-e2e-'));
+  const s3rverInstance = await startS3rver(S3RVER_PORT, s3DataDir);
+
   // Seed the test invite into the Invites table (for auth.spec invite test)
   await seedInvite(DYNALITE_PORT);
 
@@ -623,9 +689,15 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     AWS_ENDPOINT_URL_COGNITO_IDENTITY_PROVIDER: `http://127.0.0.1:${COGNITO_PORT}`,
     SST_RESOURCE_UserData_name: 'UserData',
     SST_RESOURCE_Invites_name: 'Invites',
+    SST_RESOURCE_Notes_name: 'Notes',
+    SST_RESOURCE_NotesBucket_name: NOTES_BUCKET,
+    // Point the S3Client at s3rver. AWS SDK v3 uses path-style automatically
+    // when a custom endpoint is set (bucket in path, not hostname).
+    AWS_ENDPOINT_URL_S3: `http://127.0.0.1:${S3RVER_PORT}`,
     AWS_REGION: 'us-east-1',
-    AWS_ACCESS_KEY_ID: 'test',
-    AWS_SECRET_ACCESS_KEY: 'test',
+    // s3rver's hardcoded dummy credentials (node_modules/s3rver/lib/models/account.js)
+    AWS_ACCESS_KEY_ID: 'S3RVER',
+    AWS_SECRET_ACCESS_KEY: 'S3RVER',
   };
 
   // 5. Spawn next dev
@@ -668,9 +740,15 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       label: REVOKABLE_INVITE_LABEL,
       codeHash: revokableInviteCodeHash,
     },
+    // Primary user sub (used by capture-flow spec to verify DynamoDB entries)
+    mainUserSub,
+    // S3rver info
+    s3Endpoint: `http://127.0.0.1:${S3RVER_PORT}`,
+    notesBucket: NOTES_BUCKET,
     nextPid: nextProc.pid,
     cognitoPid: cognitoProc.pid,
     dynalitePort: DYNALITE_PORT,
+    notesTable: 'Notes',
   };
   fs.writeFileSync(RUNTIME_FILE, JSON.stringify(runtime, null, 2));
 
@@ -691,6 +769,12 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       } catch {
         // already gone
       }
+    }
+    // Close s3rver
+    try {
+      await s3rverInstance.close();
+    } catch {
+      // already gone
     }
     // Close dynalite
     await new Promise<void>((resolve) => {
