@@ -2,5 +2,11 @@
   "name": "@transformmynotes/scripts",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "stamp": "tsx src/stamp.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
+  }
 }
