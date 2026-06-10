@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.22.0...transformmynotes-v1.23.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **capture:** Capture screen with camera viewfinder, upload, and edge affordance (M4.7) ([#218](https://github.com/jasonp2323/transformmynotes/issues/218)) ([cf53822](https://github.com/jasonp2323/transformmynotes/commit/cf538221035342dd1fd94e73cdcd2980284b9869))
+
 ## [1.22.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.21.0...transformmynotes-v1.22.0) (2026-06-10)
 
 
