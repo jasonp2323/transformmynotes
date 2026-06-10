@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./editor/serialize": "./src/editor/serialize.ts",
     "./editor/extensions": "./src/editor/extensions.ts",
-    "./editor/highlight-mark": "./src/editor/highlight-mark.ts"
+    "./editor/highlight-mark": "./src/editor/highlight-mark.ts",
+    "./editor/low-confidence-node": "./src/editor/low-confidence-node.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

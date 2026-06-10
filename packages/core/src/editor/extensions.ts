@@ -16,6 +16,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { Highlight } from './highlight-mark';
+import { LowConfidence } from './low-confidence-node';
 
 /** StarterKit configured with the headings and marks this app uses. */
 export const configuredStarterKit = StarterKit.configure({
@@ -39,6 +40,9 @@ export { TableRow, TableCell, TableHeader };
 /** Custom highlight mark for ==text== syntax. */
 export { Highlight };
 
+/** Custom inline node for OCR low-confidence [?] tokens. */
+export { LowConfidence };
+
 /**
  * The full extension array to pass to the TipTap Editor constructor.
  * Usage: `new Editor({ extensions: editorExtensions, ... })`
@@ -50,4 +54,5 @@ export const editorExtensions = [
   TableCell,
   TableHeader,
   Highlight,
+  LowConfidence,
 ];
