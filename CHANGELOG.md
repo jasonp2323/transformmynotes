@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.20.0...transformmynotes-v1.21.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **ocr:** Bedrock Converse transcription + retry + markdown post-processing (M4.5) ([#211](https://github.com/jasonp2323/transformmynotes/issues/211)) ([ceeec6d](https://github.com/jasonp2323/transformmynotes/commit/ceeec6dcc24f2caddd2d9cf9a6cb0b28d094dd93))
+
 ## [1.20.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.19.0...transformmynotes-v1.20.0) (2026-06-10)
 
 
