@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.27.1...transformmynotes-v1.28.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** review-before-save screen + TipTap block editor (M5.3) ([#312](https://github.com/jasonp2323/transformmynotes/issues/312)) ([32ed89d](https://github.com/jasonp2323/transformmynotes/commit/32ed89d65de4f21808eb1c86a3588c39e97f18e5))
+
 ## [1.27.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.27.0...transformmynotes-v1.27.1) (2026-06-10)
 
 
