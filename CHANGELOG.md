@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.29.0...transformmynotes-v1.30.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** SUCCESS screen + NoteView route (M5.6) ([#361](https://github.com/jasonp2323/transformmynotes/issues/361)) ([b9c44c7](https://github.com/jasonp2323/transformmynotes/commit/b9c44c78da879ebefbfa1dbbb52e26fb29a0c86a)), closes [#108](https://github.com/jasonp2323/transformmynotes/issues/108)
+
 ## [1.29.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.28.0...transformmynotes-v1.29.0) (2026-06-10)
 
 
