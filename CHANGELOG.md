@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.28.0...transformmynotes-v1.29.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** note save + patch route handlers (M5.4/M5.5) ([#318](https://github.com/jasonp2323/transformmynotes/issues/318)) ([aecda31](https://github.com/jasonp2323/transformmynotes/commit/aecda31707ccc45d1e64e16415303c554bd2ff55))
+
 ## [1.28.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.27.1...transformmynotes-v1.28.0) (2026-06-10)
 
 
