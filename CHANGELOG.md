@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.27.0...transformmynotes-v1.27.1) (2026-06-10)
+
+
+### 🧰 Maintenance
+
+* **scripts:** implement cycle-time stamp helper ([#310](https://github.com/jasonp2323/transformmynotes/issues/310)) ([3e18887](https://github.com/jasonp2323/transformmynotes/commit/3e188878c699e30ef18af71cf13cc7645d857690))
+
 ## [1.27.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.26.0...transformmynotes-v1.27.0) (2026-06-10)
 
 
