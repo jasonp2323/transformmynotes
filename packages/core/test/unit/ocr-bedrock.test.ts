@@ -58,6 +58,10 @@ describe('SYSTEM_PROMPT', () => {
   it('instructs use of ## for main section headings', () => {
     expect(SYSTEM_PROMPT).toContain('##');
   });
+
+  it('contains the [?] illegibility marker instruction', () => {
+    expect(SYSTEM_PROMPT).toContain('[?]');
+  });
 });
 
 describe('transcribeImage', () => {
@@ -149,5 +153,16 @@ describe('transcribeImage', () => {
     });
     const result = await transcribeImage(new Uint8Array([1]));
     expect(result.rawText).toBe('');
+  });
+
+  it('retries on ThrottlingException and returns the successful result', async () => {
+    const throttle = Object.assign(new Error('rate limited'), { name: 'ThrottlingException' });
+    mockSend
+      .mockRejectedValueOnce(throttle)
+      .mockRejectedValueOnce(throttle)
+      .mockResolvedValue(makeConverseSendResponse('Recovered text.'));
+    const result = await transcribeImage(new Uint8Array([1]));
+    expect(result.rawText).toBe('Recovered text.');
+    expect(mockSend).toHaveBeenCalledTimes(3);
   });
 });
