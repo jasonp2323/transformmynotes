@@ -113,6 +113,16 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(function NoteEd
     },
   );
 
+  // Sync editable prop → ProseMirror editor when it changes.
+  // TipTap v3 deliberately preserves the current editable state on re-render
+  // (it calls setOptions with the editor's own isEditable, not the new prop),
+  // so we must imperatively push the new value whenever the prop changes.
+  useEffect(() => {
+    if (editor && editor.isEditable !== editable) {
+      editor.setEditable(editable);
+    }
+  }, [editor, editable]);
+
   // Focus popover input when it opens
   useEffect(() => {
     if (popover.visible) {
