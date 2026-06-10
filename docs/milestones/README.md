@@ -62,6 +62,8 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 | **M17** | Expand input from single-note to **notebook-wide / arbitrary note sets** — map-reduce synthesis + cross-note dedup + multi-source provenance | XL | M13, M15, M16, M6 |
 | **M18** | **Brazilian-Portuguese audio** (Amazon Polly neural TTS) for flashcards & written study content, cached by content hash in S3 | L | M8, M13, M14 |
 | **M19** | Admin AI settings — runtime-configurable generation (system prompt, model allowlist, inference params, guardrails, Polly voice, per-type enable + global kill-switch; `CONFIG#AI` DynamoDB item, `resolveAiConfig()`, version history + revert) | L | M3, M13 |
+| **M20** | Document sources — PDF / DOCX / EPUB / text (upload documents/books, `SOURCE#` entity + recency GSI7, `resolveSourceText()` normalization layer so M14–M17 generators run unchanged off any source, multi-format parsers, large books reuse M17 map-reduce, `STUDYSET` source refs generalized to `sourceRefs`) | XL | M4, M13, M17 |
+| **M21** | Web article ingestion + AI security hardening (paste URL → fetch + readable-article extract into a web `SOURCE#` → generate any material type; SSRF hardening via `assertUrlSafe`/`safeFetch` — scheme allowlist, private/link-local/cloud-metadata IP blocking, DNS-rebinding guard, per-hop redirect re-validation, size/timeout/content-type caps; prompt-injection mitigation — untrusted web content wrapped as data) | L | M13, M20 |
 
 ## Architecture summary
 
@@ -92,6 +94,14 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
   guardrails (rate/notes/token caps), Polly voice/speed, and per-type enable + kill-switch toggles; the
   `resolveAiConfig()` resolver reads this item first and falls back to `sst.Secret` defaults, with full
   version history + revert support.
+- **Source abstraction (M20–M21)** — `SOURCE#<ulid>` entity unifies notes, uploaded documents
+  (PDF/DOCX/EPUB/TXT/MD), and fetched web articles as interchangeable generation inputs; a
+  `resolveSourceText()` normalization layer lets the M14–M17 generators run off any source
+  unchanged; GSI7 provides recency-ordered source listing per user; `STUDYSET` source references
+  are generalized to `sourceRefs`. Web ingestion (M21) is **SSRF-hardened** via `assertUrlSafe`/
+  `safeFetch` (scheme allowlist, private/link-local/cloud-metadata IP blocking, DNS-rebinding
+  guard, per-hop redirect re-validation, size/timeout/content-type caps) and mitigates
+  prompt-injection by wrapping untrusted web content as data.
 - **Deploy** — shared `sst.aws.Router`: apex → marketing, `app.` → application; `production` named
   stage + ephemeral `pr-<N>` stages; secrets in SST; us-east-1 for the ACM/CloudFront cert.
 
