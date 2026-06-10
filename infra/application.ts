@@ -31,6 +31,8 @@ export const application = new sst.aws.Nextjs("Application", {
         "cognito-idp:AdminSetUserPassword",
         "cognito-idp:AdminAddUserToGroup",
         "cognito-idp:AdminListGroupsForUser",
+        "cognito-idp:AdminRemoveUserFromGroup",
+        "cognito-idp:AdminDeleteUser",
       ],
       resources: [userPool.arn],
     },

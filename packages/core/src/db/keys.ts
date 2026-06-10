@@ -33,6 +33,9 @@ export const userDataKeys = {
     KeyConditionExpression: 'gsi1pk = :gsi1pk',
     ExpressionAttributeValues: { ':gsi1pk': `STATUS#${status}` },
   }),
+
+  /** Audit record left behind when a user is removed. Same partition as the (now deleted) profile. */
+  deletedAudit: (userId: string) => ({ pk: `USER#${userId}`, sk: 'DELETED' as const }),
 };
 
 /** Possible access request statuses stored in the GSI1 partition key. */
