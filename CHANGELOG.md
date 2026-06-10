@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.23.0...transformmynotes-v1.24.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** AdminInvites page + list endpoint (M3.9) ([#278](https://github.com/jasonp2323/transformmynotes/issues/278)) ([951158d](https://github.com/jasonp2323/transformmynotes/commit/951158d4e33aba30307d58bbe4cb4b6c241d8248)), closes [#60](https://github.com/jasonp2323/transformmynotes/issues/60)
+
 ## [1.23.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.22.0...transformmynotes-v1.23.0) (2026-06-10)
 
 
