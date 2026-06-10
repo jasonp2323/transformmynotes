@@ -1,6 +1,6 @@
 # TransformMyNotes — Delivery Roadmap
 
-AI-paced schedule for the 13 milestones. Durations are compressed for agent-driven
+AI-paced schedule for the 22 milestones. Durations are compressed for agent-driven
 implementation (an `L` milestone is planned at ~3 days, `XL` at ~4, `M` at ~2), not the weeks a
 human team would take. Where milestones don't depend on each other they are scheduled **in
 parallel** and tagged with the same **Wave** — those can be dispatched to separate agents at the
@@ -10,8 +10,8 @@ This file is the source of truth; it's mirrored onto **Project board #5**
 (https://github.com/users/jasonp2323/projects/5) via the `Wave`, `Start date`, and `Target date`
 fields, and onto each GitHub **milestone's due date**.
 
-- **Window:** 2026-06-08 → 2026-07-06 (~29 calendar days; M11/M12 post-launch run in one parallel wave)
-- **If run fully sequentially** it would be ~36 days; the parallel waves save ~1 week.
+- **Window:** 2026-06-08 → 2026-08-04 (~57 calendar days; M11/M12 post-launch run in one parallel wave; M13–M21 post-launch AI study-material program begins Jul 7; M20/M21 source & web-ingestion extension runs Waves 13–14)
+- **If run fully sequentially** it would be ~64 days; the parallel waves save ~1.5 weeks.
 
 ## Dependency graph
 
@@ -33,11 +33,38 @@ flowchart LR
   M9 --> M10
   M10 --> M11["M11 · Security hardening (L)"]
   M10 --> M12["M12 · Android app · Capacitor (L)"]
+  M4 --> M13["M13 · AI generation engine (XL)"]
+  M5 --> M13
+  M6 --> M13
+  M13 --> M14["M14 · AI flashcards → deck (L)"]
+  M8 --> M14
+  M13 --> M15["M15 · Quizzes & tests (XL)"]
+  M13 --> M16["M16 · Assignments & guides (L)"]
+  M15 --> M17["M17 · Multi-note generation (XL)"]
+  M16 --> M17
+  M6 --> M17
+  M13 --> M17
+  M13 --> M18["M18 · Audio / TTS (L)"]
+  M14 --> M18
+  M8 --> M18
+  M3 --> M19["M19 · Admin AI settings (L)"]
+  M13 --> M19
+  M4 --> M20["M20 · Document sources (XL)"]
+  M13 --> M20
+  M17 --> M20
+  M13 --> M21["M21 · Web ingestion + security (L)"]
+  M20 --> M21
 ```
 
 > **Post-launch milestones (M11–M12)** run after the production cutover in M10. They are
 > independent of each other — Security (auth/app hardening) and the Android wrapper touch
 > different surfaces — so they share a wave and can be dispatched in parallel.
+
+> **Post-launch AI study-material program (M13–M21)** begins after M11/M12. M13 is the shared
+> foundation; M14/M15/M16 branch off it in parallel (each covers a different material type);
+> M17 and M18 can then run in parallel once their respective dependencies are met;
+> M20 (document sources) follows M17 alone in Wave 13; M21 (web ingestion + security hardening)
+> follows M20 alone in Wave 14.
 
 ## Schedule (Gantt)
 
@@ -68,6 +95,20 @@ gantt
   section Wave 9 — Security ∥ Mobile
   M11 Security hardening (L)    :m11, after m10, 3d
   M12 Android app · Capacitor (L):m12, after m10, 3d
+  section Wave 10 — AI Foundation
+  M13 AI generation engine (XL) :m13, 2026-07-07, 4d
+  section Wave 11 — Flashcards ∥ Quizzes ∥ Guides ∥ Admin AI settings
+  M14 AI flashcards → deck (L)  :m14, after m13, 3d
+  M15 Quizzes & tests (XL)      :m15, after m13, 4d
+  M16 Assignments & guides (L)  :m16, after m13, 3d
+  M19 Admin AI settings (L)     :m19, after m13, 3d
+  section Wave 12 — Multi-note ∥ Audio
+  M17 Multi-note generation (XL):m17, after m15, 4d
+  M18 Audio / TTS (L)           :m18, after m14, 3d
+  section Wave 13 — Document sources
+  M20 Document sources (XL)     :m20, after m17, 4d
+  section Wave 14 — Web ingestion + security
+  M21 Web ingestion + security (L):m21, after m20, 3d
 ```
 
 ## Wave-by-wave dispatch plan
@@ -87,6 +128,11 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | **7** | **M7** ∥ **M8** | Jun 28–30 | Both extend the M6 note model independently — Sharing adds `SHARE` items + a recipient GSI; Review deck adds `CARD` items + a due GSI. No overlap beyond reading a saved note. |
 | **8** | **M10** | Jul 1–3 | Hardening/launch needs everything merged; run last, alone. |
 | **9** | **M11** ∥ **M12** | Jul 4–6 | Post-launch. Security hardening (Turnstile/headers/scanning on the app) and the Android Capacitor wrapper touch different surfaces and don't share code — safe in parallel. Both depend only on the launched production app (M10). |
+| **10** | **M13** | Jul 7–10 | AI generation engine is the shared foundation for all study-material types; must be established alone before M14/M15/M16 can branch off it. |
+| **11** | **M14** ∥ **M15** ∥ **M16** ∥ **M19** | Jul 11–14 | All four depend only on M13 (M19 also needs M3, already done). M14/M15/M16 build different material-type code paths — flashcards extend M8's CARD model, quizzes add MCQ/short-answer attempt logic, guides/summaries add new STUDYSET types — no shared files beyond the M13 `generate` wrapper. M19 builds the admin-settings surface (`CONFIG#AI` item + `resolveAiConfig()` resolver) — a different DynamoDB key shape and a different set of admin routes — so the only shared touchpoint is the `resolveAiConfig()` resolver introduced in M13, which M19 writes and M14/M15/M16 call read-only. |
+| **12** | **M17** ∥ **M18** | Jul 15–18 | Independent concerns: M17 generalises input scope from single-note to notebook-wide (map-reduce synthesis, note-set picker), while M18 adds Polly TTS audio (S3 cache, audio player). Different tables, routes, and AWS services — no overlap. |
+| **13** | **M20** | Jul 19–22 | Document-sources layer depends on M17's map-reduce plumbing (large-book chunking reuses it); runs alone because it introduces `SOURCE#` entity + GSI7 + `resolveSourceText()` normalization — the foundation M21 builds on. |
+| **14** | **M21** | Jul 23–25 | Web ingestion + SSRF/prompt-injection hardening depends entirely on M20's `SOURCE#` abstraction and `resolveSourceText()`. Runs alone — security-sensitive surface, no benefit from parallelism with other active work. |
 
 ### Parallelization notes / light coupling to watch
 - **M3 ∥ M4 (Wave 4):** both add DynamoDB access patterns. Keep new key builders in
@@ -97,6 +143,10 @@ wave row are independent — dispatch one agent per milestone in parallel.
   `infra/db.ts`, land one PR, rebase the other (a single GSI-add per deploy avoids the
   "index already exists" SST/Pulumi hazard called out in CLAUDE.md).
 - **M2 ∥ M9 (Wave 3):** zero coupling — marketing has no auth/DB. Fully independent.
+- **M14 ∥ M15 ∥ M16 ∥ M19 (Wave 11):** M14/M15/M16 all call the M13 `generate` wrapper (read-only dependency). M14 writes new `CARD#` items (extends M8's GSI3); M15 writes `ATTEMPT#` items (new GSI6); M16 writes new STUDYSET types — different items, different GSIs, no collision. M19 introduces the `CONFIG#AI` key + `resolveAiConfig()` resolver; M14/M15/M16 call it read-only, so they can land before or after M19 without conflict.
+- **M17 ∥ M18 (Wave 12):** fully orthogonal. M17 adds note-set picker UI + map-reduce generation routes; M18 adds Polly TTS Lambda + audio player component. Different routes, different AWS services, no shared state.
+- **M20 (Wave 13):** runs alone. Introduces the `SOURCE#` entity + GSI7 + `resolveSourceText()` normalization layer; multi-format parsers (PDF/DOCX/EPUB/TXT/MD); generalizes `STUDYSET.sourceRefs`. M21 depends on this entire surface.
+- **M21 (Wave 14):** runs alone. Builds the URL-fetch path on top of M20's `SOURCE#` model; adds `assertUrlSafe`/`safeFetch` SSRF guards and prompt-injection data-wrapping. Security-critical — isolated wave keeps the review surface small.
 
 ## Per-milestone detail
 
@@ -115,10 +165,21 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | M10 | Hardening & launch | L | 8 | Jul 1 | Jul 3 | all prior | — |
 | M11 | Security hardening | L | 9 | Jul 4 | Jul 6 | M2, M3, M10 | M12 |
 | M12 | Android app · Capacitor | L | 9 | Jul 4 | Jul 6 | M10 | M11 |
+| M13 | AI generation engine & foundation | XL | 10 | Jul 7 | Jul 10 | M4, M5, M6 | — |
+| M14 | AI flashcards → review deck | L | 11 | Jul 11 | Jul 13 | M13, M8 | M15, M16, M19 |
+| M15 | Quizzes & tests (auto-graded) | XL | 11 | Jul 11 | Jul 14 | M13 | M14, M16, M19 |
+| M16 | Assignments, summaries & study guides | L | 11 | Jul 11 | Jul 13 | M13 | M14, M15, M19 |
+| M19 | Admin AI settings — runtime-configurable generation | L | 11 | Jul 11 | Jul 13 | M3, M13 | M14, M15, M16 |
+| M17 | Multi-note & notebook-wide generation | XL | 12 | Jul 15 | Jul 18 | M13, M15, M16, M6 | M18 |
+| M18 | Audio for flashcards & notes (TTS) | L | 12 | Jul 15 | Jul 17 | M8, M13, M14 | M17 |
+| M20 | Document sources — PDF / DOCX / EPUB / text | XL | 13 | Jul 19 | Jul 22 | M4, M13, M17 | — |
+| M21 | Web article ingestion + AI security hardening | L | 14 | Jul 23 | Jul 25 | M13, M20 | — |
 
-> Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12}**.
-> Shortening any of these directly shortens the whole project; M3, M9, and M7 have slack. The two
-> post-launch milestones (M11, M12) run in parallel after M10, so they add one wave (~3 days), not two.
+> Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12} → M13 → M15 → M17 → M20 → M21**.
+> Shortening any of these directly shortens the whole project; M3, M9, M7, M14, M16, M18, and M19 have slack.
+> The AI study-material program adds five waves after launch: M13 alone (Wave 10), then M14/M15/M16/M19 in parallel
+> (Wave 11), then M17/M18 in parallel (Wave 12), then M20 alone (Wave 13), then M21 alone (Wave 14) —
+> so nine milestones add only ~18 days, not ~34.
 
 ## Sub-tasks on the timeline
 

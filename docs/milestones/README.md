@@ -55,6 +55,15 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 | **M10** | Hardening & launch (WCAG AA, resilient uploads, IAM audit, cost/perf, tagging, prod cutover, Resend domain, E2E) | L | all prior |
 | **M11** | Security hardening (Cloudflare Turnstile on auth pages, OWASP ASVS L1 + Top 10 baseline — CSP/headers, rate limiting, input validation, no enumeration — CodeQL + Dependabot + secret scanning) | L | M2, M3, M10 |
 | **M12** | Android app — Capacitor (thin native shell via `server.url` → `app.transformmynotes.com`, native camera capture, App Links/assetlinks, signed-`.aab` CI, Play Store runbook) | L | M10 |
+| **M13** | AI generation engine — Bedrock **tool-use → typed JSON** study material, `STUDYSET` data model, async generation job, **pt-BR** system prompt + language policy, generate-on-a-note UI (single-note input) | XL | M4, M5, M6 |
+| **M14** | AI-generated flashcards, reviewed-then-accepted into the existing **M8 spaced-repetition deck** (shared `CARD` items + SM-2) | L | M13, M8 |
+| **M15** | Quizzes/tests from notes — MCQ + short-answer, **auto-graded** (MCQ exact + Bedrock judge), attempts + score report | XL | M13 |
+| **M16** | Assignments/practice, summaries, key-term glossaries & study guides generated from notes | L | M13 |
+| **M17** | Expand input from single-note to **notebook-wide / arbitrary note sets** — map-reduce synthesis + cross-note dedup + multi-source provenance | XL | M13, M15, M16, M6 |
+| **M18** | **Brazilian-Portuguese audio** (Amazon Polly neural TTS) for flashcards & written study content, cached by content hash in S3 | L | M8, M13, M14 |
+| **M19** | Admin AI settings — runtime-configurable generation (system prompt, model allowlist, inference params, guardrails, Polly voice, per-type enable + global kill-switch; `CONFIG#AI` DynamoDB item, `resolveAiConfig()`, version history + revert) | L | M3, M13 |
+| **M20** | Document sources — PDF / DOCX / EPUB / text (upload documents/books, `SOURCE#` entity + recency GSI7, `resolveSourceText()` normalization layer so M14–M17 generators run unchanged off any source, multi-format parsers, large books reuse M17 map-reduce, `STUDYSET` source refs generalized to `sourceRefs`) | XL | M4, M13, M17 |
+| **M21** | Web article ingestion + AI security hardening (paste URL → fetch + readable-article extract into a web `SOURCE#` → generate any material type; SSRF hardening via `assertUrlSafe`/`safeFetch` — scheme allowlist, private/link-local/cloud-metadata IP blocking, DNS-rebinding guard, per-hop redirect re-validation, size/timeout/content-type caps; prompt-injection mitigation — untrusted web content wrapped as data) | L | M13, M20 |
 
 ## Architecture summary
 
@@ -76,6 +85,23 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 - **OCR pipeline** — capture/upload → client resize → presigned S3 PUT → `POST /api/transcribe`
   (Bedrock Converse, Sonnet vision profile, `maxTokens`, pt-BR prompt) → review (Notion-like editor)
   → save (S3 body + DynamoDB metadata + search index).
+- **AI study material** — `STUDYSET#<ulid>` items in the Notes table (type: flashcards|quiz|assignment|summary,
+  status: queued→running→ready|failed, body in S3); GSI4 list-by-user, GSI5 list-by-note; quiz attempts
+  `ATTEMPT#<ulid>` on GSI6; AI flashcards reuse M8's `CARD#`/GSI3; pt-BR-focused Bedrock tool-use
+  generation (typed JSON via Converse API); Polly neural TTS audio cached by content hash in S3.
+  **Runtime AI config (M19):** a global `CONFIG#AI` DynamoDB item (edited from the admin dashboard)
+  controls system prompt, generation model (vetted allowlist), inference params (maxTokens/temperature/topP),
+  guardrails (rate/notes/token caps), Polly voice/speed, and per-type enable + kill-switch toggles; the
+  `resolveAiConfig()` resolver reads this item first and falls back to `sst.Secret` defaults, with full
+  version history + revert support.
+- **Source abstraction (M20–M21)** — `SOURCE#<ulid>` entity unifies notes, uploaded documents
+  (PDF/DOCX/EPUB/TXT/MD), and fetched web articles as interchangeable generation inputs; a
+  `resolveSourceText()` normalization layer lets the M14–M17 generators run off any source
+  unchanged; GSI7 provides recency-ordered source listing per user; `STUDYSET` source references
+  are generalized to `sourceRefs`. Web ingestion (M21) is **SSRF-hardened** via `assertUrlSafe`/
+  `safeFetch` (scheme allowlist, private/link-local/cloud-metadata IP blocking, DNS-rebinding
+  guard, per-hop redirect re-validation, size/timeout/content-type caps) and mitigates
+  prompt-injection by wrapping untrusted web content as data.
 - **Deploy** — shared `sst.aws.Router`: apex → marketing, `app.` → application; `production` named
   stage + ephemeral `pr-<N>` stages; secrets in SST; us-east-1 for the ACM/CloudFront cert.
 
