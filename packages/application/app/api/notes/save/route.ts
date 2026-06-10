@@ -1,0 +1,158 @@
+import { NextResponse } from 'next/server';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  storageKeys,
+  getTranscriptionJob,
+  updateTranscriptionJobStatus,
+  putNote,
+  postprocessMarkdown,
+  countHighlights,
+} from '@transformmynotes/core';
+import { getAuthenticatedSub } from '@/lib/require-api-user';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+function requireBucketName(): string {
+  const value = process.env.SST_RESOURCE_NotesBucket_name;
+  if (!value) {
+    throw new Error(
+      'Missing required env var SST_RESOURCE_NotesBucket_name: the S3 bucket name is not bound. ' +
+        'Expected it from the SST resource link (production) or the test harness.',
+    );
+  }
+  return value;
+}
+
+export async function POST(req: Request) {
+  // Auth: verify the Cognito ID token and extract the sub.
+  const sub = await getAuthenticatedSub();
+  if (!sub) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Parse JSON body.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid request body.' },
+      { status: 400 },
+    );
+  }
+
+  const { jobId, title, markdown, tags } = (body ?? {}) as Record<string, unknown>;
+
+  // Validate jobId.
+  if (typeof jobId !== 'string' || !jobId) {
+    return NextResponse.json(
+      { ok: false, error: 'Missing or invalid jobId.' },
+      { status: 400 },
+    );
+  }
+
+  // Validate title.
+  if (typeof title !== 'string') {
+    return NextResponse.json(
+      { ok: false, error: 'Missing or invalid title.' },
+      { status: 400 },
+    );
+  }
+
+  // Validate markdown.
+  if (typeof markdown !== 'string') {
+    return NextResponse.json(
+      { ok: false, error: 'Missing or invalid markdown.' },
+      { status: 400 },
+    );
+  }
+
+  // Validate tags.
+  let resolvedTags: string[] = [];
+  if (tags !== undefined) {
+    if (
+      !Array.isArray(tags) ||
+      !(tags as unknown[]).every((t) => typeof t === 'string')
+    ) {
+      return NextResponse.json(
+        { ok: false, error: 'Invalid tags.' },
+        { status: 400 },
+      );
+    }
+    resolvedTags = [...new Set(tags as string[])];
+    if (resolvedTags.length > 20) {
+      return NextResponse.json(
+        { ok: false, error: 'A note may have at most 20 tags.' },
+        { status: 400 },
+      );
+    }
+  }
+
+  try {
+    // Resolve required env var — fail loudly if unset.
+    const bucket = requireBucketName();
+
+    // Look up the job — a sub mismatch yields null → 404.
+    const job = await getTranscriptionJob(sub, jobId);
+    if (!job) {
+      return NextResponse.json({ ok: false, error: 'Job not found.' }, { status: 404 });
+    }
+
+    // The note reuses the job's ULID.
+    const noteId = jobId;
+
+    // Derive metadata from the markdown body.
+    const meta = postprocessMarkdown(markdown);
+    const highlights = countHighlights(markdown);
+
+    // Write the markdown body to S3 (overwrite/idempotent).
+    const s3 = new S3Client({});
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: storageKeys.noteMarkdown(sub, noteId),
+        Body: markdown,
+        ContentType: 'text/markdown',
+      }),
+    );
+
+    // Persist note metadata to DynamoDB.
+    await putNote({
+      sub,
+      noteId,
+      title: title || 'Untitled note',
+      tags: resolvedTags,
+      status: 'clean',
+      words: meta.wordCount,
+      highlights,
+      langPair: meta.detectedLang,
+      ocrConfidence: meta.ocrConfidence,
+      bodyS3Key: storageKeys.noteMarkdown(sub, noteId),
+      originalImageS3Key: storageKeys.originalImage(sub, noteId),
+    });
+
+    // Best-effort: update job status to done. Swallow errors (e.g. ConditionalCheckFailed)
+    // so a duplicate save or already-done job doesn't fail the request.
+    try {
+      await updateTranscriptionJobStatus({ sub, jobId, status: 'done' });
+    } catch (statusErr) {
+      console.error('[save] Failed to update job status to done', statusErr);
+    }
+
+    return NextResponse.json({
+      noteId,
+      title: title || 'Untitled note',
+      wordCount: meta.wordCount,
+      highlights,
+      langPair: meta.detectedLang,
+      ocrConfidence: meta.ocrConfidence,
+    });
+  } catch (err) {
+    console.error('[save] Could not save note', err);
+    return NextResponse.json(
+      { ok: false, error: 'Could not save note.' },
+      { status: 500 },
+    );
+  }
+}

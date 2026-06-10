@@ -1,0 +1,363 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// ---------------------------------------------------------------------------
+// Hoisted mocks
+// ---------------------------------------------------------------------------
+
+const getAuthenticatedSubMock = vi.hoisted(() => vi.fn());
+const getNoteMock = vi.hoisted(() => vi.fn());
+const computeTagDeltaMock = vi.hoisted(() => vi.fn());
+const updateNoteMock = vi.hoisted(() => vi.fn());
+const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
+const countHighlightsMock = vi.hoisted(() => vi.fn());
+const s3SendMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/require-api-user', () => ({
+  getAuthenticatedSub: getAuthenticatedSubMock,
+}));
+
+// Define NoteConflictError inside the mock factory so instanceof works correctly.
+vi.mock('@transformmynotes/core', () => {
+  class NoteConflictError extends Error {
+    constructor(message = 'Note was modified concurrently') {
+      super(message);
+      this.name = 'NoteConflictError';
+    }
+  }
+
+  return {
+    getNote: getNoteMock,
+    computeTagDelta: computeTagDeltaMock,
+    updateNote: updateNoteMock,
+    postprocessMarkdown: postprocessMarkdownMock,
+    countHighlights: countHighlightsMock,
+    storageKeys: {
+      originalImage: (s: string, i: string) => `images/users/${s}/${i}.jpg`,
+      noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,
+    },
+    NoteConflictError,
+  };
+});
+
+vi.mock('@aws-sdk/client-s3', () => ({
+  S3Client: vi.fn(() => ({ send: s3SendMock })),
+  PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
+}));
+
+// ---------------------------------------------------------------------------
+// Import module under test (after mocks)
+// ---------------------------------------------------------------------------
+
+import { PATCH } from './route';
+
+// We need the mocked NoteConflictError to throw in the conflict test.
+import { NoteConflictError } from '@transformmynotes/core';
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const SUB = 'user-sub-1';
+const NOTE_ID = '01JABC';
+
+const EXISTING_NOTE = {
+  pk: `USER#${SUB}`,
+  sk: `NOTE#${NOTE_ID}`,
+  noteId: NOTE_ID,
+  sub: SUB,
+  title: 'Old Title',
+  tags: ['oldTag'],
+  status: 'clean' as const,
+  words: 5,
+  highlights: 0,
+  langPair: 'unknown',
+  ocrConfidence: 100,
+  bodyS3Key: `markdown/users/${SUB}/${NOTE_ID}.md`,
+  originalImageS3Key: `images/users/${SUB}/${NOTE_ID}.jpg`,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const UPDATED_NOTE = {
+  ...EXISTING_NOTE,
+  title: 'New Title',
+  tags: ['newTag'],
+  words: 2,
+  updatedAt: '2026-01-02T00:00:00.000Z',
+};
+
+const DEFAULT_BODY = {
+  markdown: '## Hello World',
+  title: 'New Title',
+  tags: ['newTag'],
+};
+
+function makeRequest(
+  body: unknown = DEFAULT_BODY,
+  noteId = NOTE_ID,
+): [Request, { params: { noteId: string } }] {
+  const req = new Request(`http://localhost/api/notes/${noteId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    headers: { 'content-type': 'application/json' },
+  });
+  return [req, { params: { noteId } }];
+}
+
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  process.env['SST_RESOURCE_NotesBucket_name'] = 'test-bucket';
+
+  getAuthenticatedSubMock.mockResolvedValue(SUB);
+  getNoteMock.mockResolvedValue(EXISTING_NOTE);
+  computeTagDeltaMock.mockReturnValue({ added: ['newTag'], removed: ['oldTag'] });
+  postprocessMarkdownMock.mockReturnValue({
+    markdown: '## Hello World',
+    wordCount: 2,
+    detectedLang: 'unknown',
+    ocrConfidence: 100,
+  });
+  countHighlightsMock.mockReturnValue(0);
+  updateNoteMock.mockResolvedValue(UPDATED_NOTE);
+  s3SendMock.mockResolvedValue({});
+});
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('PATCH /api/notes/[noteId]', () => {
+  describe('auth', () => {
+    it('returns 401 when getAuthenticatedSub returns null', async () => {
+      getAuthenticatedSubMock.mockResolvedValueOnce(null);
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(401);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Unauthorized');
+    });
+  });
+
+  describe('request validation', () => {
+    it('returns 400 on invalid JSON body', async () => {
+      const req = new Request(`http://localhost/api/notes/${NOTE_ID}`, {
+        method: 'PATCH',
+        body: 'not-json',
+        headers: { 'content-type': 'application/json' },
+      });
+
+      const res = await PATCH(req, { params: { noteId: NOTE_ID } });
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Invalid request body.');
+    });
+
+    it('returns 400 when markdown is missing', async () => {
+      const [req, ctx] = makeRequest({ title: 'Title', tags: [] });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Missing or invalid markdown.');
+    });
+
+    it('returns 400 when markdown is not a string', async () => {
+      const [req, ctx] = makeRequest({ markdown: 42, title: 'Title', tags: [] });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Missing or invalid markdown.');
+    });
+
+    it('returns 400 when title is not a string', async () => {
+      const [req, ctx] = makeRequest({ markdown: '## Hi', title: 42, tags: [] });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Missing or invalid title.');
+    });
+
+    it('returns 400 when tags contains non-string entries', async () => {
+      const [req, ctx] = makeRequest({ markdown: '## Hi', title: 'Title', tags: [1, 2] });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Invalid tags.');
+    });
+
+    it('returns 400 when more than 20 unique tags are provided', async () => {
+      const manyTags = Array.from({ length: 21 }, (_, i) => `tag${i}`);
+      const [req, ctx] = makeRequest({ markdown: '## Hi', title: 'Title', tags: manyTags });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('A note may have at most 20 tags.');
+    });
+  });
+
+  describe('note lookup', () => {
+    it('returns 404 when getNote returns undefined', async () => {
+      getNoteMock.mockResolvedValueOnce(undefined);
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(404);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Note not found.');
+    });
+  });
+
+  describe('success path', () => {
+    it('returns 200 with expected payload', async () => {
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.noteId).toBe(NOTE_ID);
+      expect(body.title).toBe('New Title');
+      expect(body.wordCount).toBe(2);
+      expect(body.highlights).toBe(0);
+      expect(body.langPair).toBe('unknown');
+      expect(body.ocrConfidence).toBe(100);
+      expect(body.updatedAt).toBe(UPDATED_NOTE.updatedAt);
+    });
+
+    it('calls updateNote with correct delta, expectedUpdatedAt, and preserved createdAt', async () => {
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: SUB,
+          noteId: NOTE_ID,
+          title: 'New Title',
+          addedTags: ['newTag'],
+          removedTags: ['oldTag'],
+          expectedUpdatedAt: EXISTING_NOTE.updatedAt,
+          createdAt: EXISTING_NOTE.createdAt,
+        }),
+      );
+    });
+
+    it('calls PutObjectCommand with the markdown body and correct key', async () => {
+      const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      expect(PutObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Bucket: 'test-bucket',
+          Key: `markdown/users/${SUB}/${NOTE_ID}.md`,
+          Body: '## Hello World',
+          ContentType: 'text/markdown',
+        }),
+      );
+    });
+
+    it('calls getNote with sub and noteId', async () => {
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      expect(getNoteMock).toHaveBeenCalledWith(SUB, NOTE_ID);
+    });
+
+    it('defaults title to "Untitled note" when title is an empty string', async () => {
+      const [req, ctx] = makeRequest({ markdown: '## Hi', title: '', tags: [] });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      // updateNote should be called with title = 'Untitled note'
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Untitled note' }),
+      );
+      // Response should also reflect the default title
+      expect(body.title).toBe('Untitled note');
+    });
+
+    it('de-duplicates tags before passing them to updateNote', async () => {
+      const [req, ctx] = makeRequest({
+        markdown: '## Hi',
+        title: 'Title',
+        tags: ['a', 'b', 'a'],
+      });
+      await PATCH(req, ctx);
+
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({ tags: ['a', 'b'] }),
+      );
+    });
+  });
+
+  describe('conflict handling', () => {
+    it('returns 409 when updateNote rejects with NoteConflictError', async () => {
+      updateNoteMock.mockRejectedValueOnce(new NoteConflictError());
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(409);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Note was modified concurrently. Reload and try again.');
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns 500 when updateNote rejects with a generic error', async () => {
+      updateNoteMock.mockRejectedValueOnce(new Error('DynamoDB timeout'));
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(500);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Could not update note.');
+    });
+
+    it('returns 500 when SST_RESOURCE_NotesBucket_name is unset', async () => {
+      delete process.env['SST_RESOURCE_NotesBucket_name'];
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(500);
+      expect(body.ok).toBe(false);
+    });
+
+    it('returns 500 when S3 PutObject fails', async () => {
+      s3SendMock.mockRejectedValueOnce(new Error('S3 access denied'));
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(500);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Could not update note.');
+    });
+  });
+});

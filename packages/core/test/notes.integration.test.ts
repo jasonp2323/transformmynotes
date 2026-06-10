@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { noteKeys } from '../src/db/keys.js';
 import {
@@ -26,6 +26,7 @@ import {
   getNote,
   listUserNotes,
   listNoteIdsByTag,
+  computeTagDelta,
   type BuildNoteItemInput,
 } from '../src/db/notes.js';
 
@@ -437,5 +438,95 @@ describe('noteKeys — key builder consistency checks', () => {
   it('listUserNotes sets ScanIndexForward: false', () => {
     const params = noteKeys.listUserNotes('any-sub');
     expect(params.ScanIndexForward).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sub-case 5: Tag-delta update — GSI2 index state reflects added/removed tags
+// ---------------------------------------------------------------------------
+
+describe('Notes — tag-delta update keeps GSI2 index consistent', () => {
+  // Use a unique sub to avoid collisions with other test cases.
+  const SUB = 'sub-tagdelta-001';
+  const NOTE_ID = '01JXXXXXXXXXXXXXXXXXTD001';
+
+  it('setup: writes a note with tags [verbs, grammar]', async () => {
+    await writeNoteWithTags({
+      ...BASE_NOTE,
+      sub: SUB,
+      noteId: NOTE_ID,
+      title: 'Tag Delta Note',
+      tags: ['verbs', 'grammar'],
+      createdAt: '2025-06-01T10:00:00.000Z',
+      updatedAt: '2025-06-01T10:00:00.000Z',
+    });
+  });
+
+  it('computeTagDelta([verbs,grammar] → [grammar,phrases]) = { added:[phrases], removed:[verbs] }', () => {
+    const delta = computeTagDelta(['verbs', 'grammar'], ['grammar', 'phrases']);
+    expect(delta.added).toEqual(['phrases']);
+    expect(delta.removed).toEqual(['verbs']);
+  });
+
+  it('applies the delta with individual ops (mimicking the transaction)', async () => {
+    // Delete the removed tag-index item for "verbs".
+    await ddb.send(
+      new DeleteCommand({
+        TableName: TableNames.Notes,
+        Key: noteKeys.tagItem('verbs', SUB, NOTE_ID),
+      }),
+    );
+
+    // Put the added tag-index item for "phrases".
+    const phrasesTagItem = buildTagIndexItem({ tag: 'phrases', sub: SUB, noteId: NOTE_ID });
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.Notes,
+        Item: phrasesTagItem,
+      }),
+    );
+
+    // Overwrite the main note item with the updated tags and a bumped updatedAt.
+    const updatedNoteItem = buildNoteItem({
+      ...BASE_NOTE,
+      sub: SUB,
+      noteId: NOTE_ID,
+      title: 'Tag Delta Note — Updated',
+      tags: ['grammar', 'phrases'],
+      createdAt: '2025-06-01T10:00:00.000Z',
+      updatedAt: '2025-06-01T11:00:00.000Z',
+    });
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.Notes,
+        Item: updatedNoteItem,
+      }),
+    );
+  });
+
+  it('listNoteIdsByTag("verbs") no longer returns this note', async () => {
+    const items = await listNoteIdsByTag('verbs');
+    const noteIds = items.map((i) => i.noteId);
+    expect(noteIds).not.toContain(NOTE_ID);
+  });
+
+  it('listNoteIdsByTag("grammar") still returns this note', async () => {
+    const items = await listNoteIdsByTag('grammar');
+    const noteIds = items.map((i) => i.noteId);
+    expect(noteIds).toContain(NOTE_ID);
+  });
+
+  it('listNoteIdsByTag("phrases") now returns this note', async () => {
+    const items = await listNoteIdsByTag('phrases');
+    const noteIds = items.map((i) => i.noteId);
+    expect(noteIds).toContain(NOTE_ID);
+  });
+
+  it('getNote returns updated title and new tags array', async () => {
+    const fetched = await getNote(SUB, NOTE_ID);
+    expect(fetched).toBeDefined();
+    expect(fetched!.title).toBe('Tag Delta Note — Updated');
+    expect(fetched!.tags).toEqual(['grammar', 'phrases']);
+    expect(fetched!.updatedAt).toBe('2025-06-01T11:00:00.000Z');
   });
 });
