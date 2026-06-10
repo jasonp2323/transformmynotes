@@ -39,7 +39,7 @@ export default async function AdminLayout({
     'You';
 
   return (
-    <AdminShellProvider userName={userName} isAdmin>
+    <AdminShellProvider userName={userName} isAdmin userSub={(claims.sub as string) ?? ''}>
       {children}
     </AdminShellProvider>
   );

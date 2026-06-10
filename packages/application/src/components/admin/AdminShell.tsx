@@ -11,6 +11,8 @@ export interface AdminShellProps {
   eyebrow?: string;
   actions?: React.ReactNode;
   search?: string;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   active?: string;
   children: React.ReactNode;
 }
@@ -25,6 +27,8 @@ export function AdminShell({
   eyebrow = 'Admin',
   actions,
   search,
+  searchValue,
+  onSearchChange,
   active: activeProp,
   children,
 }: AdminShellProps) {
@@ -41,6 +45,8 @@ export function AdminShell({
       eyebrow={eyebrow}
       actions={actions}
       search={search}
+      searchValue={searchValue}
+      onSearchChange={onSearchChange}
     >
       {children}
     </DesktopShell>
