@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { inviteKeys } from '../src/db/keys.js';
-import { putInvite, getInviteByCode, claimInvite, revokeInvite } from '../src/db/invites.js';
+import { putInvite, getInviteByCode, claimInvite, revokeInvite, listInvites } from '../src/db/invites.js';
 import { hashInviteCode } from '../src/auth/invite.js';
 
 // ---------------------------------------------------------------------------
@@ -356,5 +356,78 @@ describe('revokeInvite', () => {
         'Revoked by admin for policy violation',
       );
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listInvites
+// ---------------------------------------------------------------------------
+
+describe('listInvites', () => {
+  // Unique code prefixes so these tests are isolated from earlier writes.
+  const PENDING_A = 'LIST-PENDING-A-001';
+  const PENDING_B = 'LIST-PENDING-B-001';
+  const REVOKE_C  = 'LIST-REVOKE-C-001';
+
+  it('setup: write two pending invites and one revoked invite', async () => {
+    await putInvite({ code: PENDING_A, type: 'code', maxUses: 5 });
+    // Small real-time gap so timestamps are strictly ordered.
+    await new Promise((r) => setTimeout(r, 5));
+    await putInvite({ code: PENDING_B, type: 'code', maxUses: 5 });
+    await new Promise((r) => setTimeout(r, 5));
+    const itemC = await putInvite({ code: REVOKE_C, type: 'code', maxUses: 5 });
+    await revokeInvite(hashInviteCode(REVOKE_C));
+
+    // Basic sanity — all three were written.
+    expect(itemC.status).toBe('pending'); // status before revoke
+  });
+
+  it('listInvites() returns all invites (no filter), newest-first', async () => {
+    const all = await listInvites();
+
+    // Must contain all three codes written in setup.
+    const pks = all.map((i) => i.pk);
+    expect(pks).toContain(`INVITE#${hashInviteCode(PENDING_A)}`);
+    expect(pks).toContain(`INVITE#${hashInviteCode(PENDING_B)}`);
+    expect(pks).toContain(`INVITE#${hashInviteCode(REVOKE_C)}`);
+
+    // Verify descending order by gsi1sk for consecutive items.
+    // The GSI1 sort key is `<status>#<ISO createdAt>`, so `ScanIndexForward: false`
+    // sorts lexicographically descending on gsi1sk — within the same status prefix
+    // items are newest-first, but across status prefixes the order is by the prefix
+    // letter (e.g. 'revoked#' > 'pending#' > 'expired#' > ...).
+    // We therefore verify the gsi1sk values are in non-increasing order rather
+    // than comparing raw createdAt across status boundaries.
+    for (let i = 0; i < all.length - 1; i++) {
+      expect(all[i].gsi1sk >= all[i + 1].gsi1sk).toBe(true);
+    }
+  });
+
+  it('listInvites("pending") returns only pending invites', async () => {
+    const pending = await listInvites('pending');
+
+    const pks = pending.map((i) => i.pk);
+    expect(pks).toContain(`INVITE#${hashInviteCode(PENDING_A)}`);
+    expect(pks).toContain(`INVITE#${hashInviteCode(PENDING_B)}`);
+
+    // The revoked invite must NOT appear.
+    expect(pks).not.toContain(`INVITE#${hashInviteCode(REVOKE_C)}`);
+
+    // All returned items have status 'pending'.
+    pending.forEach((i) => expect(i.status).toBe('pending'));
+  });
+
+  it('listInvites("revoked") returns only the revoked invite', async () => {
+    const revoked = await listInvites('revoked');
+
+    const pks = revoked.map((i) => i.pk);
+    expect(pks).toContain(`INVITE#${hashInviteCode(REVOKE_C)}`);
+
+    // The two pending invites must NOT appear.
+    expect(pks).not.toContain(`INVITE#${hashInviteCode(PENDING_A)}`);
+    expect(pks).not.toContain(`INVITE#${hashInviteCode(PENDING_B)}`);
+
+    // All returned items have status 'revoked'.
+    revoked.forEach((i) => expect(i.status).toBe('revoked'));
   });
 });

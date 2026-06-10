@@ -1,12 +1,43 @@
 import { NextResponse } from 'next/server';
-import { generateInviteCode, putInvite, getGroup } from '@transformmynotes/core';
+import { generateInviteCode, putInvite, getGroup, listInvites } from '@transformmynotes/core';
 import { getAdminApiUser } from '@/lib/require-admin';
+import type { InviteStatus } from '@transformmynotes/core';
 import { rateLimit } from '@/lib/ratelimit';
 import { sendInviteEmail } from '@/lib/email';
 import { formatInviteCode, defaultExpiresAt, parseCreateInviteBody } from '@/lib/invite-create';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const VALID_STATUSES: InviteStatus[] = ['pending', 'used', 'expired', 'revoked'];
+
+export async function GET(req: Request) {
+  // 1. Admin auth gate.
+  const admin = await getAdminApiUser();
+  if (!admin) {
+    return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+  }
+
+  // 2. Parse optional status filter from query string.
+  const rawStatus = new URL(req.url).searchParams.get('status');
+  let validStatus: InviteStatus | undefined;
+
+  if (rawStatus && rawStatus !== 'all') {
+    if (!(VALID_STATUSES as string[]).includes(rawStatus)) {
+      return NextResponse.json({ ok: false, error: 'Invalid status filter.' }, { status: 400 });
+    }
+    validStatus = rawStatus as InviteStatus;
+  }
+
+  // 3. Fetch invites from DynamoDB.
+  try {
+    const invites = await listInvites(validStatus);
+    return NextResponse.json({ ok: true, invites });
+  } catch (err) {
+    console.error('[admin/invites] Failed to list invites', err);
+    return NextResponse.json({ ok: false, error: 'Failed to list invites.' }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   // 1. Admin auth gate.

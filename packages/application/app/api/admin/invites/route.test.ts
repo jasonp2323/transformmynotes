@@ -10,6 +10,7 @@ const sendInviteEmailMock = vi.hoisted(() => vi.fn());
 const generateInviteCodeMock = vi.hoisted(() => vi.fn());
 const putInviteMock = vi.hoisted(() => vi.fn());
 const getGroupMock = vi.hoisted(() => vi.fn());
+const listInvitesMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-admin', () => ({
   getAdminApiUser: getAdminApiUserMock,
@@ -23,13 +24,14 @@ vi.mock('@transformmynotes/core', () => ({
   generateInviteCode: generateInviteCodeMock,
   putInvite: putInviteMock,
   getGroup: getGroupMock,
+  listInvites: listInvitesMock,
 }));
 
 // ---------------------------------------------------------------------------
 // Import module under test (after mocks)
 // ---------------------------------------------------------------------------
 
-import { POST } from './route';
+import { GET, POST } from './route';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,11 +60,91 @@ beforeEach(() => {
   putInviteMock.mockResolvedValue({});
   getGroupMock.mockResolvedValue(undefined);
   sendInviteEmailMock.mockResolvedValue(undefined);
+  listInvitesMock.mockResolvedValue([]);
 });
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeGetRequest(search = ''): Request {
+  return new Request(`http://localhost/api/admin/invites${search}`, {
+    method: 'GET',
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+describe('GET /api/admin/invites', () => {
+  it('returns 403 when getAdminApiUser returns null', async () => {
+    getAdminApiUserMock.mockResolvedValueOnce(null);
+
+    const res = await GET(makeGetRequest());
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(403);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Forbidden');
+  });
+
+  it('admin, no status — calls listInvites with undefined, returns { ok:true, invites }', async () => {
+    const fakeInvites = [{ pk: 'INVITE#abc', status: 'pending' }];
+    listInvitesMock.mockResolvedValueOnce(fakeInvites);
+
+    const res = await GET(makeGetRequest());
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.invites).toEqual(fakeInvites);
+    expect(listInvitesMock).toHaveBeenCalledWith(undefined);
+  });
+
+  it('admin, ?status=all — calls listInvites with undefined (list-all alias)', async () => {
+    const res = await GET(makeGetRequest('?status=all'));
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(listInvitesMock).toHaveBeenCalledWith(undefined);
+  });
+
+  it('admin, ?status=pending — calls listInvites("pending")', async () => {
+    const pendingInvites = [{ pk: 'INVITE#def', status: 'pending' }];
+    listInvitesMock.mockResolvedValueOnce(pendingInvites);
+
+    const res = await GET(makeGetRequest('?status=pending'));
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.invites).toEqual(pendingInvites);
+    expect(listInvitesMock).toHaveBeenCalledWith('pending');
+  });
+
+  it('admin, ?status=bogus — returns 400', async () => {
+    const res = await GET(makeGetRequest('?status=bogus'));
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(400);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Invalid status filter.');
+    expect(listInvitesMock).not.toHaveBeenCalled();
+  });
+
+  it('admin, listInvites throws — returns 500', async () => {
+    listInvitesMock.mockRejectedValueOnce(new Error('DynamoDB connection error'));
+
+    const res = await GET(makeGetRequest());
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(500);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Failed to list invites.');
+  });
+});
 
 describe('POST /api/admin/invites', () => {
   describe('type=email', () => {

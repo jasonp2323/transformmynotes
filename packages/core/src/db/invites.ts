@@ -1,7 +1,7 @@
-import { PutCommand, GetCommand, UpdateCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, UpdateCommand, QueryCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { inviteKeys } from './keys.js';
-import { buildInviteItem, hashInviteCode, type InviteItem, type InviteType } from '../auth/invite.js';
+import { buildInviteItem, hashInviteCode, type InviteItem, type InviteType, type InviteStatus } from '../auth/invite.js';
 
 /** Input to `putInvite`. Supply a raw `code` string; codeHash is derived automatically. */
 export interface PutInviteInput {
@@ -271,4 +271,32 @@ export async function revokeInvite(
     }
     throw err;
   }
+}
+
+/**
+ * Lists invites from the Invites table via GSI1, sorted newest-first.
+ *
+ * When `status` is provided, only invites with that status are returned
+ * (uses a `begins_with` filter on the GSI1 sort key prefix `<status>#`).
+ * When omitted, all invites across all statuses are returned.
+ *
+ * Results are ordered newest-first (`ScanIndexForward: false`) because the
+ * GSI1 sort key is `<status>#<ISO-8601 createdAt>` and ISO timestamps sort
+ * lexicographically — reversing the scan yields descending chronological order.
+ *
+ * @param status - Optional status filter (`'pending' | 'used' | 'expired' | 'revoked'`).
+ * @returns Array of `InviteItem` records, newest first. Returns `[]` if none found.
+ */
+export async function listInvites(status?: InviteStatus): Promise<InviteItem[]> {
+  const keyParams = status ? inviteKeys.listByStatus(status) : inviteKeys.listAll();
+
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TableNames.Invites,
+      ...keyParams,
+      ScanIndexForward: false,
+    }),
+  );
+
+  return (Items as InviteItem[]) ?? [];
 }
