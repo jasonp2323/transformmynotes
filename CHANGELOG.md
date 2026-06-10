@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.31.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.31.0...transformmynotes-v1.31.1) (2026-06-10)
+
+
+### ✅ Tests
+
+* **application:** capture→review→save→NoteView E2E (M5.9) ([#388](https://github.com/jasonp2323/transformmynotes/issues/388)) ([2a6b597](https://github.com/jasonp2323/transformmynotes/commit/2a6b597e4968e041d0083a612004a147bc3d2f43))
+
 ## [1.31.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.30.0...transformmynotes-v1.31.0) (2026-06-10)
 
 
