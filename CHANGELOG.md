@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.19.0...transformmynotes-v1.20.0) (2026-06-10)
+
+
+### 🚀 Features
+
+* **application:** admin DesktopShell layout + EmptyPanel + status tones (M3.6) ([#210](https://github.com/jasonp2323/transformmynotes/issues/210)) ([9e2a453](https://github.com/jasonp2323/transformmynotes/commit/9e2a453ecfd84dea3e719e79947c5b5531b9edb8))
+
 ## [1.19.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.18.0...transformmynotes-v1.19.0) (2026-06-10)
 
 
