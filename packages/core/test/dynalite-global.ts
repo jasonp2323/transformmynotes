@@ -138,7 +138,7 @@ export default async function setup() {
   );
 
   // Mirror infra/db.ts: Notes table — pk/sk primary + GSI1 (UserNotesByTime, ALL) +
-  // GSI2 (NotesByTag, KEYS_ONLY). No StreamSpecification — notes has no stream.
+  // GSI2 (NotesByTag, KEYS_ONLY) + GSI3 (ByToken, KEYS_ONLY). No StreamSpecification — notes has no stream.
   await ddbAdmin.send(
     new CreateTableCommand({
       TableName: NOTES_TABLE,
@@ -149,6 +149,8 @@ export default async function setup() {
         { AttributeName: 'gsi1sk', AttributeType: 'S' },
         { AttributeName: 'gsi2pk', AttributeType: 'S' },
         { AttributeName: 'gsi2sk', AttributeType: 'S' },
+        { AttributeName: 'gsi3pk', AttributeType: 'S' },
+        { AttributeName: 'gsi3sk', AttributeType: 'S' },
       ],
       KeySchema: [
         { AttributeName: 'pk', KeyType: 'HASH' },
@@ -168,6 +170,14 @@ export default async function setup() {
           KeySchema: [
             { AttributeName: 'gsi2pk', KeyType: 'HASH' },
             { AttributeName: 'gsi2sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'KEYS_ONLY' },
+        },
+        {
+          IndexName: 'GSI3',
+          KeySchema: [
+            { AttributeName: 'gsi3pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi3sk', KeyType: 'RANGE' },
           ],
           Projection: { ProjectionType: 'KEYS_ONLY' },
         },

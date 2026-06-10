@@ -209,17 +209,22 @@ export type NoteStatus = 'original' | 'clean';
 /**
  * `Notes` table keys.
  *
- * Two item shapes live in this table:
- *   - Main note item: PK = `USER#<cognitoSub>`, SK = `NOTE#<ulid>`
- *   - Tag-index item: PK = `TAG#<tag>`, SK = `USER#<sub>#NOTE#<ulid>`
+ * Three item shapes live in this table:
+ *   - Main note item:    PK = `USER#<cognitoSub>`, SK = `NOTE#<ulid>`
+ *   - Tag-index item:    PK = `TAG#<tag>`,          SK = `USER#<sub>#NOTE#<ulid>`
+ *   - Token-index item:  PK = `USER#<sub>`,          SK = `TOKEN#<token>#NOTE#<noteId>`
  *
  * GSI1 (`UserNotesByTime`): gsi1pk = `USER#<sub>`, gsi1sk = `NOTE#<ulid>`
  *   — on main note items only; ULID lexicographic order = time order.
  * GSI2 (`NotesByTag`): gsi2pk = `TAG#<tag>`, gsi2sk = `USER#<sub>#NOTE#<ulid>`
  *   — on tag-index items only; KEYS_ONLY projection.
+ * GSI3 (`ByToken`): gsi3pk = `USER#<sub>`, gsi3sk = `TOKEN#<token>#NOTE#<noteId>`
+ *   — on token-index items only; KEYS_ONLY projection. Supports prefix search
+ *     (begins_with on gsi3sk = `TOKEN#<term>`) for full-text search lookups.
  *
  * Tags are NOT stored as GSI2 keys on the main note. Each tag gets its own
- * separate tag-index item so multiple tags per note can be indexed.
+ * separate tag-index item so multiple tags per note can be indexed. Similarly,
+ * each (token, noteId) pair gets its own token-index item for the inverted index.
  */
 export const noteKeys = {
   /** Partition key for a user's notes. */
@@ -288,4 +293,60 @@ export const noteKeys = {
     KeyConditionExpression: 'gsi2pk = :pk',
     ExpressionAttributeValues: { ':pk': `TAG#${tag}` },
   }),
+
+  /**
+   * Base-table query parameters for listing a user's recent notes, newest-first.
+   * Queries the primary index directly: pk = `USER#<sub>` AND begins_with(sk, 'NOTE#').
+   * ScanIndexForward: false gives descending ULID order (newest first); Limit: 20
+   * caps the result set for the library view.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  noteListRecentQuery: (sub: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+    ExpressionAttributeValues: { ':pk': noteKeys.pk(sub), ':sk': 'NOTE#' },
+    ScanIndexForward: false,
+    Limit: 20,
+  }),
+
+  /** GSI3 partition key for a token-index item (`USER#<sub>`). */
+  gsi3pk: (sub: string) => `USER#${sub}`,
+
+  /** GSI3 sort key for a token-index item (`TOKEN#<token>#NOTE#<noteId>`). */
+  gsi3sk: (token: string, noteId: string) => `TOKEN#${token}#NOTE#${noteId}`,
+
+  /**
+   * Base primary key for a token-index item.
+   * PK = `USER#<sub>`, SK = `TOKEN#<token>#NOTE#<noteId>`.
+   */
+  tokenItemKey: (sub: string, token: string, noteId: string) => ({
+    pk: `USER#${sub}`,
+    sk: `TOKEN#${token}#NOTE#${noteId}`,
+  }),
+
+  /**
+   * Query parameters for finding note ids that contain a given search term via
+   * GSI3 (`ByToken`). Uses begins_with on gsi3sk so a prefix of `TOKEN#<term>`
+   * matches all tokens that start with `term` (prefix search).
+   * GSI3 is KEYS_ONLY — recover `noteId` from the sk via `parseTokenItemSk`.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  tokenQueryKey: (sub: string, term: string) => ({
+    IndexName: 'GSI3',
+    KeyConditionExpression: 'gsi3pk = :pk AND begins_with(gsi3sk, :sk)',
+    ExpressionAttributeValues: { ':pk': `USER#${sub}`, ':sk': `TOKEN#${term}` },
+  }),
+
+  /**
+   * Parses a token-index sort key (`TOKEN#<token>#NOTE#<noteId>`) back into its parts.
+   * GSI3 is KEYS_ONLY, so a token query projects only the key attributes — the
+   * `token`/`noteId` must be recovered from the key, never read from a stored
+   * attribute (which is not projected). Throws on a malformed key.
+   */
+  parseTokenItemSk: (sk: string): { token: string; noteId: string } => {
+    const match = /^TOKEN#(.+?)#NOTE#(.+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`noteKeys.parseTokenItemSk: malformed token-index sort key "${sk}"`);
+    }
+    return { token: match[1], noteId: match[2] };
+  },
 };
