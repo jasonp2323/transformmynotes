@@ -13,6 +13,7 @@ import {
 } from '@/src/components/ui';
 import { relativeTime, filterNotesByTab } from '@/src/lib/library';
 import type { NoteMetadata, LibraryTab } from '@/src/lib/library';
+import { SharedNotes } from './SharedNotes';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -118,22 +119,6 @@ function SearchEmptyState({ query }: { query: string }) {
       }}
     >
       No notes match &ldquo;{query}&rdquo;
-    </div>
-  );
-}
-
-function SharedPlaceholder() {
-  return (
-    <div
-      style={{
-        textAlign: 'center',
-        padding: '48px 20px',
-        color: 'var(--text-subtle)',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14.5,
-      }}
-    >
-      Shared notes will appear here.
     </div>
   );
 }
@@ -295,9 +280,9 @@ export function LibraryNotes() {
         />
       </div>
 
-      {/* Shared placeholder (no eyebrow, no list) */}
+      {/* Shared notes (no eyebrow, no search list) */}
       {tab === 'shared' ? (
-        <SharedPlaceholder />
+        <SharedNotes />
       ) : (
         <>
           {/* Eyebrow — hide while first load is in progress */}

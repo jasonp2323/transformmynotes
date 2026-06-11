@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getNote, storageKeys } from '@transformmynotes/core';
+import { getNote, storageKeys, authoriseNoteRead } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 import { NoteViewScreen } from '@/src/components/note/NoteViewScreen';
 
@@ -19,12 +19,20 @@ function requireBucketName(): string {
   return value;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ noteId: string }> }) {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ noteId: string }>;
+  searchParams: Promise<{ owner?: string }>;
+}) {
   try {
     const { noteId } = await params;
+    const { owner } = await searchParams;
     const sub = await getAuthenticatedSub();
     if (!sub) return { title: 'Note' };
-    const note = await getNote(sub, noteId);
+    const ownerSub = owner ?? sub;
+    const note = await getNote(ownerSub, noteId);
     return { title: note?.title ?? 'Note' };
   } catch {
     return { title: 'Note' };
@@ -33,20 +41,33 @@ export async function generateMetadata({ params }: { params: Promise<{ noteId: s
 
 export default async function NoteViewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ noteId: string }>;
+  searchParams: Promise<{ owner?: string }>;
 }) {
   const { noteId } = await params;
+  const { owner } = await searchParams;
 
   const sub = await getAuthenticatedSub();
   if (!sub) {
     redirect('/login');
   }
 
-  const note = await getNote(sub, noteId);
+  const ownerSub = owner ?? sub;
+
+  // Authorise: owner short-circuits true; recipient requires a valid share.
+  const authorized = await authoriseNoteRead(sub, ownerSub, noteId);
+  if (!authorized) {
+    notFound();
+  }
+
+  const note = await getNote(ownerSub, noteId);
   if (!note) {
     notFound();
   }
+
+  const isOwner = ownerSub === sub;
 
   const bucket = requireBucketName();
   const s3 = new S3Client({});
@@ -64,12 +85,12 @@ export default async function NoteViewPage({
   } catch (err: unknown) {
     const code = (err as { name?: string; Code?: string }).name ?? (err as { Code?: string }).Code;
     if (code === 'NoSuchKey' || code === 'NotFound') {
-      // Fall back to deriving the key if the stored one somehow doesn't exist
+      // Fall back to deriving the key using ownerSub so recipients read the owner's body
       try {
         const fallbackResponse = await s3.send(
           new GetObjectCommand({
             Bucket: bucket,
-            Key: storageKeys.noteMarkdown(sub, noteId),
+            Key: storageKeys.noteMarkdown(ownerSub, noteId),
           }),
         );
         markdown = await fallbackResponse.Body!.transformToString();
@@ -107,6 +128,9 @@ export default async function NoteViewPage({
       langPair={note.langPair}
       ocrConfidence={note.ocrConfidence}
       originalImageUrl={imageUrl}
+      isOwner={isOwner}
+      groupId={note.groupId}
+      ownerSub={ownerSub}
     />
   );
 }

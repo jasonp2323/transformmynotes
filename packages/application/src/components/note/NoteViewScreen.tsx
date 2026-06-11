@@ -14,6 +14,7 @@ import {
   Tag,
   Toast,
 } from '@/src/components/ui';
+import { ShareSheet } from './ShareSheet';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,9 @@ export interface NoteViewScreenProps {
   langPair: string;
   ocrConfidence: number;
   originalImageUrl: string | null;
+  isOwner: boolean;
+  groupId?: string;
+  ownerSub: string;
 }
 
 type ViewTab = 'original' | 'clean';
@@ -46,6 +50,8 @@ export function NoteViewScreen({
   langPair,
   ocrConfidence,
   originalImageUrl,
+  isOwner,
+  groupId,
 }: NoteViewScreenProps) {
   const router = useRouter();
   const editorRef = useRef<NoteEditorHandle>(null);
@@ -54,6 +60,7 @@ export function NoteViewScreen({
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<ViewTab>('clean');
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // ── Save handler ──────────────────────────────────────────────────────────
 
@@ -116,24 +123,26 @@ export function NoteViewScreen({
           </Badge>
         )}
 
-        {/* Edit / Done toggle */}
-        {editing ? (
-          <IconButton
-            label="Done"
-            variant="soft"
-            onClick={handleEditToggle}
-            disabled={saving}
-          >
-            <Icon name="check" size={20} />
-          </IconButton>
-        ) : (
-          <IconButton
-            label="Edit"
-            variant="plain"
-            onClick={handleEditToggle}
-          >
-            <Icon name="pencil" size={20} />
-          </IconButton>
+        {/* Edit / Done toggle — owner only */}
+        {isOwner && (
+          editing ? (
+            <IconButton
+              label="Done"
+              variant="soft"
+              onClick={handleEditToggle}
+              disabled={saving}
+            >
+              <Icon name="check" size={20} />
+            </IconButton>
+          ) : (
+            <IconButton
+              label="Edit"
+              variant="plain"
+              onClick={handleEditToggle}
+            >
+              <Icon name="pencil" size={20} />
+            </IconButton>
+          )
         )}
       </div>
 
@@ -186,7 +195,7 @@ export function NoteViewScreen({
             <NoteEditor
               ref={editorRef}
               initialMarkdown={initialMarkdown}
-              editable={editing}
+              editable={isOwner && editing}
             />
           </div>
         )}
@@ -206,13 +215,27 @@ export function NoteViewScreen({
       {/* ── ActionBar — only when NOT editing ── */}
       {!editing && (
         <ActionBar>
-          <IconButton
-            label="Highlight"
-            variant="soft"
-            onClick={() => editorRef.current?.toggleHighlight()}
-          >
-            <Icon name="highlighter" size={19} />
-          </IconButton>
+          {/* Share button — owner only */}
+          {isOwner && (
+            <IconButton
+              label="Share"
+              variant="soft"
+              onClick={() => setShareOpen(true)}
+            >
+              <Icon name="share-2" size={19} />
+            </IconButton>
+          )}
+
+          {/* Highlight — owner only (mutates the editor) */}
+          {isOwner && (
+            <IconButton
+              label="Highlight"
+              variant="soft"
+              onClick={() => editorRef.current?.toggleHighlight()}
+            >
+              <Icon name="highlighter" size={19} />
+            </IconButton>
+          )}
 
           <IconButton
             label="Translate"
@@ -233,6 +256,17 @@ export function NoteViewScreen({
             Add to review deck
           </Button>
         </ActionBar>
+      )}
+
+      {/* ── Share Sheet — owner only ── */}
+      {isOwner && (
+        <ShareSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          noteId={noteId}
+          noteTitle={title}
+          groupId={groupId}
+        />
       )}
 
       {/* ── Toast ── */}
