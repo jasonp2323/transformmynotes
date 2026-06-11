@@ -151,7 +151,8 @@ async function createDynaliteTables(port: number) {
     }),
   );
 
-  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag + GSI3 ByToken, to match infra/db.ts)
+  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag + GSI3 ByToken + GSI4 ByRecipient,
+  // to match infra/db.ts)
   await client.send(
     new CreateTableCommand({
       TableName: 'Notes',
@@ -164,6 +165,8 @@ async function createDynaliteTables(port: number) {
         { AttributeName: 'gsi2sk', AttributeType: 'S' },
         { AttributeName: 'gsi3pk', AttributeType: 'S' },
         { AttributeName: 'gsi3sk', AttributeType: 'S' },
+        { AttributeName: 'gsi4pk', AttributeType: 'S' },
+        { AttributeName: 'gsi4sk', AttributeType: 'S' },
       ],
       KeySchema: [
         { AttributeName: 'pk', KeyType: 'HASH' },
@@ -194,8 +197,48 @@ async function createDynaliteTables(port: number) {
           ],
           Projection: { ProjectionType: 'KEYS_ONLY' },
         },
+        {
+          IndexName: 'GSI4',
+          KeySchema: [
+            { AttributeName: 'gsi4pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi4sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
       ],
       BillingMode: 'PAY_PER_REQUEST',
+    }),
+  );
+
+  // Groups table (PK = GROUP#<groupId>, SK = META | MEMBER#<userSub>; GSI1 = user→groups)
+  await client.send(
+    new CreateTableCommand({
+      TableName: 'Groups',
+      AttributeDefinitions: [
+        { AttributeName: 'pk', AttributeType: 'S' },
+        { AttributeName: 'sk', AttributeType: 'S' },
+        { AttributeName: 'gsi1pk', AttributeType: 'S' },
+        { AttributeName: 'gsi1sk', AttributeType: 'S' },
+      ],
+      KeySchema: [
+        { AttributeName: 'pk', KeyType: 'HASH' },
+        { AttributeName: 'sk', KeyType: 'RANGE' },
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'GSI1',
+          KeySchema: [
+            { AttributeName: 'gsi1pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi1sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      StreamSpecification: {
+        StreamEnabled: true,
+        StreamViewType: 'NEW_AND_OLD_IMAGES',
+      },
     }),
   );
 
@@ -731,6 +774,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     AWS_ENDPOINT_URL_COGNITO_IDENTITY_PROVIDER: `http://127.0.0.1:${COGNITO_PORT}`,
     SST_RESOURCE_UserData_name: 'UserData',
     SST_RESOURCE_Invites_name: 'Invites',
+    SST_RESOURCE_Groups_name: 'Groups',
     SST_RESOURCE_Notes_name: 'Notes',
     SST_RESOURCE_NotesBucket_name: NOTES_BUCKET,
     // Point the S3Client at s3rver. AWS SDK v3 uses path-style automatically
