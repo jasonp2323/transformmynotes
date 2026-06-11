@@ -30,7 +30,13 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import { DynamoDBClient, CreateTableCommand } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { buildInviteItem, hashInviteCode, buildUserProfileItem } from '@transformmynotes/core';
+import {
+  buildInviteItem,
+  hashInviteCode,
+  buildUserProfileItem,
+  buildGroupMetaItem,
+  buildGroupMemberItem,
+} from '@transformmynotes/core';
 
 const DYNALITE_PORT = 4570; // distinct from integration harness port (4569)
 const COGNITO_PORT = 9229;
@@ -59,6 +65,15 @@ const LIBRARY_PASSWORD = 'Library1234!Password';
 // Review test user (dedicated to review.e2e — starts with zero cards)
 const REVIEW_USERNAME = 'e2e-review@example.com';
 const REVIEW_PASSWORD = 'Review1234!Password';
+
+// Share test users (dedicated to sharing.e2e)
+const SHARE_OWNER_USERNAME = 'e2e-share-owner@example.com';
+const SHARE_OWNER_PASSWORD = 'ShareOwner1!Password';
+const SHARE_RECIPIENT_USERNAME = 'e2e-share-recipient@example.com';
+const SHARE_RECIPIENT_PASSWORD = 'ShareRecip1!Password';
+
+// Share group constant
+const SHARE_GROUP_ID = 'e2e-share-group';
 
 // Pending users (for admin pending-queue tests)
 const PENDING_USER1_EMAIL = 'e2e-pending1@example.com';
@@ -608,6 +623,54 @@ async function seedCognito(port: number, username: string, password: string) {
     }),
   );
 
+  // ── Share owner ──────────────────────────────────────────────────────────────
+  // Dedicated to sharing.e2e; owns the note that gets shared.
+  const shareOwnerResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: SHARE_OWNER_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: SHARE_OWNER_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const shareOwnerSub = shareOwnerResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: SHARE_OWNER_USERNAME,
+      Password: SHARE_OWNER_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
+  // ── Share recipient ───────────────────────────────────────────────────────────
+  // Dedicated to sharing.e2e; receives the shared note.
+  const shareRecipientResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: SHARE_RECIPIENT_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: SHARE_RECIPIENT_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const shareRecipientSub = shareRecipientResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: SHARE_RECIPIENT_USERNAME,
+      Password: SHARE_RECIPIENT_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
   cognitoClient.destroy();
   return {
     poolId,
@@ -619,6 +682,8 @@ async function seedCognito(port: number, username: string, password: string) {
     pendingUser2Sub,
     libraryUserSub,
     reviewUserSub,
+    shareOwnerSub,
+    shareRecipientSub,
   };
 }
 
@@ -716,6 +781,45 @@ async function seedPendingUserProfiles(
   dynamoClient.destroy();
 }
 
+async function seedShareGroup(
+  dynalitePort: number,
+  groupId: string,
+  ownerSub: string,
+  recipientSub: string,
+) {
+  const dynamoClient = new DynamoDBClient({
+    endpoint: `http://127.0.0.1:${dynalitePort}`,
+    region: 'us-east-1',
+    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+  });
+  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+  const metaItem = buildGroupMetaItem({
+    groupId,
+    name: 'E2E Share Group',
+    createdBy: ownerSub,
+  });
+
+  const ownerMemberItem = buildGroupMemberItem({
+    groupId,
+    userSub: ownerSub,
+    role: 'admin',
+  });
+
+  const recipientMemberItem = buildGroupMemberItem({
+    groupId,
+    userSub: recipientSub,
+    role: 'member',
+  });
+
+  await docClient.send(new PutCommand({ TableName: 'Groups', Item: metaItem }));
+  await docClient.send(new PutCommand({ TableName: 'Groups', Item: ownerMemberItem }));
+  await docClient.send(new PutCommand({ TableName: 'Groups', Item: recipientMemberItem }));
+
+  docClient.destroy();
+  dynamoClient.destroy();
+}
+
 // ── next dev ──────────────────────────────────────────────────────────────────
 
 function spawnNextDev(
@@ -781,6 +885,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     pendingUser2Sub,
     libraryUserSub,
     reviewUserSub,
+    shareOwnerSub,
+    shareRecipientSub,
   } = await seedCognito(COGNITO_PORT, username, password);
 
   // 3b. Seed UserData profiles for pre-seeded users so requireActiveUser() passes
@@ -789,6 +895,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     { sub: forgotUserSub, email: FORGOT_USERNAME },
     { sub: libraryUserSub, email: LIBRARY_USERNAME },
     { sub: reviewUserSub, email: REVIEW_USERNAME },
+    { sub: shareOwnerSub, email: SHARE_OWNER_USERNAME },
+    { sub: shareRecipientSub, email: SHARE_RECIPIENT_USERNAME },
   ]);
 
   // 3c. Seed admin profile (role:'admin', status:'active')
@@ -801,6 +909,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     { sub: pendingUser1Sub, email: PENDING_USER1_EMAIL, groupIds: ['e2e-group'] },
     { sub: pendingUser2Sub, email: PENDING_USER2_EMAIL, groupIds: [] },
   ]);
+
+  // 3e. Seed the share group (owner + recipient as admin/member)
+  await seedShareGroup(DYNALITE_PORT, SHARE_GROUP_ID, shareOwnerSub, shareRecipientSub);
 
   // 4. Build env for next dev
   const repoRoot = path.resolve(__dirname, '..', '..');
@@ -878,6 +989,14 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     reviewUsername: REVIEW_USERNAME,
     reviewPassword: REVIEW_PASSWORD,
     reviewUserSub,
+    // Share test users (sharing.e2e)
+    shareOwnerUsername: SHARE_OWNER_USERNAME,
+    shareOwnerPassword: SHARE_OWNER_PASSWORD,
+    shareOwnerSub,
+    shareRecipientUsername: SHARE_RECIPIENT_USERNAME,
+    shareRecipientPassword: SHARE_RECIPIENT_PASSWORD,
+    shareRecipientSub,
+    shareGroupId: SHARE_GROUP_ID,
     // S3rver info
     s3Endpoint: `http://127.0.0.1:${S3RVER_PORT}`,
     notesBucket: NOTES_BUCKET,
