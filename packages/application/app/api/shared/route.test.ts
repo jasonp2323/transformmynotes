@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const getAuthenticatedSubMock = vi.hoisted(() => vi.fn());
 const listSharesForRecipientMock = vi.hoisted(() => vi.fn());
+const getGroupMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -13,6 +14,7 @@ vi.mock('@/lib/require-api-user', () => ({
 
 vi.mock('@transformmynotes/core', () => ({
   listSharesForRecipient: listSharesForRecipientMock,
+  getGroup: getGroupMock,
 }));
 
 // ---------------------------------------------------------------------------
@@ -65,6 +67,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   getAuthenticatedSubMock.mockResolvedValue(SUB);
   listSharesForRecipientMock.mockResolvedValue([SHARE_ITEM_1, SHARE_ITEM_2]);
+  getGroupMock.mockImplementation(async (gid: string) =>
+    gid === 'group-abc' ? { groupId: gid, name: 'Spanish 201' } :
+    gid === 'group-xyz' ? { groupId: gid, name: 'History 101' } :
+    undefined,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -114,6 +121,7 @@ describe('GET /api/shared', () => {
       expect(first.ownerSub).toBe('owner-sub-1');
       expect(first.ownerName).toBe('Alice Owner');
       expect(first.groupId).toBe('group-abc');
+      expect(first.groupName).toBe('Spanish 201');
       expect(first.sharedAt).toBe('2026-06-01T10:00:00.000Z');
     });
 
@@ -159,6 +167,16 @@ describe('GET /api/shared', () => {
 
       expect(body.notes[0].noteId).toBe('note-2');
       expect(body.notes[1].noteId).toBe('note-1');
+    });
+
+    it('falls back to empty groupName when getGroup returns undefined', async () => {
+      getGroupMock.mockResolvedValue(undefined);
+
+      const res = await GET();
+      const body = await res.json() as { ok: boolean; notes: Record<string, unknown>[] };
+
+      expect(body.notes[0].groupName).toBe('');
+      expect(body.notes[1].groupName).toBe('');
     });
   });
 

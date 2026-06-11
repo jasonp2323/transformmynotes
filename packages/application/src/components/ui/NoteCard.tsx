@@ -15,6 +15,8 @@ export interface NoteCardProps {
   status?: 'clean' | 'original';
   onClick?: () => void;
   className?: string;
+  /** Optional line shown beneath the title, e.g. "Shared by Ana Ruiz · Spanish 201" */
+  sharedBy?: string;
 }
 
 export const NoteCard = function NoteCard({
@@ -29,6 +31,7 @@ export const NoteCard = function NoteCard({
   status = 'clean',
   onClick,
   className,
+  sharedBy,
 }: NoteCardProps) {
   return (
     <Card variant={onClick ? 'interactive' : 'default'} onClick={onClick} className={className}>
@@ -46,6 +49,7 @@ export const NoteCard = function NoteCard({
           )}
         </div>
         {title ? <h3 className="tmn-note__title">{title}</h3> : null}
+        {sharedBy ? <p className="tmn-note__shared-by">{sharedBy}</p> : null}
         {snippet ? (
           <p
             className="tmn-note__snippet"

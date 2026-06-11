@@ -380,6 +380,7 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tmn-note__snippet mark { background: var(--highlighter); padding: 0 2px; border-radius: 3px; color: inherit; }
 .tmn-note__tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tmn-note__shared-by { font-family: var(--font-sans); font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.4; }
 .tmn-note__meta { display: flex; align-items: center; gap: 12px; margin-top: 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text-subtle); }
 .tmn-note__meta-item { display: inline-flex; align-items: center; gap: 4px; }
 

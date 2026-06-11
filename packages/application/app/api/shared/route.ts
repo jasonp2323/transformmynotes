@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { listSharesForRecipient } from '@transformmynotes/core';
+import { listSharesForRecipient, getGroup } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
 export const runtime = 'nodejs';
@@ -11,6 +11,7 @@ export interface SharedNoteSummary {
   ownerSub: string;
   ownerName: string;
   groupId: string;
+  groupName: string;
   sharedAt: string;
 }
 
@@ -23,12 +24,23 @@ export async function GET() {
   try {
     const shares = await listSharesForRecipient(sub);
 
+    // Resolve group names in one pass — dedupe groupIds so each is fetched once
+    const uniqueGroupIds = [...new Set(shares.map((s) => s.groupId))];
+    const groupEntries = await Promise.all(
+      uniqueGroupIds.map(async (gid) => {
+        const group = await getGroup(gid);
+        return [gid, group?.name ?? ''] as const;
+      }),
+    );
+    const groupNameMap = new Map<string, string>(groupEntries);
+
     const notes: SharedNoteSummary[] = shares.map((share) => ({
       noteId: share.noteId,
       noteTitle: share.noteTitle,
       ownerSub: share.ownerSub,
       ownerName: share.ownerName,
       groupId: share.groupId,
+      groupName: groupNameMap.get(share.groupId) ?? '',
       sharedAt: share.sharedAt,
     }));
 
