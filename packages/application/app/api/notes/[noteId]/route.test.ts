@@ -14,6 +14,8 @@ const s3SendMock = vi.hoisted(() => vi.fn());
 const syncNoteTokensMock = vi.hoisted(() => vi.fn());
 const deleteNoteRecordMock = vi.hoisted(() => vi.fn());
 const tokeniseMock = vi.hoisted(() => vi.fn());
+const authoriseNoteReadMock = vi.hoisted(() => vi.fn());
+const revokeAllSharesForNoteMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -42,6 +44,8 @@ vi.mock('@transformmynotes/core', () => {
     syncNoteTokens: syncNoteTokensMock,
     deleteNoteRecord: deleteNoteRecordMock,
     tokenise: tokeniseMock,
+    authoriseNoteRead: authoriseNoteReadMock,
+    revokeAllSharesForNote: revokeAllSharesForNoteMock,
   };
 });
 
@@ -112,8 +116,14 @@ function makeRequest(
   return [req, { params: { noteId } }];
 }
 
-function makeGetRequest(noteId = NOTE_ID): [Request, { params: { noteId: string } }] {
-  const req = new Request(`http://localhost/api/notes/${noteId}`, { method: 'GET' });
+function makeGetRequest(
+  noteId = NOTE_ID,
+  ownerSub?: string,
+): [Request, { params: { noteId: string } }] {
+  const url = ownerSub
+    ? `http://localhost/api/notes/${noteId}?owner=${ownerSub}`
+    : `http://localhost/api/notes/${noteId}`;
+  const req = new Request(url, { method: 'GET' });
   return [req, { params: { noteId } }];
 }
 
@@ -145,6 +155,8 @@ beforeEach(() => {
   syncNoteTokensMock.mockResolvedValue(undefined);
   deleteNoteRecordMock.mockResolvedValue(undefined);
   tokeniseMock.mockReturnValue(['hello', 'world']);
+  authoriseNoteReadMock.mockResolvedValue(true);
+  revokeAllSharesForNoteMock.mockResolvedValue(0);
 });
 
 // ---------------------------------------------------------------------------
@@ -432,13 +444,14 @@ describe('GET /api/notes/[noteId]', () => {
     expect(body.error).toBe('Note not found.');
   });
 
-  it('returns metadata and body on success', async () => {
+  it('returns metadata, body, and isOwner:true for owner (no ?owner param)', async () => {
     const [req, ctx] = makeGetRequest();
     const res = await GET(req, ctx);
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(200);
     expect(body.body).toBe('old body text');
+    expect(body.isOwner).toBe(true);
 
     const metadata = body.metadata as Record<string, unknown>;
     expect(metadata.noteId).toBe(NOTE_ID);
@@ -459,8 +472,52 @@ describe('GET /api/notes/[noteId]', () => {
 
     expect(res.status).toBe(200);
     expect(body.body).toBe('');
+    expect(body.isOwner).toBe(true);
     const metadata = body.metadata as Record<string, unknown>;
     expect(metadata.noteId).toBe(NOTE_ID);
+  });
+
+  it('returns 403 when authoriseNoteRead returns false', async () => {
+    authoriseNoteReadMock.mockResolvedValueOnce(false);
+
+    const [req, ctx] = makeGetRequest(NOTE_ID, 'ownerX');
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(403);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Forbidden');
+    // getNote must NOT be called when authorisation fails
+    expect(getNoteMock).not.toHaveBeenCalled();
+  });
+
+  it('calls getNote with ownerSub from ?owner param for recipients', async () => {
+    const OWNER_SUB = 'ownerX';
+    // Return a note fixture keyed by the owner
+    const ownerNote = { ...EXISTING_NOTE, pk: `USER#${OWNER_SUB}`, sub: OWNER_SUB };
+    getNoteMock.mockResolvedValueOnce(ownerNote);
+
+    const [req, ctx] = makeGetRequest(NOTE_ID, OWNER_SUB);
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(getNoteMock).toHaveBeenCalledWith(OWNER_SUB, NOTE_ID);
+    expect(body.isOwner).toBe(false);
+    const metadata = body.metadata as Record<string, unknown>;
+    expect(metadata.noteId).toBe(NOTE_ID);
+  });
+
+  it('returns 404 when authorised but note not found', async () => {
+    getNoteMock.mockResolvedValueOnce(undefined);
+
+    const [req, ctx] = makeGetRequest(NOTE_ID, SUB);
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(404);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Note not found.');
   });
 });
 
@@ -538,5 +595,15 @@ describe('DELETE /api/notes/[noteId]', () => {
 
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
+  });
+
+  it('calls revokeAllSharesForNote with sub and noteId after deleteNoteRecord', async () => {
+    const [req, ctx] = makeDeleteRequest();
+    await DELETE(req, ctx);
+
+    expect(revokeAllSharesForNoteMock).toHaveBeenCalledWith(SUB, NOTE_ID);
+    // Ensure it is called after deleteNoteRecord (both called exactly once)
+    expect(deleteNoteRecordMock).toHaveBeenCalledTimes(1);
+    expect(revokeAllSharesForNoteMock).toHaveBeenCalledTimes(1);
   });
 });
