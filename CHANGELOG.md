@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.32.0...transformmynotes-v1.33.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **application:** M6.2 note server routes + token-index maintenance ([#392](https://github.com/jasonp2323/transformmynotes/issues/392)) ([354339b](https://github.com/jasonp2323/transformmynotes/commit/354339bb9087968b5d8023efb3f539601f0b2558))
+
 ## [1.32.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.31.1...transformmynotes-v1.32.0) (2026-06-10)
 
 
