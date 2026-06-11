@@ -1,4 +1,4 @@
-import { PutCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { shareKeys } from './keys.js';
@@ -173,6 +173,91 @@ export async function listSharesForNote(ownerSub: string, noteId: string): Promi
   );
 
   return (Items ?? []) as ShareItem[];
+}
+
+// ---------------------------------------------------------------------------
+// Revoke helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Soft-deletes a share item by setting `revokedAt` and `ttl` on the existing
+ * DynamoDB item via an `UpdateCommand`.
+ *
+ * @param ownerSub     - Cognito sub of the note owner.
+ * @param noteId       - ULID note identifier.
+ * @param recipientSub - Cognito sub of the share recipient to revoke.
+ * @param now          - Optional override for the revocation timestamp (defaults
+ *                       to `new Date()`). Both `revokedAt` (ISO-8601 string) and
+ *                       `ttl` (Unix epoch seconds, 30 days from `now`) are derived
+ *                       from this value.
+ * @returns `true` on success; `false` if the share item does not exist
+ *          (`ConditionalCheckFailedException`).
+ */
+export async function revokeShareItem(
+  ownerSub: string,
+  noteId: string,
+  recipientSub: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const revokedAt = now.toISOString();
+  const ttl = Math.floor(now.getTime() / 1000) + 30 * 24 * 60 * 60;
+
+  try {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: TableNames.Notes,
+        Key: shareKeys.shareItemKey(ownerSub, noteId, recipientSub),
+        UpdateExpression: 'SET revokedAt = :revokedAt, #ttl = :ttl',
+        ExpressionAttributeNames: { '#ttl': 'ttl' },
+        ExpressionAttributeValues: {
+          ':revokedAt': revokedAt,
+          ':ttl': ttl,
+        },
+        ConditionExpression: 'attribute_exists(pk)',
+      }),
+    );
+    return true;
+  } catch (err) {
+    if ((err as { name?: string }).name === 'ConditionalCheckFailedException') {
+      return false;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Soft-deletes all active share items for a given note by calling
+ * `revokeShareItem` on each item that does not already carry a `revokedAt`.
+ *
+ * Queries all share items (active and revoked) for the note via
+ * `listSharesForNote`, then revokes only the active ones. This is used by the
+ * note-delete cascade (M7.9) to ensure no dangling shares remain after a note
+ * is removed.
+ *
+ * @param ownerSub      - Cognito sub of the note owner.
+ * @param noteId        - ULID note identifier.
+ * @param now           - Optional override for the revocation timestamp (defaults to
+ *                        `new Date()`). Passed through to each `revokeShareItem` call.
+ * @param _listFn       - Injectable `listSharesForNote` implementation (defaults to the
+ *                        module export). Provided for unit-test mocking only.
+ * @param _revokeFn     - Injectable `revokeShareItem` implementation (defaults to the
+ *                        module export). Provided for unit-test mocking only.
+ * @returns The number of shares that were newly revoked (already-revoked shares
+ *          are skipped and not counted).
+ */
+export async function revokeAllSharesForNote(
+  ownerSub: string,
+  noteId: string,
+  now: Date = new Date(),
+  _listFn: typeof listSharesForNote = listSharesForNote,
+  _revokeFn: typeof revokeShareItem = revokeShareItem,
+): Promise<number> {
+  const shares = await _listFn(ownerSub, noteId);
+  const activeShares = shares.filter((s) => !s.revokedAt);
+
+  await Promise.all(activeShares.map((s) => _revokeFn(ownerSub, noteId, s.recipientSub, now)));
+
+  return activeShares.length;
 }
 
 // ---------------------------------------------------------------------------

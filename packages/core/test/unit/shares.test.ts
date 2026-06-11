@@ -12,7 +12,12 @@
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { shareKeys } from '../../src/db/keys.js';
-import { buildShareItem, authoriseNoteRead } from '../../src/db/shares.js';
+import {
+  buildShareItem,
+  authoriseNoteRead,
+  revokeShareItem,
+  revokeAllSharesForNote,
+} from '../../src/db/shares.js';
 import type { ShareItem } from '../../src/db/shares.js';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
@@ -289,5 +294,184 @@ describe('authoriseNoteRead', () => {
     const client = makeMockClient({ Item: undefined });
     const result = await authoriseNoteRead(CALLER, OWNER, NOTE_ID, client);
     expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// revokeShareItem — mocked DynamoDBDocumentClient
+// ---------------------------------------------------------------------------
+
+/**
+ * revokeShareItem uses the module-level `ddb` singleton, so we mock the module
+ * to intercept the UpdateCommand. We use vi.mock at the top of the module to
+ * replace the db/client module, but since the test file does not use top-level
+ * vi.mock (which would affect other tests), we test revokeShareItem by
+ * inspecting the behaviour it exposes: the UpdateCommand parameters and the
+ * error handling. We achieve this by mocking the `ddb` send method via
+ * vi.spyOn on the imported ddb object.
+ */
+
+// We need to reach in and mock ddb.send. Import it here.
+import * as clientModule from '../../src/db/client.js';
+
+describe('revokeShareItem', () => {
+  const OWNER = 'sub-revoke-owner';
+  const NOTE = 'note-revoke-001';
+  const RECIP = 'sub-revoke-recip';
+  const FIXED_NOW = new Date('2025-06-11T12:00:00.000Z');
+
+  beforeAll(() => {
+    process.env.SST_RESOURCE_Notes_name = 'unit-test-notes-table';
+  });
+
+  it('sends an UpdateCommand with revokedAt and numeric ttl ~30 days out and returns true', async () => {
+    const spy = vi.spyOn(clientModule.ddb, 'send').mockResolvedValue({} as never);
+
+    const result = await revokeShareItem(OWNER, NOTE, RECIP, FIXED_NOW);
+
+    expect(result).toBe(true);
+    expect(spy).toHaveBeenCalledOnce();
+
+    // Inspect the UpdateCommand that was sent
+    const sentCmd = spy.mock.calls[0][0] as { input: Record<string, unknown> };
+    const input = sentCmd.input;
+
+    expect(input.TableName).toBe('unit-test-notes-table');
+    expect(input.Key).toEqual(shareKeys.shareItemKey(OWNER, NOTE, RECIP));
+    expect(input.UpdateExpression).toContain('revokedAt');
+    expect(input.UpdateExpression).toContain('#ttl');
+
+    // revokedAt must be the ISO string from FIXED_NOW
+    const attrValues = input.ExpressionAttributeValues as Record<string, unknown>;
+    expect(attrValues[':revokedAt']).toBe(FIXED_NOW.toISOString());
+
+    // ttl must be a number equal to ~30 days from FIXED_NOW (Unix seconds)
+    const expectedTtl = Math.floor(FIXED_NOW.getTime() / 1000) + 30 * 24 * 60 * 60;
+    expect(attrValues[':ttl']).toBe(expectedTtl);
+
+    // ConditionExpression must require the item to exist
+    expect(input.ConditionExpression).toBe('attribute_exists(pk)');
+
+    spy.mockRestore();
+  });
+
+  it('returns false when ConditionalCheckFailedException is thrown (item does not exist)', async () => {
+    const err = Object.assign(new Error('ConditionalCheckFailedException'), {
+      name: 'ConditionalCheckFailedException',
+    });
+    const spy = vi.spyOn(clientModule.ddb, 'send').mockRejectedValue(err as never);
+
+    const result = await revokeShareItem(OWNER, NOTE, RECIP, FIXED_NOW);
+    expect(result).toBe(false);
+
+    spy.mockRestore();
+  });
+
+  it('re-throws unexpected errors', async () => {
+    const err = new Error('network error');
+    const spy = vi.spyOn(clientModule.ddb, 'send').mockRejectedValue(err as never);
+
+    await expect(revokeShareItem(OWNER, NOTE, RECIP, FIXED_NOW)).rejects.toThrow('network error');
+
+    spy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// revokeAllSharesForNote — mocked via vi.spyOn on revokeShareItem dependencies
+// ---------------------------------------------------------------------------
+
+describe('revokeAllSharesForNote', () => {
+  const OWNER = 'sub-raf-owner';
+  const NOTE = 'note-raf-001';
+  const FIXED_NOW = new Date('2025-06-11T15:00:00.000Z');
+
+  beforeAll(() => {
+    process.env.SST_RESOURCE_Notes_name = 'unit-test-notes-table';
+  });
+
+  it('revokes each active share, skips already-revoked ones, and returns the correct count', async () => {
+    const activeShare1: Partial<ShareItem> = {
+      pk: `USER#${OWNER}`,
+      sk: `SHARE#${NOTE}#RECIPIENT#recip-1`,
+      ownerSub: OWNER,
+      recipientSub: 'recip-1',
+      noteId: NOTE,
+      revokedAt: undefined,
+    };
+    const activeShare2: Partial<ShareItem> = {
+      pk: `USER#${OWNER}`,
+      sk: `SHARE#${NOTE}#RECIPIENT#recip-2`,
+      ownerSub: OWNER,
+      recipientSub: 'recip-2',
+      noteId: NOTE,
+      revokedAt: undefined,
+    };
+    const alreadyRevoked: Partial<ShareItem> = {
+      pk: `USER#${OWNER}`,
+      sk: `SHARE#${NOTE}#RECIPIENT#recip-3`,
+      ownerSub: OWNER,
+      recipientSub: 'recip-3',
+      noteId: NOTE,
+      revokedAt: '2025-06-10T00:00:00.000Z',
+    };
+
+    // Provide injectable mocks via the optional _listFn / _revokeFn parameters
+    const listFn = vi
+      .fn<typeof import('../../src/db/shares.js').listSharesForNote>()
+      .mockResolvedValue([activeShare1, activeShare2, alreadyRevoked] as ShareItem[]);
+    const revokeFn = vi
+      .fn<typeof import('../../src/db/shares.js').revokeShareItem>()
+      .mockResolvedValue(true);
+
+    const count = await revokeAllSharesForNote(OWNER, NOTE, FIXED_NOW, listFn, revokeFn);
+
+    // Only 2 active shares should have been revoked
+    expect(count).toBe(2);
+
+    // listFn must have been called once with the right args
+    expect(listFn).toHaveBeenCalledOnce();
+    expect(listFn).toHaveBeenCalledWith(OWNER, NOTE);
+
+    // revokeFn should have been called exactly twice (skipping already-revoked)
+    expect(revokeFn).toHaveBeenCalledTimes(2);
+    expect(revokeFn).toHaveBeenCalledWith(OWNER, NOTE, 'recip-1', FIXED_NOW);
+    expect(revokeFn).toHaveBeenCalledWith(OWNER, NOTE, 'recip-2', FIXED_NOW);
+    // recip-3 (already revoked) must NOT have been called
+    expect(revokeFn).not.toHaveBeenCalledWith(OWNER, NOTE, 'recip-3', expect.anything());
+  });
+
+  it('returns 0 when there are no shares for the note', async () => {
+    const listFn = vi
+      .fn<typeof import('../../src/db/shares.js').listSharesForNote>()
+      .mockResolvedValue([]);
+    const revokeFn = vi
+      .fn<typeof import('../../src/db/shares.js').revokeShareItem>()
+      .mockResolvedValue(true);
+
+    const count = await revokeAllSharesForNote(OWNER, NOTE, FIXED_NOW, listFn, revokeFn);
+
+    expect(count).toBe(0);
+    expect(revokeFn).not.toHaveBeenCalled();
+  });
+
+  it('returns 0 when all shares are already revoked', async () => {
+    const alreadyRevoked: Partial<ShareItem> = {
+      ownerSub: OWNER,
+      recipientSub: 'recip-x',
+      noteId: NOTE,
+      revokedAt: '2025-06-10T00:00:00.000Z',
+    };
+    const listFn = vi
+      .fn<typeof import('../../src/db/shares.js').listSharesForNote>()
+      .mockResolvedValue([alreadyRevoked] as ShareItem[]);
+    const revokeFn = vi
+      .fn<typeof import('../../src/db/shares.js').revokeShareItem>()
+      .mockResolvedValue(true);
+
+    const count = await revokeAllSharesForNote(OWNER, NOTE, FIXED_NOW, listFn, revokeFn);
+
+    expect(count).toBe(0);
+    expect(revokeFn).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,8 @@ import {
   syncNoteTokens,
   deleteNoteRecord,
   tokenise,
+  authoriseNoteRead,
+  revokeAllSharesForNote,
   type NoteItem,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -30,9 +32,6 @@ function requireBucketName(): string {
 }
 
 // Helper: strips internal DynamoDB keys before sending to the client.
-// The note PK is USER#<sub> so getNote only ever returns the caller's own note —
-// a different user's note is simply not found → 404. A distinct 403 path is
-// unreachable with this key design.
 function toNoteMetadata(n: NoteItem) {
   return {
     noteId: n.noteId,
@@ -63,12 +62,21 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
   }
 
+  // Optional ?owner=<ownerSub> param for recipients reading a shared note.
+  // If omitted, the caller is the owner (ownerSub === sub).
+  const ownerSub = new URL(req.url).searchParams.get('owner') ?? sub;
+
   try {
     const bucket = requireBucketName();
 
-    // The note PK is USER#<sub>, so getNote only ever returns the caller's own note.
-    // A different user's noteId resolves to a different PK → not found → 404.
-    const existing = await getNote(sub, noteId);
+    // Authorise: owner short-circuits true; recipient requires a valid share.
+    const authorized = await authoriseNoteRead(sub, ownerSub, noteId);
+    if (!authorized) {
+      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Look up the note keyed by the owner's sub.
+    const existing = await getNote(ownerSub, noteId);
     if (!existing) {
       return NextResponse.json({ ok: false, error: 'Note not found.' }, { status: 404 });
     }
@@ -83,7 +91,7 @@ export async function GET(
       console.error('[notes/get] Could not fetch body from S3', s3Err);
     }
 
-    return NextResponse.json({ metadata: toNoteMetadata(existing), body });
+    return NextResponse.json({ metadata: toNoteMetadata(existing), body, isOwner: ownerSub === sub });
   } catch (err) {
     console.error('[notes/get] Unexpected error fetching note', err);
     return NextResponse.json({ ok: false, error: 'Could not fetch note.' }, { status: 500 });
@@ -277,6 +285,9 @@ export async function DELETE(
 
     // Delete all DynamoDB records (note + tag-index + token-index items).
     await deleteNoteRecord(sub, noteId, existing.tags ?? [], tokens);
+
+    // Cascade-revoke all active shares so recipients lose access immediately.
+    await revokeAllSharesForNote(sub, noteId);
 
     // Delete S3 objects best-effort (DynamoDB delete is the source of truth).
     const s3 = new S3Client({});
