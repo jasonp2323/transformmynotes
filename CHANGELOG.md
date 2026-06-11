@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.0...transformmynotes-v1.39.1) (2026-06-11)
+
+
+### ✅ Tests
+
+* **application:** M7.4 sharing round-trip E2E ([000442c](https://github.com/jasonp2323/transformmynotes/commit/000442cffc54a92c6333867453c465412412c2d3))
+
 ## [1.39.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.38.0...transformmynotes-v1.39.0) (2026-06-11)
 
 
