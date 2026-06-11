@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.1...transformmynotes-v1.39.2) (2026-06-11)
+
+
+### ✅ Tests
+
+* **application:** M8.4 review round-trip E2E ([6a33807](https://github.com/jasonp2323/transformmynotes/commit/6a33807ff172ba7b7408dcdf58766d976898bd91))
+
 ## [1.39.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.0...transformmynotes-v1.39.1) (2026-06-11)
 
 
