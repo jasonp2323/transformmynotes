@@ -56,6 +56,10 @@ const ADMIN_PASSWORD = 'Admin1234!Password';
 const LIBRARY_USERNAME = 'e2e-library@example.com';
 const LIBRARY_PASSWORD = 'Library1234!Password';
 
+// Review test user (dedicated to review.e2e — starts with zero cards)
+const REVIEW_USERNAME = 'e2e-review@example.com';
+const REVIEW_PASSWORD = 'Review1234!Password';
+
 // Pending users (for admin pending-queue tests)
 const PENDING_USER1_EMAIL = 'e2e-pending1@example.com';
 const PENDING_USER1_PASSWORD = 'Pending1234!Password';
@@ -579,6 +583,31 @@ async function seedCognito(port: number, username: string, password: string) {
     }),
   );
 
+  // ── Review test user ────────────────────────────────────────────────────────
+  // Dedicated to review.e2e tests; kept separate from other users so the
+  // zero-card state assertion is clean at suite start.
+  const reviewUserResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: REVIEW_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: REVIEW_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const reviewUserSub = reviewUserResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: REVIEW_USERNAME,
+      Password: REVIEW_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
   cognitoClient.destroy();
   return {
     poolId,
@@ -589,6 +618,7 @@ async function seedCognito(port: number, username: string, password: string) {
     pendingUser1Sub,
     pendingUser2Sub,
     libraryUserSub,
+    reviewUserSub,
   };
 }
 
@@ -750,6 +780,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     pendingUser1Sub,
     pendingUser2Sub,
     libraryUserSub,
+    reviewUserSub,
   } = await seedCognito(COGNITO_PORT, username, password);
 
   // 3b. Seed UserData profiles for pre-seeded users so requireActiveUser() passes
@@ -757,6 +788,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     { sub: mainUserSub, email: username },
     { sub: forgotUserSub, email: FORGOT_USERNAME },
     { sub: libraryUserSub, email: LIBRARY_USERNAME },
+    { sub: reviewUserSub, email: REVIEW_USERNAME },
   ]);
 
   // 3c. Seed admin profile (role:'admin', status:'active')
@@ -842,6 +874,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     libraryUsername: LIBRARY_USERNAME,
     libraryPassword: LIBRARY_PASSWORD,
     libraryUserSub,
+    // Review test user (dedicated to review.e2e — starts with zero cards)
+    reviewUsername: REVIEW_USERNAME,
+    reviewPassword: REVIEW_PASSWORD,
+    reviewUserSub,
     // S3rver info
     s3Endpoint: `http://127.0.0.1:${S3RVER_PORT}`,
     notesBucket: NOTES_BUCKET,
