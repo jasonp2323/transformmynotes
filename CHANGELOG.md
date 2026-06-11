@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.36.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.35.0...transformmynotes-v1.36.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **core:** M8.1 review-deck foundations — SM-2 scheduler, highlight extractor, CARD model ([#401](https://github.com/jasonp2323/transformmynotes/issues/401)) ([68e5b9a](https://github.com/jasonp2323/transformmynotes/commit/68e5b9a021f5eea1e806858b109fc5acee8dc97f))
+
 ## [1.35.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.34.1...transformmynotes-v1.35.0) (2026-06-11)
 
 
