@@ -24,6 +24,8 @@ import {
   listSharesForRecipient,
   listSharesForNote,
   authoriseNoteRead,
+  revokeShareItem,
+  revokeAllSharesForNote,
 } from '../src/db/shares.js';
 
 // ---------------------------------------------------------------------------
@@ -39,9 +41,27 @@ const NOTE_ID = '01JXXXXXXXXXXXXXXXXXSH001';
 const NOTE_TITLE = 'Shared Integration Note';
 const GROUP_ID = 'group-sh-001';
 
-// A second note used for the revoke test
+// A second note used for the legacy soft-delete test
 const NOTE_ID_REVOKED = '01JXXXXXXXXXXXXXXXXXSH002';
 const RECIPIENT_REVOKED = 'sub-sh-recip-revoked-001';
+
+// Identifiers for the revokeShareItem and revokeAllSharesForNote tests
+const OWNER_SUB_R = 'sub-sh-owner-revoke-001';
+const OWNER_NAME_R = 'Bob Revoker';
+const RECIPIENT_RA = 'sub-sh-recip-ra-001';
+const RECIPIENT_RB = 'sub-sh-recip-rb-001';
+const NOTE_ID_R = '01JXXXXXXXXXXXXXXXXXSH010';
+const NOTE_TITLE_R = 'Revokable Note';
+const GROUP_ID_R = 'group-revoke-001';
+
+// Identifiers for revokeAllSharesForNote test
+const OWNER_SUB_R2 = 'sub-sh-owner-revoke-002';
+const OWNER_NAME_R2 = 'Carol Revoker';
+const RECIPIENT_RC = 'sub-sh-recip-rc-001';
+const RECIPIENT_RD = 'sub-sh-recip-rd-001';
+const NOTE_ID_R2 = '01JXXXXXXXXXXXXXXXXXSH020';
+const NOTE_TITLE_R2 = 'Revokable Note 2';
+const GROUP_ID_R2 = 'group-revoke-002';
 
 // ---------------------------------------------------------------------------
 // Setup: create two ACTIVE share items (owner → recipientA, owner → recipientB)
@@ -225,5 +245,125 @@ describe('soft-delete (revokedAt) filter', () => {
     const items = await listSharesForNote(OWNER_SUB, NOTE_ID_REVOKED);
     expect(items).toHaveLength(1);
     expect(items[0].revokedAt).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// revokeShareItem — UpdateCommand-based soft-delete round-trip
+// ---------------------------------------------------------------------------
+
+describe('revokeShareItem (integration)', () => {
+  it('setup: shares NOTE_ID_R with recipient A and recipient B', async () => {
+    await putShareItem({
+      ownerSub: OWNER_SUB_R,
+      ownerName: OWNER_NAME_R,
+      recipientSub: RECIPIENT_RA,
+      noteId: NOTE_ID_R,
+      noteTitle: NOTE_TITLE_R,
+      groupId: GROUP_ID_R,
+      sharedAt: '2025-06-11T08:00:00.000Z',
+    });
+    await putShareItem({
+      ownerSub: OWNER_SUB_R,
+      ownerName: OWNER_NAME_R,
+      recipientSub: RECIPIENT_RB,
+      noteId: NOTE_ID_R,
+      noteTitle: NOTE_TITLE_R,
+      groupId: GROUP_ID_R,
+      sharedAt: '2025-06-11T08:30:00.000Z',
+    });
+  });
+
+  it('listSharesForRecipient returns the share for recipient A (pre-revoke)', async () => {
+    const items = await listSharesForRecipient(RECIPIENT_RA);
+    expect(items.some((s) => s.noteId === NOTE_ID_R)).toBe(true);
+  });
+
+  it('revokeShareItem(ownerR, NOTE_ID_R, recipientA) returns true', async () => {
+    const result = await revokeShareItem(OWNER_SUB_R, NOTE_ID_R, RECIPIENT_RA);
+    expect(result).toBe(true);
+  });
+
+  it('listSharesForRecipient EXCLUDES NOTE_ID_R for recipient A after revoke', async () => {
+    const items = await listSharesForRecipient(RECIPIENT_RA);
+    expect(items.some((s) => s.noteId === NOTE_ID_R)).toBe(false);
+  });
+
+  it('listSharesForNote returns BOTH items (one revoked, one active)', async () => {
+    const items = await listSharesForNote(OWNER_SUB_R, NOTE_ID_R);
+    expect(items).toHaveLength(2);
+
+    const itemA = items.find((s) => s.recipientSub === RECIPIENT_RA);
+    const itemB = items.find((s) => s.recipientSub === RECIPIENT_RB);
+
+    expect(itemA).toBeDefined();
+    expect(itemA!.revokedAt).toBeDefined();
+    // ttl must be a number (seconds)
+    expect(typeof itemA!.ttl).toBe('number');
+
+    expect(itemB).toBeDefined();
+    expect(itemB!.revokedAt).toBeUndefined();
+  });
+
+  it('authoriseNoteRead returns false for revoked recipient A', async () => {
+    const result = await authoriseNoteRead(RECIPIENT_RA, OWNER_SUB_R, NOTE_ID_R);
+    expect(result).toBe(false);
+  });
+
+  it('authoriseNoteRead returns true for still-active recipient B', async () => {
+    const result = await authoriseNoteRead(RECIPIENT_RB, OWNER_SUB_R, NOTE_ID_R);
+    expect(result).toBe(true);
+  });
+
+  it('revokeShareItem returns false for a non-existent share item', async () => {
+    const result = await revokeShareItem(OWNER_SUB_R, NOTE_ID_R, 'no-such-recipient');
+    expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// revokeAllSharesForNote — cascade soft-delete round-trip
+// ---------------------------------------------------------------------------
+
+describe('revokeAllSharesForNote (integration)', () => {
+  it('setup: shares NOTE_ID_R2 with two recipients', async () => {
+    await putShareItem({
+      ownerSub: OWNER_SUB_R2,
+      ownerName: OWNER_NAME_R2,
+      recipientSub: RECIPIENT_RC,
+      noteId: NOTE_ID_R2,
+      noteTitle: NOTE_TITLE_R2,
+      groupId: GROUP_ID_R2,
+      sharedAt: '2025-06-11T09:00:00.000Z',
+    });
+    await putShareItem({
+      ownerSub: OWNER_SUB_R2,
+      ownerName: OWNER_NAME_R2,
+      recipientSub: RECIPIENT_RD,
+      noteId: NOTE_ID_R2,
+      noteTitle: NOTE_TITLE_R2,
+      groupId: GROUP_ID_R2,
+      sharedAt: '2025-06-11T09:30:00.000Z',
+    });
+  });
+
+  it('revokeAllSharesForNote returns 2 (both recipients revoked)', async () => {
+    const count = await revokeAllSharesForNote(OWNER_SUB_R2, NOTE_ID_R2);
+    expect(count).toBe(2);
+  });
+
+  it('listSharesForRecipient no longer includes NOTE_ID_R2 for recipient C', async () => {
+    const items = await listSharesForRecipient(RECIPIENT_RC);
+    expect(items.some((s) => s.noteId === NOTE_ID_R2)).toBe(false);
+  });
+
+  it('listSharesForRecipient no longer includes NOTE_ID_R2 for recipient D', async () => {
+    const items = await listSharesForRecipient(RECIPIENT_RD);
+    expect(items.some((s) => s.noteId === NOTE_ID_R2)).toBe(false);
+  });
+
+  it('calling revokeAllSharesForNote again returns 0 (already revoked)', async () => {
+    const count = await revokeAllSharesForNote(OWNER_SUB_R2, NOTE_ID_R2);
+    expect(count).toBe(0);
   });
 });
