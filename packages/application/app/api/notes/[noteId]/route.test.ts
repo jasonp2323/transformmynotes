@@ -11,6 +11,9 @@ const updateNoteMock = vi.hoisted(() => vi.fn());
 const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
 const countHighlightsMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
+const syncNoteTokensMock = vi.hoisted(() => vi.fn());
+const deleteNoteRecordMock = vi.hoisted(() => vi.fn());
+const tokeniseMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -36,19 +39,24 @@ vi.mock('@transformmynotes/core', () => {
       noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,
     },
     NoteConflictError,
+    syncNoteTokens: syncNoteTokensMock,
+    deleteNoteRecord: deleteNoteRecordMock,
+    tokenise: tokeniseMock,
   };
 });
 
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn(() => ({ send: s3SendMock })),
   PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
+  GetObjectCommand: vi.fn((input) => ({ kind: 'GetObject', input })),
+  DeleteObjectCommand: vi.fn((input) => ({ kind: 'DeleteObject', input })),
 }));
 
 // ---------------------------------------------------------------------------
 // Import module under test (after mocks)
 // ---------------------------------------------------------------------------
 
-import { PATCH } from './route';
+import { PATCH, GET, DELETE } from './route';
 
 // We need the mocked NoteConflictError to throw in the conflict test.
 import { NoteConflictError } from '@transformmynotes/core';
@@ -104,6 +112,16 @@ function makeRequest(
   return [req, { params: { noteId } }];
 }
 
+function makeGetRequest(noteId = NOTE_ID): [Request, { params: { noteId: string } }] {
+  const req = new Request(`http://localhost/api/notes/${noteId}`, { method: 'GET' });
+  return [req, { params: { noteId } }];
+}
+
+function makeDeleteRequest(noteId = NOTE_ID): [Request, { params: { noteId: string } }] {
+  const req = new Request(`http://localhost/api/notes/${noteId}`, { method: 'DELETE' });
+  return [req, { params: { noteId } }];
+}
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
@@ -123,7 +141,10 @@ beforeEach(() => {
   });
   countHighlightsMock.mockReturnValue(0);
   updateNoteMock.mockResolvedValue(UPDATED_NOTE);
-  s3SendMock.mockResolvedValue({});
+  s3SendMock.mockResolvedValue({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } });
+  syncNoteTokensMock.mockResolvedValue(undefined);
+  deleteNoteRecordMock.mockResolvedValue(undefined);
+  tokeniseMock.mockReturnValue(['hello', 'world']);
 });
 
 // ---------------------------------------------------------------------------
@@ -349,7 +370,11 @@ describe('PATCH /api/notes/[noteId]', () => {
     });
 
     it('returns 500 when S3 PutObject fails', async () => {
-      s3SendMock.mockRejectedValueOnce(new Error('S3 access denied'));
+      // First send is GetObject (for old body) — best-effort, succeeds.
+      // Second send is PutObject — this is the one that fails.
+      s3SendMock
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body') } })
+        .mockRejectedValueOnce(new Error('S3 access denied'));
 
       const [req, ctx] = makeRequest();
       const res = await PATCH(req, ctx);
@@ -359,5 +384,159 @@ describe('PATCH /api/notes/[noteId]', () => {
       expect(body.ok).toBe(false);
       expect(body.error).toBe('Could not update note.');
     });
+  });
+
+  describe('PATCH token wiring', () => {
+    it('calls syncNoteTokens after a successful update', async () => {
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      expect(syncNoteTokensMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads old body from S3 via GetObjectCommand before writing', async () => {
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      expect(GetObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ Key: EXISTING_NOTE.bodyS3Key }),
+      );
+    });
+  });
+});
+
+describe('GET /api/notes/[noteId]', () => {
+  it('returns 401 when not authenticated', async () => {
+    getAuthenticatedSubMock.mockResolvedValueOnce(null);
+
+    const [req, ctx] = makeGetRequest();
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(401);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Unauthorized');
+  });
+
+  it('returns 404 when note not found', async () => {
+    getNoteMock.mockResolvedValueOnce(undefined);
+
+    const [req, ctx] = makeGetRequest();
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(404);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Note not found.');
+  });
+
+  it('returns metadata and body on success', async () => {
+    const [req, ctx] = makeGetRequest();
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.body).toBe('old body text');
+
+    const metadata = body.metadata as Record<string, unknown>;
+    expect(metadata.noteId).toBe(NOTE_ID);
+    expect(metadata.title).toBe(EXISTING_NOTE.title);
+    // Internal DynamoDB keys must not be exposed
+    expect(metadata.pk).toBeUndefined();
+    expect(metadata.sk).toBeUndefined();
+    expect(metadata.bodyS3Key).toBeUndefined();
+    expect(metadata.originalImageS3Key).toBeUndefined();
+  });
+
+  it('defaults body to empty string when S3 throws', async () => {
+    s3SendMock.mockRejectedValueOnce(new Error('NoSuchKey'));
+
+    const [req, ctx] = makeGetRequest();
+    const res = await GET(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.body).toBe('');
+    const metadata = body.metadata as Record<string, unknown>;
+    expect(metadata.noteId).toBe(NOTE_ID);
+  });
+});
+
+describe('DELETE /api/notes/[noteId]', () => {
+  it('returns 401 when not authenticated', async () => {
+    getAuthenticatedSubMock.mockResolvedValueOnce(null);
+
+    const [req, ctx] = makeDeleteRequest();
+    const res = await DELETE(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(401);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Unauthorized');
+  });
+
+  it('returns 404 when note not found', async () => {
+    getNoteMock.mockResolvedValueOnce(undefined);
+
+    const [req, ctx] = makeDeleteRequest();
+    const res = await DELETE(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(404);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Note not found.');
+  });
+
+  it('returns { ok: true } on success', async () => {
+    const [req, ctx] = makeDeleteRequest();
+    const res = await DELETE(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+  });
+
+  it('calls deleteNoteRecord with sub, noteId, tags, tokens', async () => {
+    const [req, ctx] = makeDeleteRequest();
+    await DELETE(req, ctx);
+
+    expect(deleteNoteRecordMock).toHaveBeenCalledWith(
+      SUB,
+      NOTE_ID,
+      EXISTING_NOTE.tags,
+      expect.any(Array),
+    );
+  });
+
+  it('calls DeleteObjectCommand for bodyS3Key and originalImageS3Key', async () => {
+    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+
+    const [req, ctx] = makeDeleteRequest();
+    await DELETE(req, ctx);
+
+    expect(DeleteObjectCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ Key: EXISTING_NOTE.bodyS3Key }),
+    );
+    expect(DeleteObjectCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ Key: EXISTING_NOTE.originalImageS3Key }),
+    );
+  });
+
+  it('still returns { ok: true } if S3 DeleteObject fails', async () => {
+    // First send is GetObject (for token reconstruction) — succeeds with default mock.
+    // Subsequent sends (DeleteObject calls) fail.
+    s3SendMock
+      .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } })
+      .mockRejectedValueOnce(new Error('S3 access denied'))
+      .mockRejectedValueOnce(new Error('S3 access denied'));
+
+    const [req, ctx] = makeDeleteRequest();
+    const res = await DELETE(req, ctx);
+    const body = await res.json() as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
   });
 });

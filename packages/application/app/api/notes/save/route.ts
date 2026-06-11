@@ -5,6 +5,8 @@ import {
   getTranscriptionJob,
   updateTranscriptionJobStatus,
   putNote,
+  putNoteTokens,
+  tokenise,
   postprocessMarkdown,
   countHighlights,
 } from '@transformmynotes/core';
@@ -131,6 +133,9 @@ export async function POST(req: Request) {
       bodyS3Key: storageKeys.noteMarkdown(sub, noteId),
       originalImageS3Key: storageKeys.originalImage(sub, noteId),
     });
+
+    // Index tokens for full-text search.
+    await putNoteTokens(sub, noteId, tokenise((title || 'Untitled note') + ' ' + markdown));
 
     // Best-effort: update job status to done. Swallow errors (e.g. ConditionalCheckFailed)
     // so a duplicate save or already-done job doesn't fail the request.

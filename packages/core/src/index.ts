@@ -14,3 +14,6 @@ export * from './ocr/postprocess';
 export * from './ocr/retry';
 export * from './editor/serialize';
 export * from './editor/utils';
+
+// Search utilities
+export * from './search/tokenise';
