@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.34.0...transformmynotes-v1.34.1) (2026-06-11)
+
+
+### ✅ Tests
+
+* **application:** M6.4 library + note-view E2E suite ([#396](https://github.com/jasonp2323/transformmynotes/issues/396)) ([1ccfcf1](https://github.com/jasonp2323/transformmynotes/commit/1ccfcf1baaad4ecbdd9068898a82de1d35296017))
+
 ## [1.34.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.33.0...transformmynotes-v1.34.0) (2026-06-11)
 
 
