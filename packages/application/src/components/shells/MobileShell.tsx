@@ -17,7 +17,7 @@ interface BottomNavItem {
 }
 
 const NAV_ITEMS: BottomNavItem[] = [
-  { id: 'library', icon: 'book-open', label: 'Library', href: '/library' },
+  { id: 'library', icon: 'book-open', label: 'Library', href: '/dashboard' },
   { id: 'search',  icon: 'search',    label: 'Search',  href: '/search' },
   { id: 'review',  icon: 'layers',    label: 'Review',  href: '/review' },
   { id: 'profile', icon: 'user',      label: 'You',     href: '/profile' },
