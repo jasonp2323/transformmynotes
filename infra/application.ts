@@ -5,6 +5,17 @@ import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups, notes } from "./db";
 import { notesBucket } from "./storage";
 
+const accountId = aws.getCallerIdentityOutput({}).accountId;
+
+// The BEDROCK_MODEL_ID secret is a cross-region inference profile id (e.g.
+// "us.anthropic.claude-3-5-sonnet-20241022-v2:0"). Strip the region prefix
+// ("us.", "eu.", "apac.") to recover the underlying foundation-model id used in
+// the per-region foundation-model ARNs. If no prefix is present the id is used
+// as-is (a bare foundation-model id still works for both ARNs).
+const foundationModelId = bedrockInferenceProfileId.value.apply((id) =>
+  id.replace(/^(us|eu|apac)\./, ""),
+);
+
 const isProd = $app.stage === "production";
 const isPR = $app.stage.startsWith("pr-");
 
@@ -24,6 +35,7 @@ export const application = new sst.aws.Nextjs("Application", {
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
   },
   permissions: [
+    // Least privilege: scoped to this stage's user pool ARN only.
     {
       actions: [
         "cognito-idp:AdminInitiateAuth",
@@ -38,12 +50,20 @@ export const application = new sst.aws.Nextjs("Application", {
       resources: [userPool.arn],
     },
     {
+      // Least privilege: InvokeModel only, scoped to the specific Claude inference
+      // profile + the underlying foundation model in each region the "us." profile
+      // can route to. No bedrock:*:*:* wildcard.
       actions: [
         "bedrock:InvokeModel",
         "bedrock:InvokeModelWithResponseStream",
       ],
       resources: [
-        $interpolate`arn:aws:bedrock:us-east-1::foundation-model/${bedrockInferenceProfileId.value}`,
+        // The cross-region inference profile itself.
+        $interpolate`arn:aws:bedrock:us-east-1:${accountId}:inference-profile/${bedrockInferenceProfileId.value}`,
+        // The underlying foundation model in each region the "us." profile spans.
+        $interpolate`arn:aws:bedrock:us-east-1::foundation-model/${foundationModelId}`,
+        $interpolate`arn:aws:bedrock:us-east-2::foundation-model/${foundationModelId}`,
+        $interpolate`arn:aws:bedrock:us-west-2::foundation-model/${foundationModelId}`,
       ],
     },
   ],

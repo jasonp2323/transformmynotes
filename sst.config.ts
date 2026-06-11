@@ -10,7 +10,13 @@ export default $config({
       home: "aws",
       providers: {
         aws: {
-          region: "us-east-1"
+          region: "us-east-1",
+          defaultTags: {
+            tags: {
+              Project: "TransformMyNotes",
+              Stage: input.stage,
+            },
+          },
         },
         cloudflare: {
           version: "6.15.0",
