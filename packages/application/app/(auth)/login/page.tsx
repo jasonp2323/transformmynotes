@@ -1,30 +1,76 @@
 'use client';
 import React, { useState } from 'react';
-import { signIn, fetchAuthSession } from 'aws-amplify/auth';
+import { signIn, confirmSignIn, fetchAuthSession } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Input, Button, Icon } from '@/src/components/ui';
 import { PasswordField, AuthLink } from '@/src/components/auth';
 import { authErrorMessage } from '@/lib/auth-errors';
+import { unhandledSignInStepMessage, passwordMatchError } from '@/lib/auth-next-step';
+
+type Step = 'signin' | 'new-password';
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // Sign-in step state
+  const [step, setStep] = useState<Step>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  // New-password step state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  async function finalizeSession() {
+    const session = await fetchAuthSession();
+    const idToken = session.tokens?.idToken?.toString();
+    if (idToken) {
+      document.cookie = `CognitoIdToken=${idToken}; path=/; samesite=lax`;
+    }
+    router.push('/dashboard');
+  }
+
+  async function onSignInSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await signIn({ username: email, password });
-      const session = await fetchAuthSession();
-      const idToken = session.tokens?.idToken?.toString();
-      if (idToken) {
-        document.cookie = `CognitoIdToken=${idToken}; path=/; samesite=lax`;
+      const { isSignedIn, nextStep } = await signIn({ username: email, password });
+      if (isSignedIn) {
+        await finalizeSession();
+        return;
       }
-      router.push('/dashboard');
+      const signInStep = nextStep.signInStep;
+      if (signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        setStep('new-password');
+      } else {
+        setError(unhandledSignInStepMessage(signInStep));
+      }
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onNewPasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const matchErr = passwordMatchError(newPassword, confirmPassword);
+    if (matchErr) {
+      setError(matchErr);
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const { isSignedIn, nextStep } = await confirmSignIn({ challengeResponse: newPassword });
+      if (isSignedIn) {
+        await finalizeSession();
+        return;
+      }
+      setError(unhandledSignInStepMessage(nextStep.signInStep));
     } catch (err) {
       setError(authErrorMessage(err));
     } finally {
@@ -112,76 +158,151 @@ export default function LoginPage() {
           padding: '26px 28px 32px',
         }}
       >
-        <h2
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 21,
-            fontWeight: 600,
-            color: 'var(--text-strong)',
-            margin: '0 0 18px',
-          }}
-        >
-          Sign in
-        </h2>
-
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          <Input
-            label="Email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            leadingIcon={<Icon name="mail" size={18} />}
-            required
-          />
-
-          <PasswordField
-            value={password}
-            onChange={setPassword}
-            autoComplete="current-password"
-            required
-          />
-
-          {error && (
-            <p
-              role="alert"
+        {step === 'signin' && (
+          <>
+            <h2
               style={{
-                margin: 0,
+                fontFamily: 'var(--font-serif)',
+                fontSize: 21,
+                fontWeight: 600,
+                color: 'var(--text-strong)',
+                margin: '0 0 18px',
+              }}
+            >
+              Sign in
+            </h2>
+
+            <form onSubmit={onSignInSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              <Input
+                label="Email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                leadingIcon={<Icon name="mail" size={18} />}
+                required
+              />
+
+              <PasswordField
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+                required
+              />
+
+              {error && (
+                <p
+                  role="alert"
+                  style={{
+                    margin: 0,
+                    fontSize: 14,
+                    color: 'var(--danger-500)',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  {error}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={loading}
+                rightIcon={<Icon name="arrow-right" size={18} />}
+              >
+                Sign in
+              </Button>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <AuthLink href="/request-access">Request access</AuthLink>
+                <AuthLink href="/forgot-password">Forgot password?</AuthLink>
+              </div>
+            </form>
+          </>
+        )}
+
+        {step === 'new-password' && (
+          <>
+            <h2
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 21,
+                fontWeight: 600,
+                color: 'var(--text-strong)',
+                margin: '0 0 8px',
+              }}
+            >
+              Set a new password
+            </h2>
+            <p
+              style={{
+                margin: '0 0 18px',
                 fontSize: 14,
-                color: 'var(--danger-500)',
+                color: 'var(--text-muted)',
                 fontFamily: 'var(--font-sans)',
               }}
             >
-              {error}
+              Your account requires a new password before you can continue.
             </p>
-          )}
 
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={loading}
-            rightIcon={<Icon name="arrow-right" size={18} />}
-          >
-            Sign in
-          </Button>
+            <form onSubmit={onNewPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              <PasswordField
+                label="New password"
+                value={newPassword}
+                onChange={setNewPassword}
+                autoComplete="new-password"
+                placeholder="New password"
+                required
+              />
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--text-muted)',
-            }}
-          >
-            <AuthLink href="/request-access">Request access</AuthLink>
-            <AuthLink href="/forgot-password">Forgot password?</AuthLink>
-          </div>
-        </form>
+              <PasswordField
+                label="Confirm new password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                autoComplete="new-password"
+                placeholder="Confirm password"
+                required
+              />
+
+              {error && (
+                <p
+                  role="alert"
+                  style={{
+                    margin: 0,
+                    fontSize: 14,
+                    color: 'var(--danger-500)',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  {error}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={loading}
+                rightIcon={<Icon name="arrow-right" size={18} />}
+              >
+                Set password &amp; sign in
+              </Button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
