@@ -12,6 +12,7 @@ const putNoteTokensMock = vi.hoisted(() => vi.fn());
 const tokeniseMock = vi.hoisted(() => vi.fn());
 const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
 const countHighlightsMock = vi.hoisted(() => vi.fn());
+const syncCardsForNoteMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
@@ -26,6 +27,7 @@ vi.mock('@transformmynotes/core', () => ({
   tokenise: tokeniseMock,
   postprocessMarkdown: postprocessMarkdownMock,
   countHighlights: countHighlightsMock,
+  syncCardsForNote: syncCardsForNoteMock,
   storageKeys: {
     originalImage: (s: string, i: string) => `images/users/${s}/${i}.jpg`,
     noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,
@@ -88,6 +90,7 @@ beforeEach(() => {
   updateTranscriptionJobStatusMock.mockResolvedValue(undefined);
   putNoteMock.mockResolvedValue({});
   putNoteTokensMock.mockResolvedValue(undefined);
+  syncCardsForNoteMock.mockResolvedValue({ created: 0, deleted: 0, unchanged: 0 });
   tokeniseMock.mockReturnValue(['my', 'note']);
   postprocessMarkdownMock.mockReturnValue({
     markdown: '## Notes\nSome content here.',
@@ -323,6 +326,28 @@ describe('POST /api/notes/save', () => {
 
       expect(tokeniseMock).toHaveBeenCalled();
       expect(putNoteTokensMock).toHaveBeenCalledOnce();
+    });
+
+    it('calls syncCardsForNote with sub, noteId, and markdown after note is persisted', async () => {
+      await POST(makeRequest());
+
+      expect(syncCardsForNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: SUB,
+          noteId: JOB_ID,
+          markdownBody: DEFAULT_BODY.markdown,
+        }),
+      );
+    });
+
+    it('returns 200 even when syncCardsForNote rejects (best-effort)', async () => {
+      syncCardsForNoteMock.mockRejectedValueOnce(new Error('card sync error'));
+
+      const res = await POST(makeRequest());
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.noteId).toBe(JOB_ID);
     });
   });
 

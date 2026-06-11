@@ -12,6 +12,7 @@ const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
 const countHighlightsMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
 const syncNoteTokensMock = vi.hoisted(() => vi.fn());
+const syncCardsForNoteMock = vi.hoisted(() => vi.fn());
 const deleteNoteRecordMock = vi.hoisted(() => vi.fn());
 const tokeniseMock = vi.hoisted(() => vi.fn());
 const authoriseNoteReadMock = vi.hoisted(() => vi.fn());
@@ -42,6 +43,7 @@ vi.mock('@transformmynotes/core', () => {
     },
     NoteConflictError,
     syncNoteTokens: syncNoteTokensMock,
+    syncCardsForNote: syncCardsForNoteMock,
     deleteNoteRecord: deleteNoteRecordMock,
     tokenise: tokeniseMock,
     authoriseNoteRead: authoriseNoteReadMock,
@@ -153,6 +155,7 @@ beforeEach(() => {
   updateNoteMock.mockResolvedValue(UPDATED_NOTE);
   s3SendMock.mockResolvedValue({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } });
   syncNoteTokensMock.mockResolvedValue(undefined);
+  syncCardsForNoteMock.mockResolvedValue({ created: 0, deleted: 0, unchanged: 0 });
   deleteNoteRecordMock.mockResolvedValue(undefined);
   tokeniseMock.mockReturnValue(['hello', 'world']);
   authoriseNoteReadMock.mockResolvedValue(true);
@@ -404,6 +407,30 @@ describe('PATCH /api/notes/[noteId]', () => {
       await PATCH(req, ctx);
 
       expect(syncNoteTokensMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls syncCardsForNote with sub, noteId, and markdown after a successful update', async () => {
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      expect(syncCardsForNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: SUB,
+          noteId: NOTE_ID,
+          markdownBody: DEFAULT_BODY.markdown,
+        }),
+      );
+    });
+
+    it('returns 200 even when syncCardsForNote rejects (best-effort)', async () => {
+      syncCardsForNoteMock.mockRejectedValueOnce(new Error('card sync error'));
+
+      const [req, ctx] = makeRequest();
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.noteId).toBe(NOTE_ID);
     });
 
     it('reads old body from S3 via GetObjectCommand before writing', async () => {
