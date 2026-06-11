@@ -1,12 +1,13 @@
 import {
   GetCommand,
+  PutCommand,
   QueryCommand,
   UpdateCommand,
   TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { userDataKeys, type UserStatus } from './keys.js';
-import type { UserProfileItem } from '../auth/profile.js';
+import { buildUserProfileItem, type UserProfileItem } from '../auth/profile.js';
 
 /** Fetch a user profile from the UserData table by Cognito sub. Returns null if absent. */
 export async function getUserProfileBySub(sub: string): Promise<UserProfileItem | null> {
@@ -172,4 +173,47 @@ export async function deleteUserProfileWithAudit(
   );
 
   return { ok: true };
+}
+
+/**
+ * Ensure an active admin profile exists for the given Cognito sub.
+ *
+ * - If a profile already exists and is active, returns it unchanged.
+ * - If a profile exists but is NOT active, writes a new item with status:'active'
+ *   and role:'admin', preserving the original createdAt and groupIds.
+ * - If no profile exists, creates one with status:'active' and role:'admin'.
+ *
+ * The write uses PutCommand (unconditional overwrite) because we always want
+ * the result to be an active admin item regardless of the prior state.
+ */
+export async function ensureActiveAdminProfile(opts: {
+  sub: string;
+  email: string;
+  name: string;
+}): Promise<UserProfileItem> {
+  const { sub, email, name } = opts;
+
+  const existing = await getUserProfileBySub(sub);
+  if (existing && existing.status === 'active') {
+    return existing;
+  }
+
+  const profile = buildUserProfileItem({
+    sub,
+    email,
+    name,
+    status: 'active',
+    role: 'admin',
+    groupIds: existing?.groupIds ?? [],
+    createdAt: existing?.createdAt,
+  });
+
+  await ddb.send(
+    new PutCommand({
+      TableName: TableNames.UserData,
+      Item: profile,
+    }),
+  );
+
+  return profile;
 }
