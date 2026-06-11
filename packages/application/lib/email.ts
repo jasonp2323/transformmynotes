@@ -36,7 +36,7 @@ function fromAddress(): string {
 /** Sends an email and throws if Resend returns an error. */
 async function sendEmail(payload: {
   from: string;
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   text: string;
@@ -54,17 +54,25 @@ async function sendEmail(payload: {
 
 /**
  * Sends an invite email containing the access code, optional group/course name,
- * and a human-readable expiry date.
+ * and a human-readable expiry date. When `inviteUrl` is provided, a
+ * "Set your password" call-to-action is added to both html and text — the
+ * access-code display is always present regardless.
  */
 export async function sendInviteEmail(
   to: string,
   code: string,
   groupName: string | null,
   expiresAt: string,
+  inviteUrl?: string,
 ): Promise<void> {
   const expiryReadable = new Date(expiresAt).toUTCString();
   const groupLine = groupName ? `\nGroup / course: ${groupName}` : '';
   const groupHtml = groupName ? `<p><strong>Group / course:</strong> ${groupName}</p>` : '';
+
+  const inviteUrlHtml = inviteUrl
+    ? `<p><a href="${inviteUrl}" style="display:inline-block;padding:0.5em 1em;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Set your password</a></p>`
+    : '';
+  const inviteUrlText = inviteUrl ? `\nSet your password: ${inviteUrl}` : '';
 
   const subject = "You're invited to TransformMyNotes";
 
@@ -73,6 +81,7 @@ export async function sendInviteEmail(
 <p>You've been invited to <strong>TransformMyNotes</strong>. Use the code below to complete your sign-up:</p>
 <p style="font-size:1.5em;letter-spacing:0.1em;font-weight:bold;">${code}</p>
 ${groupHtml}
+${inviteUrlHtml}
 <p><strong>Expires:</strong> ${expiryReadable}</p>
 <p>If you weren't expecting this invite, you can safely ignore this message.</p>
 <p>— The TransformMyNotes team</p>
@@ -83,6 +92,7 @@ ${groupHtml}
     '',
     `Access code: ${code}`,
     groupLine,
+    inviteUrlText,
     `Expires: ${expiryReadable}`,
     '',
     "If you weren't expecting this invite, you can safely ignore this message.",
@@ -119,6 +129,52 @@ export async function sendApprovalEmail(to: string, name: string): Promise<void>
   ].join('\n');
 
   await sendEmail({ from: fromAddress(), to, subject, html, text });
+}
+
+/**
+ * Sends a notification to admin(s) that a new access request has arrived.
+ * If `adminEmails` is empty, returns immediately without sending.
+ * The `reviewUrl` is optional — when provided it is included as a link.
+ */
+export async function sendAdminAccessRequestNotification(
+  adminEmails: string[],
+  request: { name: string; email: string; note?: string },
+  reviewUrl?: string,
+): Promise<void> {
+  if (adminEmails.length === 0) return;
+
+  const subject = 'New access request — TransformMyNotes';
+
+  const noteHtml = request.note ? `<p><strong>Note:</strong> ${request.note}</p>` : '';
+  const noteText = request.note ? `\nNote: ${request.note}` : '';
+  const reviewUrlHtml = reviewUrl
+    ? `<p><a href="${reviewUrl}">Review the request</a></p>`
+    : '';
+  const reviewUrlText = reviewUrl ? `\nReview: ${reviewUrl}` : '';
+
+  const html = `
+<p>A new access request has been submitted on <strong>TransformMyNotes</strong>.</p>
+<p><strong>Name:</strong> ${request.name}</p>
+<p><strong>Email:</strong> ${request.email}</p>
+${noteHtml}
+${reviewUrlHtml}
+<p>— The TransformMyNotes system</p>
+`.trim();
+
+  const text = [
+    'A new access request has been submitted on TransformMyNotes.',
+    '',
+    `Name: ${request.name}`,
+    `Email: ${request.email}`,
+    noteText,
+    reviewUrlText,
+    '',
+    '— The TransformMyNotes system',
+  ]
+    .join('\n')
+    .trim();
+
+  await sendEmail({ from: fromAddress(), to: adminEmails, subject, html, text });
 }
 
 /**

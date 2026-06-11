@@ -144,3 +144,21 @@ export function parseCreateInviteBody(body: unknown): ParseCreateInviteResult {
 
   return { ok: false, error: `Invalid type "${String(type)}". Must be "email" or "code".` };
 }
+
+// ---------------------------------------------------------------------------
+// Invite URL builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the invite redemption URL for the given origin, raw code, and email.
+ *
+ * Format: `${origin}/invite?code=<rawCode>&email=<encodedEmail>`
+ *
+ * `rawCode` is the un-formatted, un-dashed code that is hashed at redemption
+ * time — do NOT pass a formatted/dashed code here.
+ * `email` is percent-encoded via `encodeURIComponent` so special characters
+ * (e.g. `+`, `@`) survive as URL query-parameter values.
+ */
+export function buildInviteUrl(origin: string, rawCode: string, email: string): string {
+  return `${origin}/invite?code=${rawCode}&email=${encodeURIComponent(email)}`;
+}
