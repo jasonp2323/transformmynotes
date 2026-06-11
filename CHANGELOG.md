@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.38.0...transformmynotes-v1.39.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **application:** M8.3 review tab UI — card-flip session + due-count nav badge ([#408](https://github.com/jasonp2323/transformmynotes/issues/408)) ([baa9acc](https://github.com/jasonp2323/transformmynotes/commit/baa9acc10b2944a34299db6cfe18597a9fda7a30))
+
 ## [1.38.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.37.0...transformmynotes-v1.38.0) (2026-06-11)
 
 
