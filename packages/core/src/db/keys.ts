@@ -350,3 +350,109 @@ export const noteKeys = {
     return { token: match[1], noteId: match[2] };
   },
 };
+
+/**
+ * `Notes` table keys for SHARE items.
+ *
+ * A `SHARE` item records that a note owner has shared a specific note with a
+ * specific recipient. Share items live in the same Notes table as note metadata
+ * and token-index items, enabling a note delete to cascade share removal in a
+ * single `TransactWrite`.
+ *
+ * Item shape:
+ *   PK  = `USER#<ownerSub>`                         — owner's partition
+ *   SK  = `SHARE#<noteId>#RECIPIENT#<recipientSub>` — scoped to note + recipient
+ *   attrs:
+ *     ownerSub      string   — Cognito sub of the note owner
+ *     ownerName     string   — denormalised display name (accepted drift on rename)
+ *     recipientSub  string   — Cognito sub of the share recipient
+ *     noteId        string   — ULID note identifier
+ *     noteTitle     string   — denormalised for Shared-tab display
+ *     groupId       string   — the group this share is scoped to
+ *     permission    "read"   — only "read" in M7; extensible later
+ *     sharedAt      string   — ISO-8601 timestamp
+ *     revokedAt?    string   — set on soft-delete; TTL cleanup removes after 30 days
+ *     ttl?          number   — Unix epoch seconds; set alongside revokedAt
+ *
+ * GSI4 (`ByRecipient`, projection ALL):
+ *   gsi4pk = `USER#<recipientSub>`, gsi4sk = `SHARED_AT#<ISO-8601>`
+ *   — list all notes shared with a recipient, newest-first. Projection ALL means
+ *     denormalised display attributes (ownerName, noteTitle, groupId) are returned
+ *     directly from the index without an extra GetItem.
+ *
+ * Soft-delete pattern:
+ *   On revoke, set `revokedAt` + `ttl` on the item. The GSI4 query filters with
+ *   `FilterExpression: attribute_not_exists(revokedAt)` so revoked items are
+ *   excluded from the Shared tab. Hard-delete is handled by DynamoDB TTL after 30 days.
+ */
+export const shareKeys = {
+  /**
+   * Full primary key for a share item.
+   * PK = `USER#<ownerSub>`, SK = `SHARE#<noteId>#RECIPIENT#<recipientSub>`.
+   */
+  shareItemKey: (ownerSub: string, noteId: string, recipientSub: string) => ({
+    pk: `USER#${ownerSub}`,
+    sk: `SHARE#${noteId}#RECIPIENT#${recipientSub}`,
+  }),
+
+  /**
+   * GSI4 partition key for a share item (`USER#<recipientSub>`).
+   * Scopes the recipient-facing index to a single user's received shares.
+   */
+  gsi4pk: (recipientSub: string) => `USER#${recipientSub}`,
+
+  /**
+   * GSI4 sort key for a share item (`SHARED_AT#<ISO-8601>`).
+   * ISO-8601 UTC strings are lexicographically sortable, so
+   * `ScanIndexForward: false` gives newest-first ordering.
+   */
+  gsi4sk: (sharedAt: string) => `SHARED_AT#${sharedAt}`,
+
+  /**
+   * Query parameters for listing all active shares for a recipient via GSI4
+   * (`ByRecipient`). Returns items newest-first (ScanIndexForward: false),
+   * capped at 50, filtering out soft-deleted shares via
+   * `FilterExpression: attribute_not_exists(revokedAt)`.
+   *
+   * GSI4 is projection ALL — denormalised display attributes (ownerName,
+   * noteTitle, groupId) are returned directly without an extra GetItem.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  sharesByRecipientQuery: (recipientSub: string) => ({
+    IndexName: 'GSI4',
+    KeyConditionExpression: 'gsi4pk = :pk',
+    ExpressionAttributeValues: { ':pk': `USER#${recipientSub}` },
+    FilterExpression: 'attribute_not_exists(revokedAt)',
+    ScanIndexForward: false,
+    Limit: 50,
+  }),
+
+  /**
+   * Base-table query parameters for listing all share items for a given note,
+   * including both active and revoked shares (no FilterExpression applied here).
+   * Queries the primary index: `pk = USER#<ownerSub>` AND
+   * `begins_with(sk, 'SHARE#<noteId>#')`.
+   *
+   * Useful for displaying the share sheet (who a note is currently shared with)
+   * and for cascade-deleting shares when a note is deleted.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  sharesByNoteQuery: (ownerSub: string, noteId: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+    ExpressionAttributeValues: { ':pk': `USER#${ownerSub}`, ':sk': `SHARE#${noteId}#` },
+  }),
+
+  /**
+   * Parses a share sort key (`SHARE#<noteId>#RECIPIENT#<recipientSub>`) back
+   * into its parts. Used after a `sharesByNoteQuery` to recover the `noteId`
+   * and `recipientSub` from the key without relying on stored attributes.
+   * Throws on a malformed key.
+   */
+  parseShareSk: (sk: string): { noteId: string; recipientSub: string } => {
+    const match = /^SHARE#(.+?)#RECIPIENT#(.+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`shareKeys.parseShareSk: malformed share sort key "${sk}"`);
+    }
+    return { noteId: match[1], recipientSub: match[2] };
+  },
+};
