@@ -165,4 +165,12 @@ describe('transcribeImage', () => {
     expect(result.rawText).toBe('Recovered text.');
     expect(mockSend).toHaveBeenCalledTimes(3);
   });
+
+  it('throws when SST_RESOURCE_BEDROCK_MODEL_ID_value is unset and never calls Bedrock', async () => {
+    delete process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value;
+    await expect(transcribeImage(new Uint8Array([1]))).rejects.toThrow(
+      /SST_RESOURCE_BEDROCK_MODEL_ID_value/,
+    );
+    expect(mockSend).not.toHaveBeenCalled();
+  });
 });
