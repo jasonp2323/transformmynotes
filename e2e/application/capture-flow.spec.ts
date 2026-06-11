@@ -275,6 +275,18 @@ test.describe('[E2E] capture → review → save → NoteView', () => {
     // NoteView must render the heading and a highlight mark
     await expect(page.getByText('What is the subjunctive?').first()).toBeVisible();
     await expect(page.locator('mark').first()).toBeVisible();
+
+    // ── 8. Note appears in dashboard library ──────────────────────────────────
+
+    // The saved note must surface in the library list on /dashboard (LibraryNotes
+    // fetches /api/notes → listUserNotes, which returns it via the GSI1 recency keys).
+    // AppShell renders BOTH a MobileShell and a DesktopShell into the DOM; at this
+    // suite's Desktop Chrome viewport the MobileShell copy (first in DOM order) is
+    // display:none, so scope to the visible <main> before matching the title.
+    await page.goto('/dashboard');
+    await expect(
+      page.locator('main:visible').getByText('What is the subjunctive?').first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   // ── Cleanup ─────────────────────────────────────────────────────────────────
