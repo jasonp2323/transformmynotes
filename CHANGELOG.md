@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.38.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.37.0...transformmynotes-v1.38.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **application:** M8.2 review-deck server routes + live due-count greeting ([#404](https://github.com/jasonp2323/transformmynotes/issues/404)) ([320e053](https://github.com/jasonp2323/transformmynotes/commit/320e053fec741c5c0b2659bba41f0f41f4a5eb8b))
+
 ## [1.37.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.36.0...transformmynotes-v1.37.0) (2026-06-11)
 
 
