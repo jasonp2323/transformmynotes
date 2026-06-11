@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.37.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.36.0...transformmynotes-v1.37.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **application:** M7.3 sharing UI — Share Sheet + Shared library tab ([#402](https://github.com/jasonp2323/transformmynotes/issues/402)) ([e58f3da](https://github.com/jasonp2323/transformmynotes/commit/e58f3dadb5da4b2cf75eaf927baa12413ec8f958))
+
 ## [1.36.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.35.0...transformmynotes-v1.36.0) (2026-06-11)
 
 
