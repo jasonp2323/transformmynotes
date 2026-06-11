@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.33.0...transformmynotes-v1.34.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **application:** M6.3 library home — NotebookHome UI, empty/offline states ([#394](https://github.com/jasonp2323/transformmynotes/issues/394)) ([c70a315](https://github.com/jasonp2323/transformmynotes/commit/c70a3157a7ad124f88ed7c123f612ef362a9f88b))
+
 ## [1.33.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.32.0...transformmynotes-v1.33.0) (2026-06-11)
 
 
