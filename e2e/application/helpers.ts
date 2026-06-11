@@ -54,6 +54,15 @@ export interface Runtime {
   libraryPassword: string;
   libraryUserSub: string;
 
+  // ── Share test users (sharing.e2e) ──
+  shareOwnerUsername: string;
+  shareOwnerPassword: string;
+  shareOwnerSub: string;
+  shareRecipientUsername: string;
+  shareRecipientPassword: string;
+  shareRecipientSub: string;
+  shareGroupId: string;
+
   // ── S3rver ──
   s3Endpoint: string;
   notesBucket: string;
