@@ -13,6 +13,7 @@ import {
   tokenise,
   authoriseNoteRead,
   revokeAllSharesForNote,
+  syncCardsForNote,
   type NoteItem,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -231,6 +232,14 @@ export async function PATCH(
     // Sync token index.
     const newTokens = tokenise((title || 'Untitled note') + ' ' + markdown);
     await syncNoteTokens(sub, noteId, oldTokens, newTokens);
+
+    // Phase 2: re-sync card index so edits (e.g. removing a ==highlight==) take effect.
+    // Best-effort — the note update is the primary artifact; card sync failure must not fail the request.
+    try {
+      await syncCardsForNote({ sub, noteId, markdownBody: markdown });
+    } catch (err) {
+      console.error('[notes/patch] card sync failed', err);
+    }
 
     return NextResponse.json({
       noteId,

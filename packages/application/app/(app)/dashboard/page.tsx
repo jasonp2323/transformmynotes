@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers';
 import { verifyIdToken } from '@/lib/verify-id-token';
 import { AppShell } from '@/src/components/shells';
-import { HighlightText } from '@/src/components/ui';
 import { LibraryNotes } from '@/src/components/note/LibraryNotes';
 import { CaptureFab } from '@/src/components/note/CaptureFab';
+import { DueCountGreeting } from '@/src/components/review/DueCountGreeting';
 
 export default async function DashboardPage({
   searchParams,
@@ -33,19 +33,8 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* Greeting */}
-        <p
-          style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: 16,
-            color: 'var(--text-muted)',
-            margin: '0 0 16px',
-            padding: '0 0 0 2px',
-          }}
-        >
-          Welcome back, {who} —{' '}
-          <HighlightText variant="teal">0 cards</HighlightText> ready to review.
-        </p>
+        {/* Greeting — live due-card count fetched client-side */}
+        <DueCountGreeting userName={who} />
 
         {/* Interactive library list (client component) */}
         <LibraryNotes />

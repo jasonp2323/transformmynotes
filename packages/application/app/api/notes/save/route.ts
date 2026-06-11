@@ -9,6 +9,7 @@ import {
   tokenise,
   postprocessMarkdown,
   countHighlights,
+  syncCardsForNote,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -143,6 +144,14 @@ export async function POST(req: Request) {
       await updateTranscriptionJobStatus({ sub, jobId, status: 'done' });
     } catch (statusErr) {
       console.error('[save] Failed to update job status to done', statusErr);
+    }
+
+    // Phase 2: extract ==highlight== cards and sync the card index for this note.
+    // Best-effort — the note is the primary artifact; card sync failure must not fail the save.
+    try {
+      await syncCardsForNote({ sub, noteId, markdownBody: markdown });
+    } catch (err) {
+      console.error('[save] card sync failed', err);
     }
 
     return NextResponse.json({
