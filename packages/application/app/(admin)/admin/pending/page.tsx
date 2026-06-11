@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AdminShell, EmptyPanel } from '@/src/components/admin';
 import { Avatar, Badge, Button, Card, Icon, Toast } from '@/src/components/ui';
 import { relativeTime, formatAvgWait } from '@/lib/relative-time';
-import type { UserProfileItem } from '@transformmynotes/core';
+import type { AccessRequestItem } from '@transformmynotes/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,15 +21,15 @@ interface ToastState {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function firstName(profile: UserProfileItem): string {
-  const n = profile.name?.trim();
+function firstName(req: AccessRequestItem): string {
+  const n = req.name?.trim();
   if (n) return n.split(' ')[0]!;
-  return profile.email;
+  return req.email;
 }
 
 async function callApi(
   url: string,
-): Promise<{ ok: boolean; emailSent?: boolean; error?: string }> {
+): Promise<{ ok: boolean; emailSent?: boolean; codeDisplay?: string; error?: string }> {
   const res = await fetch(url, { method: 'POST' });
   const body = await res.json().catch(() => ({ ok: false, error: 'Unknown error' }));
   if (!res.ok || !body.ok) {
@@ -43,7 +43,7 @@ async function callApi(
 // ---------------------------------------------------------------------------
 
 export default function AdminPendingPage() {
-  const [rows, setRows] = useState<UserProfileItem[] | null>(null);
+  const [rows, setRows] = useState<AccessRequestItem[] | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -58,12 +58,12 @@ export default function AdminPendingPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/admin/users/pending')
+    fetch('/api/admin/access-requests?status=new')
       .then((r) => r.json())
-      .then((data: { ok: boolean; users?: UserProfileItem[] }) => {
+      .then((data: { ok: boolean; requests?: AccessRequestItem[] }) => {
         if (cancelled) return;
-        if (data.ok && Array.isArray(data.users)) {
-          setRows(data.users);
+        if (data.ok && Array.isArray(data.requests)) {
+          setRows(data.requests);
         } else {
           setFetchError(true);
         }
@@ -98,35 +98,35 @@ export default function AdminPendingPage() {
   }, []);
 
   // -------------------------------------------------------------------------
-  // Approve / Reject
+  // Approve / Dismiss
   // -------------------------------------------------------------------------
 
   const approve = useCallback(
-    async (sub: string) => {
+    async (id: string) => {
       if (!rows) return;
-      const idx = rows.findIndex((r) => r.sub === sub);
+      const idx = rows.findIndex((r) => r.id === id);
       if (idx === -1) return;
-      const profile = rows[idx]!;
-      const fname = firstName(profile);
+      const reqItem = rows[idx]!;
+      const fname = firstName(reqItem);
 
       // Optimistic remove
-      setBusy((prev) => new Set(prev).add(sub));
-      setRows((prev) => (prev ? prev.filter((r) => r.sub !== sub) : prev));
+      setBusy((prev) => new Set(prev).add(id));
+      setRows((prev) => (prev ? prev.filter((r) => r.id !== id) : prev));
 
-      const result = await callApi(`/api/admin/users/${sub}/approve`);
+      const result = await callApi(`/api/admin/access-requests/${id}/approve`);
 
       setBusy((prev) => {
         const next = new Set(prev);
-        next.delete(sub);
+        next.delete(id);
         return next;
       });
 
       if (!result.ok) {
         // Restore at original index
         setRows((prev) => {
-          if (!prev) return [profile];
+          if (!prev) return [reqItem];
           const next = [...prev];
-          next.splice(idx, 0, profile);
+          next.splice(idx, 0, reqItem);
           return next;
         });
         showToast({
@@ -143,45 +143,45 @@ export default function AdminPendingPage() {
         tone: 'success',
         icon: <Icon name="check-check" size={20} />,
         title: `${fname} approved`,
-        body: 'They can sign in now — we sent the welcome email.',
+        body: "Invite sent — they'll get an email to set their password.",
       });
       return true;
     },
     [rows, showToast],
   );
 
-  const reject = useCallback(
-    async (sub: string) => {
+  const dismiss = useCallback(
+    async (id: string) => {
       if (!rows) return;
-      const idx = rows.findIndex((r) => r.sub === sub);
+      const idx = rows.findIndex((r) => r.id === id);
       if (idx === -1) return;
-      const profile = rows[idx]!;
-      const fname = firstName(profile);
+      const reqItem = rows[idx]!;
+      const fname = firstName(reqItem);
 
       // Optimistic remove
-      setBusy((prev) => new Set(prev).add(sub));
-      setRows((prev) => (prev ? prev.filter((r) => r.sub !== sub) : prev));
+      setBusy((prev) => new Set(prev).add(id));
+      setRows((prev) => (prev ? prev.filter((r) => r.id !== id) : prev));
 
-      const result = await callApi(`/api/admin/users/${sub}/reject`);
+      const result = await callApi(`/api/admin/access-requests/${id}/dismiss`);
 
       setBusy((prev) => {
         const next = new Set(prev);
-        next.delete(sub);
+        next.delete(id);
         return next;
       });
 
       if (!result.ok) {
         // Restore at original index
         setRows((prev) => {
-          if (!prev) return [profile];
+          if (!prev) return [reqItem];
           const next = [...prev];
-          next.splice(idx, 0, profile);
+          next.splice(idx, 0, reqItem);
           return next;
         });
         showToast({
           tone: 'danger',
           icon: <Icon name="x" size={20} />,
-          title: `Couldn't reject ${fname} — please try again.`,
+          title: `Couldn't dismiss ${fname} — please try again.`,
           body: result.error ?? 'An error occurred.',
         });
         return;
@@ -190,8 +190,8 @@ export default function AdminPendingPage() {
       showToast({
         tone: 'neutral',
         icon: <Icon name="x" size={20} />,
-        title: `${fname}'s request declined`,
-        body: 'They’ve been notified by email.',
+        title: `${fname}'s request dismissed`,
+        body: 'Request dismissed — we let them know.',
       });
     },
     [rows, showToast],
@@ -206,8 +206,8 @@ export default function AdminPendingPage() {
     setApproveAllBusy(true);
     // Snapshot the current list so we iterate a stable copy
     const snapshot = [...rows];
-    for (const profile of snapshot) {
-      await approve(profile.sub);
+    for (const reqItem of snapshot) {
+      await approve(reqItem.id);
     }
     setApproveAllBusy(false);
   }, [rows, approve]);
@@ -295,13 +295,13 @@ export default function AdminPendingPage() {
       {/* Rows */}
       {rows !== null && rows.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {rows.map((profile) => {
-            const isBusy = busy.has(profile.sub);
-            const fname = firstName(profile);
+          {rows.map((reqItem) => {
+            const isBusy = busy.has(reqItem.id);
+            const fname = firstName(reqItem);
             return (
-              <Card key={profile.sub} padded>
+              <Card key={reqItem.id} padded>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <Avatar name={profile.name || profile.email} size="lg" />
+                  <Avatar name={reqItem.name || reqItem.email} size="lg" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
@@ -319,15 +319,11 @@ export default function AdminPendingPage() {
                           color: 'var(--text-strong)',
                         }}
                       >
-                        {profile.name || profile.email}
+                        {reqItem.name || reqItem.email}
                       </span>
-                      {profile.groupIds.length > 0 ? (
-                        <Badge tone="brand">Invited</Badge>
-                      ) : (
-                        <Badge tone="warning" dot>
-                          No invite code
-                        </Badge>
-                      )}
+                      <Badge tone="warning" dot>
+                        Access request
+                      </Badge>
                     </div>
                     <div
                       style={{
@@ -336,9 +332,9 @@ export default function AdminPendingPage() {
                         marginTop: 3,
                       }}
                     >
-                      {profile.email} · requested {relativeTime(profile.createdAt)}
+                      {reqItem.email} · requested {relativeTime(reqItem.createdAt)}
                     </div>
-                    {profile.auditNotes && (
+                    {reqItem.note && (
                       <div
                         style={{
                           fontSize: 13.5,
@@ -347,7 +343,7 @@ export default function AdminPendingPage() {
                           fontStyle: 'italic',
                         }}
                       >
-                        &ldquo;{profile.auditNotes}&rdquo;
+                        &ldquo;{reqItem.note}&rdquo;
                       </div>
                     )}
                   </div>
@@ -357,11 +353,11 @@ export default function AdminPendingPage() {
                     <Button
                       variant="ghost"
                       size="md"
-                      aria-label={`Reject ${fname}`}
+                      aria-label={`Dismiss ${fname}`}
                       disabled={isBusy}
-                      onClick={() => reject(profile.sub)}
+                      onClick={() => dismiss(reqItem.id)}
                     >
-                      Reject
+                      Dismiss
                     </Button>
                     <Button
                       variant="primary"
@@ -369,7 +365,7 @@ export default function AdminPendingPage() {
                       aria-label={`Approve ${fname}`}
                       leftIcon={<Icon name="check" size={16} />}
                       disabled={isBusy}
-                      onClick={() => approve(profile.sub)}
+                      onClick={() => approve(reqItem.id)}
                     >
                       Approve
                     </Button>

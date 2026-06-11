@@ -4,7 +4,8 @@ import { getAdminApiUser } from '@/lib/require-admin';
 import type { InviteStatus } from '@transformmynotes/core';
 import { rateLimit } from '@/lib/ratelimit';
 import { sendInviteEmail } from '@/lib/email';
-import { formatInviteCode, defaultExpiresAt, parseCreateInviteBody } from '@/lib/invite-create';
+import { formatInviteCode, defaultExpiresAt, parseCreateInviteBody, buildInviteUrl } from '@/lib/invite-create';
+import { originFromHeaders } from '@/lib/request-origin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -120,8 +121,10 @@ export async function POST(req: Request) {
 
   // 7. Send email for email-type invites.
   if (invite.type === 'email') {
+    const origin = originFromHeaders(req.headers as Headers, new URL(req.url).origin);
+    const inviteUrl = buildInviteUrl(origin, rawCode, invite.email);
     try {
-      await sendInviteEmail(invite.email, codeDisplay, groupName, expiresAt);
+      await sendInviteEmail(invite.email, codeDisplay, groupName, expiresAt, inviteUrl);
       return NextResponse.json({ ok: true, codeDisplay, expiresAt, emailSent: true });
     } catch (err) {
       // The invite row is already written — log the failure and still return success
