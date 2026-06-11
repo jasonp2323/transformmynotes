@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.35.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.34.1...transformmynotes-v1.35.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **application:** M7.2 shares API + recipient auth on note read ([#400](https://github.com/jasonp2323/transformmynotes/issues/400)) ([913cd66](https://github.com/jasonp2323/transformmynotes/commit/913cd66e24e58f99f9623ed7dc734d379a779e4b))
+* **core:** M7.1 share data model + authoriseNoteRead helper ([67750de](https://github.com/jasonp2323/transformmynotes/commit/67750dea93af0e7171963bfa41971611c7319fe1)), closes [#76](https://github.com/jasonp2323/transformmynotes/issues/76) [#78](https://github.com/jasonp2323/transformmynotes/issues/78)
+
 ## [1.34.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.34.0...transformmynotes-v1.34.1) (2026-06-11)
 
 
