@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.40.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.3...transformmynotes-v1.40.0) (2026-06-11)
+
+
+### 🚀 Features
+
+* **a11y:** M10.3.1 WCAG AA accessibility pass + axe E2E ([3a53c29](https://github.com/jasonp2323/transformmynotes/commit/3a53c2907645523770aa3c2eedff482a5a8bf73b))
+* **application:** M10.2 resilience — uploads, OCR & image resize ([#416](https://github.com/jasonp2323/transformmynotes/issues/416)) ([6eade54](https://github.com/jasonp2323/transformmynotes/commit/6eade54df61914eb3c13c9ebb99d9fffb8dc97aa))
+
+
+### 🐛 Fixes
+
+* **a11y:** unblock [E2E] gate — radio selectors + authed-route contrast ([b8f7618](https://github.com/jasonp2323/transformmynotes/commit/b8f761858ed0a7c22619f030103f95f659761644))
+
 ## [1.39.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.2...transformmynotes-v1.39.3) (2026-06-11)
 
 
