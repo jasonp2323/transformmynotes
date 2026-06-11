@@ -241,7 +241,7 @@
   box-decoration-break: clone; -webkit-box-decoration-break: clone;
 }
 .tmn-mark--strong { background: var(--highlighter-strong); }
-.tmn-mark--teal { background: var(--highlighter-teal); }
+.tmn-mark--teal { background: var(--highlighter-teal); color: var(--text-body); } /* #322e25 on composited teal bg ≥7:1 */
 .tmn-mark--underline { background: transparent; border-bottom: 2px solid var(--accent); border-radius: 0; padding: 0; }
 .tmn-mark--swipe {
   background-image: linear-gradient(var(--highlighter), var(--highlighter));

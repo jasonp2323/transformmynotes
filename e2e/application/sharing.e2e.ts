@@ -134,7 +134,7 @@ test.describe('[E2E] sharing round-trip', () => {
     await expect(sheet).toBeVisible({ timeout: 10_000 });
 
     // Switch to "Specific members" mode
-    await sheet.getByRole('button', { name: 'Specific members' }).click();
+    await sheet.getByRole('radio', { name: 'Specific members' }).click();
 
     // Wait for the member rows to load
     await expect(sheet.locator('.tmn-share-sheet__member-row').first()).toBeVisible({
@@ -175,8 +175,8 @@ test.describe('[E2E] sharing round-trip', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
-    // Click the "Shared" tab button in the SegmentedControl
-    await page.getByRole('button', { name: 'Shared' }).first().click();
+    // Click the "Shared" tab radio in the SegmentedControl
+    await page.getByRole('radio', { name: 'Shared' }).first().click();
 
     // The shared NoteCard for our note should appear
     await expect(page.getByText(NOTE_TITLE).first()).toBeVisible({ timeout: 15_000 });
@@ -200,7 +200,7 @@ test.describe('[E2E] sharing round-trip', () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
     // Navigate to the Shared tab and click the NoteCard title
-    await page.getByRole('button', { name: 'Shared' }).first().click();
+    await page.getByRole('radio', { name: 'Shared' }).first().click();
     await expect(page.getByText(NOTE_TITLE).first()).toBeVisible({ timeout: 15_000 });
     await page.getByText(NOTE_TITLE).first().click();
 
@@ -285,7 +285,7 @@ test.describe('[E2E] sharing round-trip', () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
     // Navigate to the Shared tab — note should be gone
-    await page.getByRole('button', { name: 'Shared' }).first().click();
+    await page.getByRole('radio', { name: 'Shared' }).first().click();
     await expect(page.getByText('No notes shared with you yet.').first()).toBeVisible({
       timeout: 15_000,
     });

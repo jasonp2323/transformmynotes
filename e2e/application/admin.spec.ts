@@ -227,7 +227,7 @@ test('create shareable code invite shows toast with code and row appears', async
   await expect(page.locator('h1')).toContainText('Invites', { timeout: 10_000 });
 
   // Switch to "Shareable code" mode via the SegmentedControl
-  await page.getByRole('button', { name: 'Shareable code' }).click();
+  await page.getByRole('radio', { name: 'Shareable code' }).click();
 
   // Code label input should now be visible
   const codeLabelInput = page.getByLabel('Code label');

@@ -94,7 +94,7 @@
   --text-strong:  var(--stone-900);
   --text-body:    var(--stone-800);
   --text-muted:   var(--stone-600);
-  --text-subtle:  var(--stone-500);
+  --text-subtle:  #6f6755; /* stone-500+ — AA 4.97:1 on #f5f1e8, 5.51:1 on #fffdf8, 4.63:1 on #efe9db */
   --text-onbrand: #ffffff;
   --text-onaccent: var(--stone-900); /* gold needs dark text */
   --text-inverse: var(--stone-50);
