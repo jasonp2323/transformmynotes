@@ -3,6 +3,7 @@ import { cn } from '@/src/lib/cn';
 import { Icon } from '@/src/components/ui/Icon';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Input } from '@/src/components/ui/Input';
+import { ReviewNavBadge } from '@/src/components/review/ReviewNavBadge';
 
 export interface DesktopShellProps {
   active?: string;
@@ -23,6 +24,7 @@ interface NavItem {
   label: string;
   count?: number;
   accent?: boolean;
+  liveBadge?: boolean;
   href: string;
 }
 
@@ -36,7 +38,7 @@ const NOTEBOOK_GROUP: NavGroup = {
   items: [
     { id: 'library', icon: 'book-open', label: 'Library',    href: '/library' },
     { id: 'search',  icon: 'search',    label: 'Search',     href: '/search' },
-    { id: 'review',  icon: 'layers',    label: 'Review deck', count: 9, href: '/review' },
+    { id: 'review',  icon: 'layers',    label: 'Review deck', liveBadge: true, href: '/review' },
   ],
 };
 
@@ -102,17 +104,20 @@ export function DesktopShell({
                         stroke={isActive ? 2.3 : 2}
                       />
                       <span className="tmn-sidebar__item-label">{item.label}</span>
-                      {item.count != null && (
-                        <span
-                          className={cn(
-                            'tmn-sidebar__pill',
-                            item.accent && 'tmn-sidebar__pill--accent',
-                            !item.accent && isActive && 'tmn-sidebar__pill--active',
-                          )}
-                        >
-                          {item.count}
-                        </span>
-                      )}
+                      {item.liveBadge
+                        ? <ReviewNavBadge variant="desktop" />
+                        : item.count != null && (
+                          <span
+                            className={cn(
+                              'tmn-sidebar__pill',
+                              item.accent && 'tmn-sidebar__pill--accent',
+                              !item.accent && isActive && 'tmn-sidebar__pill--active',
+                            )}
+                          >
+                            {item.count}
+                          </span>
+                        )
+                      }
                     </a>
                   );
                 })}

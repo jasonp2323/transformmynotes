@@ -35,7 +35,7 @@ export interface NoteViewScreenProps {
 type ViewTab = 'original' | 'clean';
 
 interface ToastState {
-  tone: 'success' | 'danger';
+  tone: 'success' | 'danger' | 'neutral' | 'warning';
   title: string;
 }
 
@@ -61,6 +61,7 @@ export function NoteViewScreen({
   const [view, setView] = useState<ViewTab>('clean');
   const [toast, setToast] = useState<ToastState | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [cardSyncing, setCardSyncing] = useState(false);
 
   // ── Save handler ──────────────────────────────────────────────────────────
 
@@ -99,6 +100,48 @@ export function NoteViewScreen({
       setTimeout(() => editorRef.current?.focus(), 0);
     }
   }, [editing, handleSave]);
+
+  // ── Add to review deck ────────────────────────────────────────────────────
+
+  const handleAddToReviewDeck = useCallback(async () => {
+    setCardSyncing(true);
+    try {
+      const res = await fetch(`/api/notes/${noteId}/cards/refresh`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = (await res.json()) as {
+        created: number;
+        deleted: number;
+        unchanged: number;
+      };
+
+      if (data.created === 0 && data.unchanged === 0) {
+        setToast({
+          tone: 'neutral',
+          title: 'Add == highlight == marks to your note to create review cards.',
+        });
+      } else if (data.created > 0) {
+        setToast({
+          tone: 'success',
+          title: `Added ${data.created} ${data.created === 1 ? 'card' : 'cards'} to review`,
+        });
+      } else {
+        setToast({ tone: 'success', title: 'Added to review' });
+      }
+    } catch {
+      setToast({
+        tone: 'danger',
+        title: "Couldn't update review deck — try again",
+      });
+    } finally {
+      setCardSyncing(false);
+    }
+  }, [noteId]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -246,15 +289,17 @@ export function NoteViewScreen({
             <Icon name="languages" size={19} />
           </IconButton>
 
-          <Button
-            variant="secondary"
-            fullWidth
-            leftIcon={<Icon name="layers" size={18} />}
-            disabled
-            title="Coming soon"
-          >
-            Add to review deck
-          </Button>
+          {isOwner && (
+            <Button
+              variant="secondary"
+              fullWidth
+              leftIcon={<Icon name="layers" size={18} />}
+              loading={cardSyncing}
+              onClick={() => void handleAddToReviewDeck()}
+            >
+              Add to review deck
+            </Button>
+          )}
         </ActionBar>
       )}
 

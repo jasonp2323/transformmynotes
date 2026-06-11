@@ -608,3 +608,39 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
     transition: none;
   }
 }
+
+/* ===== M8.3.2 Review nav badge ===== */
+
+/* Icon wrapper — establishes the stacking context for the badge overlay */
+.tmn-bottomnav__icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Count badge overlaid top-right of the nav icon */
+.tmn-bottomnav__badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-strong);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Desktop sidebar live-pill — matches .tmn-sidebar__pill look */
+.tmn-sidebar__live-pill {
+  background: var(--teal-100);
+  color: var(--brand-strong);
+}

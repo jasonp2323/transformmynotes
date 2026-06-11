@@ -210,3 +210,296 @@
   width: max-content;
   max-width: calc(100vw - 40px);
 }
+
+/* ===== M8.3 Review deck ===== */
+
+/* ---- Deck page wrapper ---- */
+
+.tmn-deck-page {
+  padding: 24px 20px 100px;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+/* ---- Overview: count headline ---- */
+
+.tmn-deck-count-headline {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  margin: 0 0 var(--space-2);
+  line-height: 1.2;
+}
+
+/* ---- Overview: due count sub-label ---- */
+
+.tmn-deck-sublabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-6);
+}
+
+/* ---- Overview: grouped note list ---- */
+
+.tmn-deck-note-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-5) 0;
+}
+
+.tmn-deck-note-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.tmn-deck-note-row__title {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tmn-deck-note-row__count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+}
+
+/* ---- Overview: empty state ---- */
+
+.tmn-deck-empty-overview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 20px 60px;
+  gap: var(--space-4);
+}
+
+.tmn-deck-empty-overview__title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.tmn-deck-empty-overview__body {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+/* ---- Session wrapper ---- */
+
+.tmn-deck-session {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--surface-card);
+}
+
+/* ---- Session header ---- */
+
+.tmn-deck-session-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 14px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.tmn-deck-session-header__progress {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---- Session body ---- */
+
+.tmn-deck-session-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6) var(--space-5) 120px;
+  gap: var(--space-5);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/* ---- Card surface ---- */
+
+.tmn-deck-card {
+  position: relative;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-deck-card:focus-visible {
+  box-shadow: var(--focus-ring), var(--shadow-md);
+}
+
+/* Gradient accent bar at the top of the card */
+.tmn-deck-card__accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-transform);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.tmn-deck-card__inner {
+  padding: var(--space-6) var(--space-6) var(--space-7);
+}
+
+/* Card front text */
+.tmn-deck-card__front {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.35;
+  color: var(--text-strong);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* "Tap to reveal" hint */
+.tmn-deck-card__hint {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Divider between front and back */
+.tmn-deck-card__divider {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--space-5) 0;
+}
+
+/* Card back text */
+.tmn-deck-card__back {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  line-height: 1.65;
+  color: var(--text-body);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ---- Grade row ---- */
+
+.tmn-deck-grade-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+/* ---- Deck-empty (all caught up) ---- */
+
+.tmn-deck-all-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px 80px;
+  gap: var(--space-4);
+  min-height: 60dvh;
+}
+
+.tmn-deck-all-done__icon {
+  color: var(--success-500);
+}
+
+.tmn-deck-all-done__title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.tmn-deck-all-done__body {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ---- Toast container for deck ---- */
+
+.tmn-deck-toast-container {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: max-content;
+  max-width: calc(100vw - 40px);
+}
+
+/* ---- Loading skeleton ---- */
+
+.tmn-deck-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  gap: var(--space-4);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}
+
+/* ---- Reduced motion ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-deck-card,
+  .tmn-deck-card * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
