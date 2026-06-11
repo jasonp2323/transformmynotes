@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { cn } from '@/src/lib/cn';
 
 export interface SegmentedOption {
@@ -15,6 +15,7 @@ export interface SegmentedControlProps {
   defaultValue?: string;
   onChange?: (value: string) => void;
   className?: string;
+  ariaLabel?: string;
 }
 
 function normalise(opt: SegmentedOption | string): SegmentedOption {
@@ -30,6 +31,7 @@ export function SegmentedControl({
   defaultValue,
   onChange,
   className,
+  ariaLabel,
 }: SegmentedControlProps) {
   const normalised = options.map(normalise);
   const isControlled = value !== undefined;
@@ -44,15 +46,51 @@ export function SegmentedControl({
   );
   const n = normalised.length;
 
-  function handleClick(optValue: string) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function handleSelect(optValue: string) {
     if (!isControlled) {
       setInternalValue(optValue);
     }
     onChange?.(optValue);
   }
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+      let nextIdx: number | null = null;
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        nextIdx = (idx + 1) % n;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        nextIdx = (idx - 1 + n) % n;
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        nextIdx = 0;
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        nextIdx = n - 1;
+      }
+
+      if (nextIdx !== null) {
+        const opt = normalised[nextIdx];
+        if (opt) {
+          handleSelect(opt.value);
+          btnRefs.current[nextIdx]?.focus();
+        }
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [n, normalised],
+  );
+
   return (
-    <div role="group" className={cn('tmn-seg', className)}>
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className={cn('tmn-seg', className)}
+    >
       <span
         className="tmn-seg__pill"
         aria-hidden="true"
@@ -62,14 +100,18 @@ export function SegmentedControl({
           transform: `translateX(${activeIndex * 100}%)`,
         }}
       />
-      {normalised.map((opt) => {
+      {normalised.map((opt, idx) => {
         const isActive = opt.value === activeValue;
         return (
           <button
             key={opt.value}
+            ref={(el) => { btnRefs.current[idx] = el; }}
             type="button"
-            aria-pressed={isActive}
-            onClick={() => handleClick(opt.value)}
+            role="radio"
+            aria-checked={isActive}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => handleSelect(opt.value)}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
             className={cn('tmn-seg__btn', isActive && 'tmn-seg__btn--active')}
           >
             {opt.icon && <span>{opt.icon}</span>}

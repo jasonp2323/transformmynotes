@@ -72,12 +72,14 @@ describe('SegmentedControl', () => {
     expect(btnMatches).toHaveLength(3);
   });
 
-  it('marks the second option as active with tmn-seg__btn--active and aria-pressed="true"', () => {
+  it('marks the second option as active with tmn-seg__btn--active and aria-checked="true"', () => {
     const html = renderToStaticMarkup(
       React.createElement(SegmentedControl, { options, value: 'y' }),
     );
     expect(html).toContain('tmn-seg__btn--active');
-    expect(html).toContain('aria-pressed="true"');
+    // SegmentedControl is an ARIA radiogroup: the active option is the checked radio.
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain('aria-checked="true"');
   });
 
   it('renders tmn-seg__pill with translateX(100%) for second option', () => {

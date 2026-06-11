@@ -357,6 +357,7 @@ export default function AdminPendingPage() {
                     <Button
                       variant="ghost"
                       size="md"
+                      aria-label={`Reject ${fname}`}
                       disabled={isBusy}
                       onClick={() => reject(profile.sub)}
                     >
@@ -365,6 +366,7 @@ export default function AdminPendingPage() {
                     <Button
                       variant="primary"
                       size="md"
+                      aria-label={`Approve ${fname}`}
                       leftIcon={<Icon name="check" size={16} />}
                       disabled={isBusy}
                       onClick={() => approve(profile.sub)}

@@ -209,6 +209,7 @@ export function NoteViewScreen({
             <SegmentedControl
               value={view}
               onChange={(v) => setView(v as ViewTab)}
+              ariaLabel="View mode"
               options={[
                 { value: 'original', label: 'Original' },
                 { value: 'clean', label: 'Clean' },

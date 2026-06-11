@@ -10,6 +10,7 @@ export interface PasswordFieldProps {
   placeholder?: string;
   id?: string;
   required?: boolean;
+  autoComplete?: string;
 }
 
 export function PasswordField({
@@ -20,6 +21,7 @@ export function PasswordField({
   placeholder = 'Your password',
   id: idProp,
   required,
+  autoComplete,
 }: PasswordFieldProps) {
   const [show, setShow] = React.useState(false);
   const generatedId = React.useId();
@@ -42,6 +44,7 @@ export function PasswordField({
           placeholder={placeholder}
           required={required}
           aria-describedby={hint ? hintId : undefined}
+          autoComplete={autoComplete}
           style={{ paddingRight: 44 }}
         />
         <button

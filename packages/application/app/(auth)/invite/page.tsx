@@ -373,6 +373,7 @@ function InviteContent() {
           <Input
             label="Email"
             type="email"
+            autoComplete="email"
             value={emailInput}
             onChange={(e) => setEmailInput(e.target.value)}
             placeholder="you@email.com"
@@ -388,6 +389,7 @@ function InviteContent() {
         <Input
           label="Full name"
           type="text"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Your name"
@@ -398,6 +400,7 @@ function InviteContent() {
         <PasswordField
           label="Create password"
           hint="At least 8 characters."
+          autoComplete="new-password"
           value={password}
           onChange={setPassword}
           required

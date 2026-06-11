@@ -81,6 +81,7 @@ export default function RequestAccessPage() {
         <Input
           label="Full name"
           type="text"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Jane Smith"
@@ -90,6 +91,7 @@ export default function RequestAccessPage() {
         <Input
           label="Email"
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@email.com"

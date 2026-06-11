@@ -71,6 +71,9 @@ export function DesktopShell({
 
   return (
     <div className="tmn-shell tmn-shell--desktop">
+      {/* Skip navigation link — visually hidden until focused */}
+      <a href="#main-content" className="tmn-skip-nav">Skip to main content</a>
+
       {/* sidebar */}
       <aside className="tmn-sidebar" aria-label="Site navigation">
         {/* logo */}
@@ -138,7 +141,7 @@ export function DesktopShell({
       </aside>
 
       {/* main content area */}
-      <main className="tmn-shell__main">
+      <main id="main-content" className="tmn-shell__main">
         {/* page header */}
         <header className="tmn-shell__header">
           <div className="tmn-shell__header-title">
@@ -151,6 +154,7 @@ export function DesktopShell({
           </div>
           <div className="tmn-shell__search">
             <Input
+              aria-label={search}
               leadingIcon={<Icon name="search" size={17} />}
               placeholder={search}
               {...(onSearchChange
