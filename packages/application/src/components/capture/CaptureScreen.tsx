@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
-import { uploadImageForTranscription, CaptureUploadError } from '@/lib/capture';
+import { uploadImageForTranscription, CaptureUploadError, formatBytes } from '@/lib/capture';
 import { ProcessingScreen } from './ProcessingScreen';
 import { ErrorScreen } from './ErrorScreen';
 
@@ -106,6 +106,14 @@ export function CaptureScreen() {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [capturedJobId, setCapturedJobId] = useState<string | null>(null);
   const [, setUploadError] = useState<string | null>(null);
+
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [resizedInfo, setResizedInfo] = useState<{ originalBytes: number; resizedBytes: number } | null>(null);
+
+  // The blob to re-upload on retry
+  const pendingBlobRef = useRef<Blob | null>(null);
 
   // Hidden file input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -226,9 +234,20 @@ export function CaptureScreen() {
   const runUpload = useCallback(async (blob: Blob) => {
     setUploadStatus('processing');
     setUploadError(null);
+    setUploadProgress(0);
+    setIsRetrying(false);
+    setResizedInfo(null);
+    pendingBlobRef.current = blob;
 
     try {
-      const { jobId } = await uploadImageForTranscription(blob);
+      const { jobId } = await uploadImageForTranscription(blob, {
+        onProgress: (fraction) => {
+          setUploadProgress(Math.round(fraction * 100));
+        },
+        onResized: (info) => {
+          setResizedInfo(info);
+        },
+      });
       setCapturedJobId(jobId);
       setUploadStatus('done');
     } catch (err) {
@@ -320,15 +339,32 @@ export function CaptureScreen() {
     setUploadStatus('idle');
     setUploadError(null);
     setCapturedJobId(null);
+    setUploadProgress(0);
+    setIsRetrying(false);
+    setResizedInfo(null);
+    pendingBlobRef.current = null;
     // Re-acquire camera if it was available
     if (cameraAvailable) {
       startCamera(facingMode);
     }
   }, [cameraAvailable, facingMode, startCamera]);
 
+  // Retry the upload with the same blob
+  const handleRetry = useCallback(() => {
+    const blob = pendingBlobRef.current;
+    if (!blob) {
+      handleRetake();
+      return;
+    }
+    setIsRetrying(true);
+    runUpload(blob);
+  }, [runUpload, handleRetake]);
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+
+  const pct = uploadProgress;
 
   return (
     <div
@@ -562,11 +598,104 @@ export function CaptureScreen() {
 
       {/* ------------------------------------------------------- Status overlays */}
       {uploadStatus === 'processing' && (
-        <ProcessingScreen prefersReducedMotion={prefersReducedMotion} />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+          }}
+        >
+          <ProcessingScreen prefersReducedMotion={prefersReducedMotion} />
+          {/* Upload progress bar */}
+          <div
+            aria-live="polite"
+            style={{
+              position: 'absolute',
+              bottom: 60,
+              left: 0,
+              right: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              padding: '0 32px',
+            }}
+          >
+            {isRetrying && (
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  color: 'rgba(255,255,255,0.75)',
+                  margin: 0,
+                }}
+              >
+                Retrying…
+              </p>
+            )}
+            <progress
+              aria-label="Upload progress"
+              max={100}
+              value={pct}
+              aria-valuenow={pct}
+              style={{ width: '100%', maxWidth: 280 }}
+            />
+            {resizedInfo && (
+              <p
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  color: 'rgba(255,255,255,0.55)',
+                  margin: 0,
+                }}
+              >
+                Optimized: {formatBytes(resizedInfo.originalBytes)} → {formatBytes(resizedInfo.resizedBytes)}
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       {uploadStatus === 'error' && (
-        <ErrorScreen onRetake={handleRetake} onUpload={handleUploadClick} />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10,32,35,0.95)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            zIndex: 10,
+            padding: '0 32px',
+          }}
+        >
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              color: '#fff',
+              margin: 0,
+              textAlign: 'center',
+            }}
+          >
+            Upload failed — please try again
+          </p>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <Button variant="accent" size="md" onClick={handleRetry}>
+              Retry
+            </Button>
+            <Button variant="ghost" size="md" onClick={handleRetake}>
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
 
       {uploadStatus === 'done' && (

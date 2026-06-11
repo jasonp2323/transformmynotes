@@ -556,3 +556,16 @@ export const cardKeys = {
     },
   }),
 };
+
+/**
+ * `UserData` table keys for upload session items (multipart upload tracker).
+ * PK = `USER#<sub>`, SK = `UPLOAD#<uploadToken>`.
+ * Stores S3 multipart UploadId + job metadata for resume/idempotency.
+ */
+export const uploadKeys = {
+  /** Full primary key for an upload session item. */
+  uploadSession: (sub: string, uploadToken: string) => ({
+    pk: `USER#${sub}`,
+    sk: `UPLOAD#${uploadToken}`,
+  }),
+};

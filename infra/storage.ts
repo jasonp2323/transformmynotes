@@ -27,3 +27,19 @@ export const notesBucket = new sst.aws.Bucket("NotesBucket", {
     },
   },
 });
+
+// Lifecycle rule: abort incomplete multipart uploads after 1 day to avoid
+// S3 storage charges from abandoned in-flight uploads.
+new aws.s3.BucketLifecycleConfigurationV2("NotesBucketLifecycle", {
+  bucket: notesBucket.name,
+  rules: [
+    {
+      id: "abort-incomplete-multipart",
+      status: "Enabled",
+      abortIncompleteMultipartUpload: {
+        daysAfterInitiation: 1,
+      },
+      filter: {},
+    },
+  ],
+});
