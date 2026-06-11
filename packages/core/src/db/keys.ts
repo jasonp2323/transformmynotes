@@ -456,3 +456,103 @@ export const shareKeys = {
     return { noteId: match[1], recipientSub: match[2] };
   },
 };
+
+/**
+ * `Notes` table keys for CARD items (spaced-repetition flashcards).
+ *
+ * CARD items live in the same Notes table as note metadata, tag-index items,
+ * token-index items, and share items. They are distinguished by an SK prefix
+ * of `CARD#`, which keeps them out of the note-recency query (`begins_with(sk,
+ * 'NOTE#')`) and all other existing note/tag/token/share index queries.
+ *
+ * Item shape:
+ *   PK  = `USER#<cognitoSub>`   — owner's partition (same as note items)
+ *   SK  = `CARD#<cardId>`       — cardId is a ULID generated at extraction time
+ *   attrs:
+ *     cardId          string   — ULID identifier
+ *     sourceNoteId    string   — ULID of the parent note the card was extracted from
+ *     front           string   — question / prompt side of the card
+ *     back            string   — answer / explanation side of the card
+ *     ease            number   — SM-2 ease factor (default 2.5)
+ *     interval        number   — SM-2 inter-repetition interval in days (default 1)
+ *     dueAt           string   — ISO-8601 UTC datetime; when this card is next due
+ *     lastReviewedAt  string?  — ISO-8601 UTC datetime; omitted until first review
+ *     createdAt       string   — ISO-8601 UTC datetime
+ *     updatedAt       string   — ISO-8601 UTC datetime
+ *
+ * GSI5 (`ByDue`, projection ALL):
+ *   gsi5pk = `USER#<cognitoSub>`, gsi5sk = `DUE#<ISO-8601 dueAt>`
+ *   — list a user's due cards oldest-due-first. ISO-8601 UTC strings are
+ *     lexicographically sortable, so `ScanIndexForward: true` returns the
+ *     most-overdue cards first. Projection ALL means the full card attributes
+ *     are returned without a follow-up BatchGetItem.
+ *
+ * CARD items carry ONLY the gsi5 keys — they deliberately omit gsi1/gsi2/gsi3/gsi4
+ * keys so they stay out of the note-recency, tag, token, and share indexes
+ * (sparse index pattern). Because SK begins with `CARD#` (not `NOTE#`), they
+ * also never appear in `noteListRecentQuery`.
+ */
+export const cardKeys = {
+  /**
+   * Full primary key for a card item.
+   * PK = `USER#<cognitoSub>`, SK = `CARD#<cardId>`.
+   */
+  cardItemKey: (userSub: string, cardId: string) => ({
+    pk: `USER#${userSub}`,
+    sk: `CARD#${cardId}`,
+  }),
+
+  /**
+   * GSI5 partition key for a card item (`USER#<cognitoSub>`).
+   * Scopes the due-date index to a single user's cards.
+   */
+  gsi5pk: (userSub: string) => `USER#${userSub}`,
+
+  /**
+   * GSI5 sort key for a card item (`DUE#<ISO-8601 dueAt>`).
+   * ISO-8601 UTC strings are lexicographically sortable, so the GSI range
+   * key encodes the due datetime with a `DUE#` prefix for namespace safety.
+   */
+  gsi5sk: (dueAt: string) => `DUE#${dueAt}`,
+
+  /**
+   * Query parameters for listing all cards due at or before `beforeOrAt` via
+   * GSI5 (`ByDue`). Returns items in ascending due-date order (oldest-due
+   * first = most-overdue worked first), capped at 100.
+   *
+   * GSI5 is projection ALL — full card attributes are returned without an
+   * extra BatchGetItem. Pass the returned object directly as additional
+   * params to QueryCommand.
+   */
+  cardsByDueQuery: (userSub: string, beforeOrAt: string) => ({
+    IndexName: 'GSI5',
+    KeyConditionExpression: 'gsi5pk = :pk AND gsi5sk <= :hi',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userSub}`,
+      ':hi': `DUE#${beforeOrAt}`,
+    },
+    ScanIndexForward: true,
+    Limit: 100,
+  }),
+
+  /**
+   * Base-table query parameters for listing all cards for a given note for a
+   * given user. Queries the primary index: `pk = USER#<sub>` AND
+   * `begins_with(sk, 'CARD#')`, then applies a FilterExpression on
+   * `sourceNoteId` to narrow to cards extracted from the specific note.
+   *
+   * Note: the FilterExpression is evaluated after the key condition — it does
+   * not reduce RCU consumption but does keep the API surface simple for the
+   * expected low cardinality of cards-per-user. Pass the returned object
+   * directly as additional params to QueryCommand.
+   */
+  cardsByNoteQuery: (userSub: string, noteId: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+    FilterExpression: 'sourceNoteId = :nid',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userSub}`,
+      ':sk': 'CARD#',
+      ':nid': noteId,
+    },
+  }),
+};

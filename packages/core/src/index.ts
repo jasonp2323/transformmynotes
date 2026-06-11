@@ -5,6 +5,7 @@ export * from './db/groups';
 export * from './db/invites';
 export * from './db/notes';
 export * from './db/shares';
+export * from './db/cards';
 export * from './db/transcription-jobs';
 export * from './db/users';
 export * from './auth/invite';
@@ -18,3 +19,7 @@ export * from './editor/utils';
 
 // Search utilities
 export * from './search/tokenise';
+
+// Spaced-repetition (SRS) — pure logic
+export * from './srs/scheduler';
+export * from './srs/extract';
