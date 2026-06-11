@@ -49,6 +49,11 @@ export interface Runtime {
   // ── Primary user sub ──
   mainUserSub: string;
 
+  // ── Library test user (library.spec) ──
+  libraryUsername: string;
+  libraryPassword: string;
+  libraryUserSub: string;
+
   // ── S3rver ──
   s3Endpoint: string;
   notesBucket: string;

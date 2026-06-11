@@ -45,11 +45,12 @@ test('login lands on dashboard', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
-  // There are two h1 elements on the dashboard (shell title + content heading);
-  // target the one that contains "Welcome back".
-  const heading = page.getByRole('heading', { level: 1, name: /Welcome back/i });
-  await expect(heading).toContainText('Welcome back');
-  await expect(heading).toContainText(runtime.username);
+  // M6.3 dashboard: the greeting is a <p> ("Welcome back, <email> — 0 cards
+  // ready to review."), not an <h1>. AppShell renders the content in both a
+  // mobile and a desktop shell, so the greeting appears twice — use .first().
+  const greeting = page.getByText(/Welcome back/i).first();
+  await expect(greeting).toContainText('Welcome back');
+  await expect(greeting).toContainText(runtime.username);
 
   await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'login-dashboard.png'), fullPage: true });
 });

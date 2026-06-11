@@ -52,6 +52,10 @@ const FORGOT_NEW_PASSWORD = 'ForgotNew99!Password';
 const ADMIN_USERNAME = 'e2e-admin@example.com';
 const ADMIN_PASSWORD = 'Admin1234!Password';
 
+// Library test user (dedicated to library.spec — avoids collision with capture-flow)
+const LIBRARY_USERNAME = 'e2e-library@example.com';
+const LIBRARY_PASSWORD = 'Library1234!Password';
+
 // Pending users (for admin pending-queue tests)
 const PENDING_USER1_EMAIL = 'e2e-pending1@example.com';
 const PENDING_USER1_PASSWORD = 'Pending1234!Password';
@@ -497,6 +501,31 @@ async function seedCognito(port: number, username: string, password: string) {
     }),
   );
 
+  // ── Library test user ──────────────────────────────────────────────────────
+  // Dedicated to library.spec tests; kept separate from mainUser so the
+  // empty-state assertion sees a clean zero-note user at suite start.
+  const libraryUserResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: LIBRARY_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: LIBRARY_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const libraryUserSub = libraryUserResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: LIBRARY_USERNAME,
+      Password: LIBRARY_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
   cognitoClient.destroy();
   return {
     poolId,
@@ -506,6 +535,7 @@ async function seedCognito(port: number, username: string, password: string) {
     adminUserSub,
     pendingUser1Sub,
     pendingUser2Sub,
+    libraryUserSub,
   };
 }
 
@@ -666,12 +696,14 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     adminUserSub,
     pendingUser1Sub,
     pendingUser2Sub,
+    libraryUserSub,
   } = await seedCognito(COGNITO_PORT, username, password);
 
   // 3b. Seed UserData profiles for pre-seeded users so requireActiveUser() passes
   await seedUserProfiles(DYNALITE_PORT, [
     { sub: mainUserSub, email: username },
     { sub: forgotUserSub, email: FORGOT_USERNAME },
+    { sub: libraryUserSub, email: LIBRARY_USERNAME },
   ]);
 
   // 3c. Seed admin profile (role:'admin', status:'active')
@@ -752,6 +784,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     },
     // Primary user sub (used by capture-flow spec to verify DynamoDB entries)
     mainUserSub,
+    // Library test user (dedicated to library.spec — starts with zero notes)
+    libraryUsername: LIBRARY_USERNAME,
+    libraryPassword: LIBRARY_PASSWORD,
+    libraryUserSub,
     // S3rver info
     s3Endpoint: `http://127.0.0.1:${S3RVER_PORT}`,
     notesBucket: NOTES_BUCKET,
