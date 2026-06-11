@@ -62,6 +62,10 @@ const ADMIN_PASSWORD = 'Admin1234!Password';
 const LIBRARY_USERNAME = 'e2e-library@example.com';
 const LIBRARY_PASSWORD = 'Library1234!Password';
 
+// Review test user (dedicated to review.e2e — starts with zero cards)
+const REVIEW_USERNAME = 'e2e-review@example.com';
+const REVIEW_PASSWORD = 'Review1234!Password';
+
 // Share test users (dedicated to sharing.e2e)
 const SHARE_OWNER_USERNAME = 'e2e-share-owner@example.com';
 const SHARE_OWNER_PASSWORD = 'ShareOwner1!Password';
@@ -594,6 +598,31 @@ async function seedCognito(port: number, username: string, password: string) {
     }),
   );
 
+  // ── Review test user ────────────────────────────────────────────────────────
+  // Dedicated to review.e2e tests; kept separate from other users so the
+  // zero-card state assertion is clean at suite start.
+  const reviewUserResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: REVIEW_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: REVIEW_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const reviewUserSub = reviewUserResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: REVIEW_USERNAME,
+      Password: REVIEW_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
   // ── Share owner ──────────────────────────────────────────────────────────────
   // Dedicated to sharing.e2e; owns the note that gets shared.
   const shareOwnerResp = await cognitoClient.send(
@@ -652,6 +681,7 @@ async function seedCognito(port: number, username: string, password: string) {
     pendingUser1Sub,
     pendingUser2Sub,
     libraryUserSub,
+    reviewUserSub,
     shareOwnerSub,
     shareRecipientSub,
   };
@@ -854,6 +884,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     pendingUser1Sub,
     pendingUser2Sub,
     libraryUserSub,
+    reviewUserSub,
     shareOwnerSub,
     shareRecipientSub,
   } = await seedCognito(COGNITO_PORT, username, password);
@@ -863,6 +894,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     { sub: mainUserSub, email: username },
     { sub: forgotUserSub, email: FORGOT_USERNAME },
     { sub: libraryUserSub, email: LIBRARY_USERNAME },
+    { sub: reviewUserSub, email: REVIEW_USERNAME },
     { sub: shareOwnerSub, email: SHARE_OWNER_USERNAME },
     { sub: shareRecipientSub, email: SHARE_RECIPIENT_USERNAME },
   ]);
@@ -953,6 +985,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     libraryUsername: LIBRARY_USERNAME,
     libraryPassword: LIBRARY_PASSWORD,
     libraryUserSub,
+    // Review test user (dedicated to review.e2e — starts with zero cards)
+    reviewUsername: REVIEW_USERNAME,
+    reviewPassword: REVIEW_PASSWORD,
+    reviewUserSub,
     // Share test users (sharing.e2e)
     shareOwnerUsername: SHARE_OWNER_USERNAME,
     shareOwnerPassword: SHARE_OWNER_PASSWORD,

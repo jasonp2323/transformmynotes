@@ -54,6 +54,11 @@ export interface Runtime {
   libraryPassword: string;
   libraryUserSub: string;
 
+  // ── Review test user (review.e2e) ──
+  reviewUsername: string;
+  reviewPassword: string;
+  reviewUserSub: string;
+
   // ── Share test users (sharing.e2e) ──
   shareOwnerUsername: string;
   shareOwnerPassword: string;
