@@ -407,6 +407,7 @@ export default function AdminMembersPage() {
                   {/* Role cell */}
                   <div>
                     <Select
+                      aria-label={`Role for ${u.name || u.email}`}
                       value={u.role === 'admin' ? 'Admin' : 'Member'}
                       options={['Admin', 'Member']}
                       disabled={isBusy}
