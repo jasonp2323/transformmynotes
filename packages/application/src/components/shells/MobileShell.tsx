@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/src/lib/cn';
 import { Icon } from '@/src/components/ui/Icon';
+import { ReviewNavBadge } from '@/src/components/review/ReviewNavBadge';
 
 export interface MobileShellProps {
   active?: 'library' | 'search' | 'review' | 'profile';
@@ -49,11 +50,14 @@ export function MobileShell({ active, fab, children, className }: MobileShellPro
               className={cn('tmn-bottomnav__item', isActive && 'tmn-bottomnav__item--active')}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon
-                name={item.icon}
-                size={23}
-                stroke={isActive ? 2.4 : 2}
-              />
+              <span className="tmn-bottomnav__icon-wrap">
+                <Icon
+                  name={item.icon}
+                  size={23}
+                  stroke={isActive ? 2.4 : 2}
+                />
+                {item.id === 'review' && <ReviewNavBadge variant="mobile" />}
+              </span>
               <span className="tmn-bottomnav__label">{item.label}</span>
             </a>
           );

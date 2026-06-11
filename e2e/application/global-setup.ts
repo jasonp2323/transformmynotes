@@ -151,7 +151,7 @@ async function createDynaliteTables(port: number) {
     }),
   );
 
-  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag + GSI3 ByToken + GSI4 ByRecipient,
+  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag + GSI3 ByToken + GSI4 ByRecipient + GSI5 ByDue,
   // to match infra/db.ts)
   await client.send(
     new CreateTableCommand({
@@ -167,6 +167,8 @@ async function createDynaliteTables(port: number) {
         { AttributeName: 'gsi3sk', AttributeType: 'S' },
         { AttributeName: 'gsi4pk', AttributeType: 'S' },
         { AttributeName: 'gsi4sk', AttributeType: 'S' },
+        { AttributeName: 'gsi5pk', AttributeType: 'S' },
+        { AttributeName: 'gsi5sk', AttributeType: 'S' },
       ],
       KeySchema: [
         { AttributeName: 'pk', KeyType: 'HASH' },
@@ -202,6 +204,14 @@ async function createDynaliteTables(port: number) {
           KeySchema: [
             { AttributeName: 'gsi4pk', KeyType: 'HASH' },
             { AttributeName: 'gsi4sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'GSI5',
+          KeySchema: [
+            { AttributeName: 'gsi5pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi5sk', KeyType: 'RANGE' },
           ],
           Projection: { ProjectionType: 'ALL' },
         },
