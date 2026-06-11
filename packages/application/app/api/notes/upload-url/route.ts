@@ -16,6 +16,9 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/heic'] as const;
 type AllowedContentType = (typeof ALLOWED_CONTENT_TYPES)[number];
 
+/** Maximum allowed file size: 10 MB */
+const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+
 function requireBucketName(): string {
   const value = process.env.SST_RESOURCE_NotesBucket_name;
   if (!value) {
@@ -45,7 +48,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { contentType } = (body ?? {}) as Record<string, unknown>;
+  const { contentType, size } = (body ?? {}) as Record<string, unknown>;
 
   // Validate contentType.
   if (
@@ -55,6 +58,14 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: 'Unsupported content type.' },
       { status: 400 },
+    );
+  }
+
+  // 10MB size guard.
+  if (typeof size === 'number' && size > MAX_SIZE_BYTES) {
+    return NextResponse.json(
+      { ok: false, error: 'Payload too large.' },
+      { status: 413 },
     );
   }
 

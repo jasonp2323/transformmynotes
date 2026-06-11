@@ -6,8 +6,8 @@
  * unit-tested — it is exercised by real browser smoke tests.
  */
 
-export const MAX_LONGEST_SIDE = 1920;
-export const JPEG_QUALITY = 0.82;
+export const MAX_LONGEST_SIDE = 2048;
+export const JPEG_QUALITY = 0.85;
 
 /**
  * Computes new dimensions so the longest side ≤ maxSide while preserving

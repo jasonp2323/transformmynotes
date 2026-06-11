@@ -20,6 +20,8 @@ vi.mock('@transformmynotes/core', () => ({
   updateTranscriptionJobStatus: updateTranscriptionJobStatusMock,
   transcribeImage: transcribeImageMock,
   postprocessMarkdown: postprocessMarkdownMock,
+  // shouldSkipTranscription is used by process-job.ts
+  shouldSkipTranscription: (status: string) => status === 'done' || status === 'processing',
   storageKeys: {
     originalImage: (s: string, i: string) => `images/users/${s}/${i}.jpg`,
     noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,
@@ -171,6 +173,33 @@ describe('POST /api/transcribe', () => {
     });
   });
 
+  describe('idempotency guard', () => {
+    it('returns 200 ok:true skipped:true when job status is "done"', async () => {
+      getTranscriptionJobMock.mockResolvedValueOnce({ ...PENDING_JOB, status: 'done' });
+
+      const res = await POST(makeRequest());
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.skipped).toBe(true);
+      // Bedrock must NOT be called.
+      expect(transcribeImageMock).not.toHaveBeenCalled();
+    });
+
+    it('returns 200 ok:true skipped:true when job status is "processing"', async () => {
+      getTranscriptionJobMock.mockResolvedValueOnce({ ...PENDING_JOB, status: 'processing' });
+
+      const res = await POST(makeRequest());
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.skipped).toBe(true);
+      expect(transcribeImageMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('success path', () => {
     it('returns 200 with markdown, wordCount, detectedLang, ocrConfidence, markdownS3Key', async () => {
       const res = await POST(makeRequest());
@@ -221,29 +250,43 @@ describe('POST /api/transcribe', () => {
   });
 
   describe('failure path', () => {
-    it('returns 500 and marks job error when transcribeImage rejects', async () => {
-      const bedrockError = new Error('Bedrock quota exceeded');
+    it('returns 500 with generic "Transform failed. Please try again." message when transcribeImage rejects', async () => {
+      const bedrockError = new Error('Bedrock quota exceeded — secret internal message');
       transcribeImageMock.mockRejectedValueOnce(bedrockError);
 
       const res = await POST(makeRequest());
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
-      expect(body.ok).toBe(false);
-      expect(body.error).toBe('Transcription failed.');
+      // New generic error message — raw Bedrock error MUST NOT be exposed.
+      expect(body.error).toBe('Transform failed. Please try again.');
+      expect(JSON.stringify(body)).not.toContain('Bedrock quota exceeded');
+      expect(JSON.stringify(body)).not.toContain('secret internal message');
 
-      // Should have called processing first, then error
+      // Should have called processing first, then error.
       expect(updateTranscriptionJobStatusMock).toHaveBeenCalledWith(
         expect.objectContaining({ sub: SUB, jobId: JOB_ID, status: 'processing' }),
       );
       expect(updateTranscriptionJobStatusMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: SUB,
-          jobId: JOB_ID,
-          status: 'error',
-          errorMsg: 'Bedrock quota exceeded',
-        }),
+        expect.objectContaining({ sub: SUB, jobId: JOB_ID, status: 'error' }),
       );
+    });
+
+    it('does NOT expose the raw Bedrock error in the errorMsg stored to DynamoDB', async () => {
+      const rawMsg = 'SECRET Bedrock quota exceeded — internal detail';
+      transcribeImageMock.mockRejectedValueOnce(new Error(rawMsg));
+
+      await POST(makeRequest());
+
+      // Collect all updateStatus calls.
+      const errorCall = (updateTranscriptionJobStatusMock.mock.calls as Array<[Record<string, unknown>]>)
+        .map(([arg]) => arg)
+        .find((a) => a.status === 'error');
+
+      expect(errorCall).toBeDefined();
+      // The stored errorMsg must NOT contain the raw internal message.
+      expect(String(errorCall!.errorMsg ?? '')).not.toContain(rawMsg);
+      expect(String(errorCall!.errorMsg ?? '')).not.toContain('SECRET');
     });
 
     it('returns 500 and marks job error when S3 GetObject fails', async () => {
@@ -253,25 +296,20 @@ describe('POST /api/transcribe', () => {
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
-      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Transform failed. Please try again.');
       expect(updateTranscriptionJobStatusMock).toHaveBeenCalledWith(
         expect.objectContaining({ sub: SUB, jobId: JOB_ID, status: 'error' }),
       );
     });
 
-    it('uses "Transcription failed" as errorMsg for non-Error throws', async () => {
+    it('returns 500 with generic message for non-Error throws', async () => {
       transcribeImageMock.mockRejectedValueOnce('string error');
 
       const res = await POST(makeRequest());
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
-      expect(updateTranscriptionJobStatusMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: 'error',
-          errorMsg: 'Transcription failed',
-        }),
-      );
+      expect(body.error).toBe('Transform failed. Please try again.');
     });
   });
 

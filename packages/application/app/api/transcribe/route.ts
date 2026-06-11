@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import {
-  storageKeys,
-  getTranscriptionJob,
-  updateTranscriptionJobStatus,
-  transcribeImage,
-  postprocessMarkdown,
-} from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
+import { processTranscriptionJob } from '@/lib/transcribe/process-job';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -64,64 +57,29 @@ export async function POST(req: Request) {
 
   try {
     // Resolve required env vars — fail loudly if unset.
-    const bucket = requireBucketName();
-    requireModelId(); // validates the model id is bound before doing any work
+    requireBucketName();
+    requireModelId();
 
-    // Look up the job — a sub mismatch yields null → 404.
-    const job = await getTranscriptionJob(sub, jobId);
-    if (!job) {
-      return NextResponse.json({ ok: false, error: 'Job not found.' }, { status: 404 });
-    }
+    // Delegate to the extracted processor (idempotency guard lives there).
+    const result = await processTranscriptionJob(sub, jobId);
 
-    // Mark job as processing.
-    await updateTranscriptionJobStatus({ sub, jobId, status: 'processing' });
+    switch (result.outcome) {
+      case 'not_found':
+        return NextResponse.json({ ok: false, error: 'Job not found.' }, { status: 404 });
 
-    const s3 = new S3Client({});
-    const markdownS3Key = storageKeys.noteMarkdown(sub, jobId);
+      case 'skipped':
+        // Job is already done or in-flight — safe to acknowledge without re-running.
+        return NextResponse.json({ ok: true, skipped: true });
 
-    try {
-      // Fetch image bytes from S3.
-      const getResponse = await s3.send(
-        new GetObjectCommand({
-          Bucket: bucket,
-          Key: storageKeys.originalImage(sub, jobId),
-        }),
-      );
-      const imageBytes = await getResponse.Body!.transformToByteArray();
+      case 'success':
+        return NextResponse.json(result.data);
 
-      // Run OCR + post-process.
-      const { rawText } = await transcribeImage(imageBytes);
-      const processed = postprocessMarkdown(rawText);
-
-      // Write markdown output to S3.
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: markdownS3Key,
-          Body: processed.markdown,
-          ContentType: 'text/markdown',
-        }),
-      );
-
-      // Mark job done.
-      await updateTranscriptionJobStatus({ sub, jobId, status: 'done' });
-
-      return NextResponse.json({
-        markdown: processed.markdown,
-        wordCount: processed.wordCount,
-        detectedLang: processed.detectedLang,
-        ocrConfidence: processed.ocrConfidence,
-        markdownS3Key,
-      });
-    } catch (err) {
-      console.error('[transcribe] Transcription/processing failed', err);
-      const errorMsg = err instanceof Error ? err.message : 'Transcription failed';
-      try {
-        await updateTranscriptionJobStatus({ sub, jobId, status: 'error', errorMsg });
-      } catch (statusErr) {
-        console.error('[transcribe] Failed to update job status to error', statusErr);
-      }
-      return NextResponse.json({ ok: false, error: 'Transcription failed.' }, { status: 500 });
+      case 'error':
+        // Generic client message; real error was logged server-side by processTranscriptionJob.
+        return NextResponse.json(
+          { error: result.errorMessage ?? 'Transform failed. Please try again.' },
+          { status: result.status ?? 500 },
+        );
     }
   } catch (err) {
     console.error('[transcribe] Unexpected error starting transcription', err);
