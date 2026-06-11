@@ -27,10 +27,13 @@ const NAV_ITEMS: BottomNavItem[] = [
 export function MobileShell({ active, fab, children, className }: MobileShellProps) {
   return (
     <div className={cn('tmn-shell tmn-shell--mobile', className)}>
+      {/* Skip navigation link — visually hidden until focused */}
+      <a href="#main-content" className="tmn-skip-nav">Skip to main content</a>
+
       {/* scrollable content */}
-      <div className="tmn-shell__content tmn-scroll">
+      <main id="main-content" className="tmn-shell__content tmn-scroll">
         {children}
-      </div>
+      </main>
 
       {/* FAB slot — only rendered when a node is provided */}
       {fab != null && (

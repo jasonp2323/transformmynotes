@@ -50,7 +50,12 @@ export default function RootLayout({
        * lifts page content above the body::before paper-grain wash (z-index:0)
        * — no extra wrapper div needed here.
        */}
-      <body>{children}</body>
+      <body>
+        <a className="tmn-skip-nav" href="#main-content">
+          Skip to main content
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

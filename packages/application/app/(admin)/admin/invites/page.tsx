@@ -652,6 +652,7 @@ export default function AdminInvitesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={`Revoke invite for ${inviteRecipientLabel(inv)}`}
                         disabled={isBusy}
                         onClick={() => void revokeInvite(inv)}
                       >

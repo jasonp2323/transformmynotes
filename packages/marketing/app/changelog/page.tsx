@@ -32,7 +32,7 @@ export default async function ChangelogPage() {
   return (
     <>
       <Header />
-      <main>
+      <main id="main-content">
         {/* ---- Page header ---- */}
         <section className="section-pad section-pad--sm">
           <div className="container">

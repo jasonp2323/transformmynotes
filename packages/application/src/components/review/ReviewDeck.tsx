@@ -131,6 +131,7 @@ export function ReviewDeck() {
 
   const cardRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
 
   // ── Fetch due cards ─────────────────────────────────────────────────────────
 
@@ -190,6 +191,15 @@ export function ReviewDeck() {
     }
   }, [deckState, currentIndex]);
 
+  // ── Announce front text whenever the active card changes ────────────────────
+
+  useEffect(() => {
+    if (deckState === 'session' && sessionCards[currentIndex]) {
+      const front = sessionCards[currentIndex]!.front;
+      setLiveAnnouncement(`Front: ${front} — press Space to flip`);
+    }
+  }, [deckState, currentIndex, sessionCards]);
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleStart = useCallback(() => {
@@ -199,15 +209,16 @@ export function ReviewDeck() {
     setDeckState('session');
   }, [cards]);
 
-  const handleFlip = useCallback(() => {
+  const handleFlip = useCallback((back?: string) => {
     setFlipped(true);
+    setLiveAnnouncement(back ? `Back: ${back}` : 'Card flipped');
   }, []);
 
   const handleCardKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLDivElement>, backText?: string) => {
       if (!flipped && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
-        handleFlip();
+        handleFlip(backText);
       }
     },
     [flipped, handleFlip],
@@ -335,8 +346,8 @@ export function ReviewDeck() {
           role="button"
           tabIndex={0}
           aria-label={flipped ? 'Card revealed' : 'Tap to reveal the answer'}
-          onClick={!flipped ? handleFlip : undefined}
-          onKeyDown={handleCardKeyDown}
+          onClick={!flipped ? () => handleFlip(currentCard.back) : undefined}
+          onKeyDown={(e) => handleCardKeyDown(e, currentCard.back)}
         >
           <div className="tmn-deck-card__accent-bar" aria-hidden="true" />
           <div className="tmn-deck-card__inner">
@@ -400,6 +411,15 @@ export function ReviewDeck() {
           </div>
         )}
       </div>
+
+      {/* ── Screen-reader live region for card flips ── */}
+      <span
+        className="sr-only"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        {liveAnnouncement}
+      </span>
 
       {/* ── Toast ── */}
       {toast && (

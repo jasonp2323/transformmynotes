@@ -60,6 +60,7 @@ function ResetForm() {
       <Input
         label="Email"
         type="email"
+        autoComplete="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@email.com"
@@ -79,6 +80,7 @@ function ResetForm() {
       <PasswordField
         label="New password"
         hint="At least 8 characters."
+        autoComplete="new-password"
         value={password}
         onChange={setPassword}
         required

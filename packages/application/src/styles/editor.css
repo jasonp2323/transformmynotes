@@ -80,6 +80,10 @@
   box-sizing: border-box;
 }
 
+.tmn-editor-content:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
 /* Placeholder */
 .tmn-editor-content .is-editor-empty:first-child::before {
   content: attr(data-placeholder);

@@ -2,6 +2,42 @@
    Consumed by the React primitives in src/components/ui via the .tmn-* class names.
    Later milestones append their component CSS to this file. */
 
+/* ---- Skip-nav link ---- */
+.tmn-skip-nav {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  z-index: 9999;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+}
+.tmn-skip-nav:focus,
+.tmn-skip-nav:focus-visible {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  clip: auto;
+  clip-path: none;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  white-space: normal;
+  padding: 10px 18px;
+  background: var(--surface-card);
+  color: var(--brand-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--focus-ring), var(--shadow-md);
+  outline: none;
+}
+
 /* ---- Button ---- */
 .tmn-btn {
   --_bg: var(--brand);
@@ -326,10 +362,10 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
 .tmn-badge--dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .tmn-badge--neutral { background: var(--stone-100); color: var(--stone-700); }
 .tmn-badge--brand   { background: var(--surface-brand-soft); color: var(--brand-strong); }
-.tmn-badge--accent  { background: var(--gold-100); color: var(--gold-600); }
-.tmn-badge--success { background: var(--success-50); color: var(--success-500); }
-.tmn-badge--warning { background: var(--warning-50); color: var(--warning-500); }
-.tmn-badge--danger  { background: var(--danger-50); color: var(--danger-500); }
+.tmn-badge--accent  { background: var(--gold-100); color: #7a6500; } /* a11y: #7a6500 = 5.1:1 on --gold-100 bg, up from 3.6:1 */
+.tmn-badge--success { background: var(--success-50); color: #387050; } /* a11y: #387050 = 5.04:1 on --success-50 bg, up from 3.56:1 */
+.tmn-badge--warning { background: var(--warning-50); color: #8B5E04; } /* a11y: #8B5E04 = 5.02:1 on --warning-50 bg, up from 2.29:1 */
+.tmn-badge--danger  { background: var(--danger-50);  color: #aa3f23; } /* a11y: #aa3f23 = 5.08:1 on --danger-50 bg, up from 3.80:1 */
 .tmn-badge--solid   { background: var(--brand); color: var(--on-brand); }
 
 /* ---- Tag ---- */

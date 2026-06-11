@@ -449,7 +449,7 @@ export default function AdminMembersPage() {
                     <IconButton
                       variant="plain"
                       size="sm"
-                      label={isActive ? 'Disable' : 'Enable'}
+                      label={isActive ? `Disable ${u.name || u.email}` : `Enable ${u.name || u.email}`}
                       disabled={isBusy || isSelf}
                       onClick={() => void toggleStatus(u.sub)}
                     >
@@ -463,7 +463,7 @@ export default function AdminMembersPage() {
                     <IconButton
                       variant="plain"
                       size="sm"
-                      label="Remove"
+                      label={`Remove ${u.name || u.email}`}
                       disabled={isBusy || isSelf}
                       onClick={() => {
                         if (!isSelf) setConfirm(u);
