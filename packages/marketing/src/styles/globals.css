@@ -283,7 +283,7 @@ section { position: relative; }
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
-  color: var(--brand);
+  color: var(--brand-strong); /* a11y: #16747e = 4.86:1 on #f5f1e8, up from 4.23:1 (--teal-500) */
 }
 
 .section-heading {
@@ -762,7 +762,7 @@ section { position: relative; }
 .changelog-entry__tag {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text-subtle);
+  color: var(--text-muted); /* a11y: #6a6250 = 4.99:1 on #efe9db, up from 3.18:1 (--text-subtle) */
   background: var(--surface-sunken);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);

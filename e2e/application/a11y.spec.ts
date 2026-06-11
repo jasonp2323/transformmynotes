@@ -35,6 +35,32 @@ import { readRuntime, installSrpBypass } from './helpers';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
+// Scan with reduced motion so any fade/reveal/transition is rendered at its
+// final, fully-opaque resting state. Otherwise axe can sample mid-animation and
+// measure partially-transparent text blended toward the background, producing
+// flaky false-positive color-contrast violations. The app CSS honours
+// `prefers-reduced-motion: reduce`, so this asserts true resting contrast.
+test.use({ reducedMotion: 'reduce' });
+
+// settle() — freeze animations and force [data-reveal] elements to their
+// fully-visible resting state before axe samples colors. Mirrors the same
+// helper in e2e/marketing/a11y.spec.ts; keeps both specs deterministic.
+async function settle(page: import('@playwright/test').Page) {
+  await page.evaluate(() => {
+    document
+      .querySelectorAll('[data-reveal]')
+      .forEach((el) => el.classList.add('is-in'));
+  });
+  await page.addStyleTag({
+    content: `*, *::before, *::after { transition: none !important; animation: none !important; }
+              [data-reveal] { opacity: 1 !important; transform: none !important; }`,
+  });
+  // One frame for the forced styles to paint before axe samples colors.
+  await page.evaluate(
+    () => new Promise((r) => requestAnimationFrame(() => r(null))),
+  );
+}
+
 // ── Shared sign-in helpers ────────────────────────────────────────────────────
 
 async function signInAsMainUser(page: import('@playwright/test').Page) {
@@ -85,6 +111,7 @@ async function assertNoSeriousViolations(
 test('/login has no critical or serious a11y violations', async ({ page }) => {
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
@@ -93,6 +120,7 @@ test('/login has no critical or serious a11y violations', async ({ page }) => {
 test('/dashboard has no critical or serious a11y violations', async ({ page }) => {
   await signInAsMainUser(page);
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
@@ -102,6 +130,7 @@ test('/capture has no critical or serious a11y violations', async ({ page }) => 
   await signInAsMainUser(page);
   await page.goto('/capture');
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
@@ -111,6 +140,7 @@ test('/review has no critical or serious a11y violations', async ({ page }) => {
   await signInAsMainUser(page);
   await page.goto('/review');
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
@@ -120,6 +150,7 @@ test('/admin/pending has no critical or serious a11y violations', async ({ page 
   await signInAsAdmin(page);
   await page.goto('/admin/pending');
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
@@ -129,6 +160,7 @@ test('/admin/members has no critical or serious a11y violations', async ({ page 
   await signInAsAdmin(page);
   await page.goto('/admin/members');
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
@@ -138,6 +170,7 @@ test('/admin/invites has no critical or serious a11y violations', async ({ page 
   await signInAsAdmin(page);
   await page.goto('/admin/invites');
   await page.waitForLoadState('networkidle');
+  await settle(page);
   await assertNoSeriousViolations(page);
 });
 
