@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.2...transformmynotes-v1.39.3) (2026-06-11)
+
+
+### 🧰 Maintenance
+
+* **infra:** M10.1 least-privilege Bedrock IAM + global resource tags ([#413](https://github.com/jasonp2323/transformmynotes/issues/413)) ([abf1d54](https://github.com/jasonp2323/transformmynotes/commit/abf1d544b716362de9229220e759add51262b2a1))
+
 ## [1.39.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.1...transformmynotes-v1.39.2) (2026-06-11)
 
 
