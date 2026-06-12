@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.43.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.42.0...transformmynotes-v1.43.0) (2026-06-12)
+
+
+### 🚀 Features
+
+* **application:** add /search and /account pages, fix broken nav ([#458](https://github.com/jasonp2323/transformmynotes/issues/458)) ([2213550](https://github.com/jasonp2323/transformmynotes/commit/2213550cb42194db2871367683ee3e4108c56e68))
+
 ## [1.42.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.41.0...transformmynotes-v1.42.0) (2026-06-12)
 
 
