@@ -1,6 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress } from "./secrets";
+import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups, notes } from "./db";
 import { notesBucket } from "./storage";
@@ -33,6 +33,8 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_STAGE: $app.stage,
     RESEND_API_KEY: resendApiKey.value,
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
+    TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
   },
   permissions: [
     // Least privilege: scoped to this stage's user pool ARN only.

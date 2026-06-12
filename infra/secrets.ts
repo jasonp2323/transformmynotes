@@ -12,3 +12,10 @@ export const bedrockInferenceProfileId = new sst.Secret("BEDROCK_MODEL_ID");
 // M3 transactional email (Resend).
 export const resendApiKey = new sst.Secret("RESEND_API_KEY");
 export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
+
+// M11 Cloudflare Turnstile bot protection. Seeded in both Console environments
+// (production = live keys; fallback/pr-<N> = Cloudflare documented test keys).
+// TURNSTILE_SITE_KEY is exposed publicly as NEXT_PUBLIC_TURNSTILE_SITE_KEY; the
+// secret value is read server-side only in packages/application/lib/turnstile.ts.
+export const turnstileSiteKey = new sst.Secret("TURNSTILE_SITE_KEY");
+export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
