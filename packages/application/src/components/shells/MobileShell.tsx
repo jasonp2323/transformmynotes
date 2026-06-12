@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/src/lib/cn';
 import { Icon } from '@/src/components/ui/Icon';
 import { ReviewNavBadge } from '@/src/components/review/ReviewNavBadge';
+import { LogoutButton } from './LogoutButton';
 
 export interface MobileShellProps {
   active?: 'library' | 'search' | 'review' | 'profile';
@@ -65,6 +66,9 @@ export function MobileShell({ active, fab, children, className }: MobileShellPro
             </a>
           );
         })}
+        <div className="tmn-bottomnav__logout">
+          <LogoutButton />
+        </div>
       </nav>
     </div>
   );

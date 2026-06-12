@@ -32,7 +32,7 @@ export function AdminShell({
   active: activeProp,
   children,
 }: AdminShellProps) {
-  const { userName, isAdmin } = useAdminShell();
+  const { userName, isAdmin, pendingCount } = useAdminShell();
   const pathname = usePathname();
   const active = activeProp ?? adminActiveFromPath(pathname) ?? undefined;
 
@@ -40,6 +40,7 @@ export function AdminShell({
     <DesktopShell
       userName={userName}
       isAdmin={isAdmin}
+      pendingCount={pendingCount}
       active={active}
       title={title}
       eyebrow={eyebrow}

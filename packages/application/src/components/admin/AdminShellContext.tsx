@@ -6,6 +6,7 @@ interface AdminShellContextValue {
   userName: string;
   isAdmin: boolean;
   userSub: string;
+  pendingCount?: number;
 }
 
 const AdminShellContext = createContext<AdminShellContextValue | null>(null);
@@ -14,18 +15,20 @@ export interface AdminShellProviderProps {
   userName: string;
   isAdmin: boolean;
   userSub: string;
+  pendingCount?: number;
   children: React.ReactNode;
 }
 
-/** Provides admin identity (userName, isAdmin, userSub) to the subtree. */
+/** Provides admin identity (userName, isAdmin, userSub, pendingCount) to the subtree. */
 export function AdminShellProvider({
   userName,
   isAdmin,
   userSub,
+  pendingCount,
   children,
 }: AdminShellProviderProps) {
   return (
-    <AdminShellContext.Provider value={{ userName, isAdmin, userSub }}>
+    <AdminShellContext.Provider value={{ userName, isAdmin, userSub, pendingCount }}>
       {children}
     </AdminShellContext.Provider>
   );

@@ -11,6 +11,7 @@ export interface AppShellProps {
   eyebrow?: string;
   actions?: React.ReactNode;
   isAdmin?: boolean;
+  pendingCount?: number;
   search?: string;
   userName?: string;
   /** FAB rendered above the mobile bottom nav (ignored on desktop). */
@@ -46,6 +47,7 @@ export function AppShell({
   eyebrow,
   actions,
   isAdmin = false,
+  pendingCount,
   search,
   userName,
   fab,
@@ -68,6 +70,7 @@ export function AppShell({
           eyebrow={eyebrow}
           actions={actions}
           isAdmin={isAdmin}
+          pendingCount={pendingCount}
           search={search}
           userName={userName}
         >
