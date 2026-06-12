@@ -75,7 +75,13 @@ jobs:
 
       - name: Resolve deploy gate
         id: gate
-        run: echo "deploy=${{ (!contains(github.event.head_commit.message, '[skip deploy]') && !contains(github.event.pull_request.title, '[skip deploy]')) }}" >> "$GITHUB_OUTPUT"
+        # Suppresses the SST deploy steps below (the gates above still run) when:
+        #   - the commit/PR opts out via [skip deploy], or
+        #   - this is a release-please PR. teardown.yml skips release-please--
+        #     branches, so deploying a pr-<N> stage for one just orphans a full
+        #     stack (CloudFront included) that nothing ever removes. head_ref is
+        #     empty on push, so production deploys are unaffected.
+        run: echo "deploy=${{ (!contains(github.event.head_commit.message, '[skip deploy]') && !contains(github.event.pull_request.title, '[skip deploy]') && !startsWith(github.head_ref, 'release-please--')) }}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve application-E2E gate
         id: e2e_app
