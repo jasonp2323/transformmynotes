@@ -11,6 +11,11 @@
 //   1. Monitor a pr-<N> deploy for CSP violation messages in the browser console.
 //   2. Once confirmed clean, rename this header to Content-Security-Policy.
 //   3. Replace 'unsafe-inline' in script-src with a per-request nonce if needed.
+//   4. Re-add 'upgrade-insecure-requests' — it is intentionally omitted here
+//      because browsers ignore it in a report-only policy and emit a console
+//      warning ("...ignored when delivered in a report-only policy") which trips
+//      the marketing E2E "no console errors" assertions. It belongs in the
+//      enforcing policy only.
 //
 // Note on fonts: all fonts are self-hosted under public/fonts/ (@font-face rules in
 // src/styles/fonts.css), so font-src 'self' is sufficient — no Google Fonts CDN.
@@ -24,7 +29,6 @@ const marketingCsp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "upgrade-insecure-requests",
 ].join('; ');
 
 const nextConfig = {

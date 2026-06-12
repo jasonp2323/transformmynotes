@@ -14,6 +14,10 @@
 //      approach (generated per request in a Server Component layout via
 //      `crypto.randomUUID()` + `next/headers`) handles Next.js hydration inline
 //      scripts without requiring 'unsafe-inline', satisfying ASVS V1.6.
+//   4. Re-add 'upgrade-insecure-requests' — intentionally omitted here because
+//      browsers ignore it in a report-only policy and emit a console warning,
+//      which would surface during CSP monitoring. It belongs in the enforcing
+//      policy only.
 const applicationCsp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
@@ -26,7 +30,6 @@ const applicationCsp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "upgrade-insecure-requests",
 ].join('; ');
 
 const nextConfig = {
