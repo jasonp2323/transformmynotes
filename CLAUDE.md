@@ -43,6 +43,7 @@ npm workspaces monorepo under `packages/*`, deployed with **SST v4** on AWS.
 - `packages/application` — authed Next.js app (`@transformmynotes/application`). Dev on port **3002**. Uses AWS Cognito for auth.
 - `packages/core` — shared library (`@transformmynotes/core`). DynamoDB client + key builders for the single-table design. Consumed by `application` via `sst.Resource` bindings — never imported by `marketing`.
 - `packages/scripts` — one-off SST-shell scripts (`sst shell tsx`).
+- `packages/mobile` — Capacitor Android shell (`@transformmynotes/mobile`) that wraps `app.transformmynotes.com` in a native WebView via `server.url`; no SST entrypoint and excluded from the SST deploy path. Release builds run in a separate `.github/workflows/android.yml`, triggered by a `mobile-v*` tag push or `workflow_dispatch` (not the PR/master deploy path).
 - `infra/` — SST resource definitions, loaded in order by `sst.config.ts`: `secrets → router → auth → marketing → application → jobs`. Table definitions live in `infra/db.ts` and are shared by `application` and `jobs`; the Cognito user pool is defined in `infra/auth.ts` and linked to `application`.
 - `scripts/` — repo-level Node/tsx utilities for managing SST secrets and CI variables.
 
