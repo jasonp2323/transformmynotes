@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
-    "@types/node": "^22.19.20",
+    "@types/node": "^25.9.3",
     "dynalite": "^4.0.0"
   }
 }
