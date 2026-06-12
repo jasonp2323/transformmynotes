@@ -19,19 +19,26 @@ share one long-lived dev pool across all PR stages while keeping production isol
 - **Non-PR stages** (production, `dev`, any other named stage): `new
   sst.aws.CognitoUserPool(...)` creates and owns the pool, including the post-confirmation
   Lambda trigger and the `allowAdminCreateUserOnly` transform.
-- **PR stages**: `sst.aws.CognitoUserPool.get("UserPool", devCognitoUserPoolId.value)`
-  returns a lightweight reference to the existing pool by id. The pool itself is NOT managed
-  by the PR stage — only referenced.
+- **PR stages**: `sst.aws.CognitoUserPool.get("UserPool", id)` (where `id` is read from
+  `process.env.DEV_COGNITO_USER_POOL_ID`) returns a lightweight reference to the existing
+  pool by id. The pool itself is NOT managed by the PR stage — only referenced.
 
 Each PR stage still calls `userPool.addClient("Web", {...})` to create its own app client
 on the shared pool. SST cannot yet reference an existing client, so this is the correct
 approach — the expensive/stateful resource (the pool and its users) is shared; the
 lightweight resource (the app client) is per-stage.
 
-The `DEV_COGNITO_USER_POOL_ID` secret (`infra/secrets.ts`) carries the pool id. It is
-seeded **only in the fallback Console environment** (which automatically covers all `pr-<N>`
-stages). The production environment does NOT need it — the production path never accesses
-`.value` on this secret.
+The `DEV_COGNITO_USER_POOL_ID` **GitHub Actions repository variable** (Settings → Secrets
+and variables → Actions → Variables) carries the pool id. It is passed through as an env
+var by `deploy.yml` so PR-stage deploys (run in CI) can read it. The production deploy
+ignores it — the production path never reaches `referenceSharedDevPool()`. This is a
+**public value** (a Cognito pool id), so it is a plain *variable*, not a secret. You can
+also export it in your shell for a local pr-`<N>` deploy:
+
+```bash
+export DEV_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+npx sst deploy --stage pr-99
+```
 
 Domain data (UserData table, Notes table) continues to live in each stage's own DynamoDB
 tables — only Cognito identities are shared. The invite-redeem route writes to the stage's
@@ -41,7 +48,7 @@ application data.
 ## One-time setup
 
 This is done once for the lifetime of the repository. Skip if the `dev` stage already
-exists and `DEV_COGNITO_USER_POOL_ID` is set in the fallback Console environment.
+exists and `DEV_COGNITO_USER_POOL_ID` is set as a GitHub Actions repository variable.
 
 ### 1. Deploy the `dev` stage
 
@@ -79,26 +86,26 @@ aws cognito-idp create-group --user-pool-id $POOL_ID --group-name member \
 
 See `docs/runbooks/bootstrap-admin.md` for the full user-creation and profile-seeding steps.
 
-### 3. Set the secret in the fallback Console environment
+### 3. Set the GitHub Actions repository variable
 
-In the SST Console, open **Settings → Secrets → Fallback environment** and set:
+Go to your GitHub repository → **Settings → Secrets and variables → Actions → Variables**
+and create a repository variable:
 
 ```
-DEV_COGNITO_USER_POOL_ID = us-east-1_XXXXXXXXX
+Name:  DEV_COGNITO_USER_POOL_ID
+Value: us-east-1_XXXXXXXXX   ← the pool id from step 1
 ```
 
-Do NOT set this value in the production environment — production owns its own pool and
-never reads this secret.
+`deploy.yml` forwards this variable as an env var to the SST deploy step. Because the pool
+id is a public value (like `NEXT_PUBLIC_COGNITO_USER_POOL_ID`), it is a plain *variable* —
+not a secret. Do NOT use `sst secret set` or the SST Console fallback environment for this
+value: a declared `sst.Secret` with no value throws `SecretMissingError` at deploy for
+every stage, including production.
 
-Or from the CLI — use the `--fallback` flag so the value applies to every stage that has
-no stage-specific override (i.e. all `pr-<N>` stages). Do NOT use `--stage dev`: that would
-scope the secret to the `dev` stage only and PR stages would never see it.
+If you also run `pr-<N>` deploys locally, export the variable in your shell (see "How it
+works" above).
 
-```bash
-npx sst secret set DEV_COGNITO_USER_POOL_ID us-east-1_XXXXXXXXX --fallback
-```
-
-After this step all subsequent `pr-<N>` deploys will reference the dev pool instead of
+After this step all subsequent `pr-<N>` CI deploys will reference the dev pool instead of
 creating their own.
 
 ## Caveats

@@ -20,11 +20,12 @@ export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
 export const turnstileSiteKey = new sst.Secret("TURNSTILE_SITE_KEY");
 export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 
-// Issue #460 — shared development Cognito pool. PR stages (pr-<N>) reference an
-// existing centralized dev user pool by id instead of provisioning their own,
-// so test users persist across PRs and pools don't churn. Seeded in the FALLBACK
-// Console environment (which covers all pr-<N> stages) with the id of the pool
-// owned by the long-lived `dev` stage. Unset/unused for production (which owns
-// its own pool) — its `.value` is only accessed on the pr-<N> code path, and a
-// missing value fails loudly at deploy on that path (no empty fallback).
-export const devCognitoUserPoolId = new sst.Secret("DEV_COGNITO_USER_POOL_ID");
+// Issue #460 — the shared dev Cognito pool id is NOT an sst.Secret. A declared
+// sst.Secret with no value throws SecretMissingError at deploy for EVERY stage
+// (the value Output resolves eagerly, regardless of whether it's referenced),
+// which would break production + the dev stage that owns the pool, and creates a
+// chicken-and-egg (the dev stage mints the pool whose id the secret would hold).
+// The pool id is a public value (already exposed via NEXT_PUBLIC_), so it is read
+// from a plain env var (process.env.DEV_COGNITO_USER_POOL_ID) on the pr-<N> code
+// path only — see infra/auth.ts. Set it as a GitHub Actions variable (deploy.yml)
+// / shell env, mirroring how CLOUDFLARE_API_TOKEN is handled.

@@ -1,7 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
 import { userData } from "./db";
-import { devCognitoUserPoolId } from "./secrets";
 
 const isPR = $app.stage.startsWith("pr-");
 
@@ -35,13 +34,25 @@ function createOwnedPool() {
 }
 
 // PR stages (pr-<N>) reference the single shared dev pool created+owned by the
-// long-lived `dev` stage (its id comes from the DEV_COGNITO_USER_POOL_ID secret,
-// seeded in the fallback Console env). Production and any other named stage own
-// their pool. The post-confirmation trigger + invite-only transform live on the
-// OWNED pool only; a referenced pool inherits whatever its owner configured.
-export const userPool = isPR
-  ? sst.aws.CognitoUserPool.get("UserPool", devCognitoUserPoolId.value)
-  : createOwnedPool();
+// long-lived `dev` stage. Its id comes from the DEV_COGNITO_USER_POOL_ID env var
+// (a public value, like NEXT_PUBLIC_COGNITO_USER_POOL_ID — NOT an sst.Secret,
+// which would eager-throw on every stage; set it as a GitHub Actions variable in
+// deploy.yml). Production and any other named stage OWN their pool. The
+// post-confirmation trigger + invite-only transform live on the OWNED pool only;
+// a referenced pool inherits whatever its owner configured.
+export const userPool = isPR ? referenceSharedDevPool() : createOwnedPool();
+
+function referenceSharedDevPool() {
+  const id = process.env.DEV_COGNITO_USER_POOL_ID;
+  if (!id) {
+    // Fail loudly — never silently fall back to creating a per-PR pool.
+    throw new Error(
+      "DEV_COGNITO_USER_POOL_ID is required for pr-<N> stages (the shared dev Cognito pool id). " +
+        "Set it as a GitHub Actions variable / shell env. See docs/runbooks/shared-dev-cognito-pool.md.",
+    );
+  }
+  return sst.aws.CognitoUserPool.get("UserPool", id);
+}
 
 // addClient works on both an owned and a .get()-referenced pool. Each PR stage
 // gets its own lightweight app client ON the shared pool (SST can't yet
