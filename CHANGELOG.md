@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.1...transformmynotes-v1.40.2) (2026-06-12)
+
+
+### 🐛 Fixes
+
+* **auth:** admin auto-auth, sign-in challenge handling, and request-access approval flow ([#422](https://github.com/jasonp2323/transformmynotes/issues/422)) ([7269606](https://github.com/jasonp2323/transformmynotes/commit/7269606172e5ea14e5d6c0544280362fdae6d1ae))
+
 ## [1.40.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.0...transformmynotes-v1.40.1) (2026-06-12)
 
 
