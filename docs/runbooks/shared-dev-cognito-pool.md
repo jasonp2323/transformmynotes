@@ -52,12 +52,23 @@ exists and `DEV_COGNITO_USER_POOL_ID` is set as a GitHub Actions repository vari
 
 ### 1. Deploy the `dev` stage
 
+**Preferred — from GitHub Actions (no local deploy):** run the **Bootstrap stage**
+workflow (`.github/workflows/bootstrap-stage.yml`) from the repo's **Actions** tab →
+*Run workflow* (leave `stage` = `dev`). It deploys on the CI Linux runner — which avoids
+the OpenNext build failures you hit deploying locally on Windows/WSL — and prints the new
+pool id in the run's **notice banner** and **job summary**. The workflow file must be on
+the default branch (`master`) for the *Run workflow* button to appear, so merge this change
+first. Then skip to step 3 with the surfaced id.
+
+**Local alternative (Linux/macOS or WSL with a Linux-native Node):**
+
 ```bash
 npx sst deploy --stage dev
 ```
 
 This creates the long-lived `dev` pool (SST resource name `UserPool`, AWS name
-`transformmynotes-dev-UserPool-...`). The deploy output includes the pool id — copy it.
+`transformmynotes-dev-UserPool-...`). The deploy output includes the pool id (the
+`cognitoUserPoolId` output) — copy it.
 
 Alternatively retrieve it after the fact:
 

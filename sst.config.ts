@@ -29,7 +29,7 @@ export default $config({
     await import("./infra/secrets");
     await import("./infra/router");
     await import("./infra/db");
-    await import("./infra/auth");
+    const { userPool } = await import("./infra/auth");
     await import("./infra/storage");
     const { marketing } = await import("./infra/marketing");
     const { application } = await import("./infra/application");
@@ -37,6 +37,7 @@ export default $config({
     return {
       marketing: marketing.url,
       application: application.url,
+      cognitoUserPoolId: userPool.id,
     };
   },
 });
