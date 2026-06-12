@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.43.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.43.1...transformmynotes-v1.43.2) (2026-06-12)
+
+
+### 🤖 Continuous Integration
+
+* skip preview-stage deploy for release-please PRs ([#464](https://github.com/jasonp2323/transformmynotes/issues/464)) ([4e0ad53](https://github.com/jasonp2323/transformmynotes/commit/4e0ad53afca4e005e6e205a27069ef5b9e64c31b))
+
 ## [1.43.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.43.0...transformmynotes-v1.43.1) (2026-06-12)
 
 
