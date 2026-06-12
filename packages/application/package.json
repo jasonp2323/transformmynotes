@@ -33,7 +33,7 @@
     "react-dom": "18.3.1",
     "resend": "^6.12.4",
     "tailwind-merge": "^2.6.1",
-    "ulid": "^2.4.0"
+    "ulid": "^3.0.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
