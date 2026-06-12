@@ -23,14 +23,14 @@ test('landing page', async ({ page }) => {
   ).toBeVisible();
 
   // "Request access" appears in both the header and the hero CTA — scope to the
-  // hero section (#top) to assert the primary CTA links to the app sign-up.
+  // hero section (#top) to assert the primary CTA links to the request-access form.
   const heroRequestAccess = page
     .locator('#top')
     .getByRole('link', { name: 'Request access' });
   await expect(heroRequestAccess).toBeVisible();
   await expect(heroRequestAccess).toHaveAttribute(
     'href',
-    'https://app.transformmynotes.com/signup',
+    'https://app.transformmynotes.com/request-access',
   );
 
   // The hero "Sign in" CTA links to the app login.
