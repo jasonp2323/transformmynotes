@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.42.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.41.0...transformmynotes-v1.42.0) (2026-06-12)
+
+
+### 🚀 Features
+
+* **mobile:** M12.1 — scaffold Capacitor Android workspace, Gradle/version tooling, docs ([#426](https://github.com/jasonp2323/transformmynotes/issues/426)) ([1bd31bb](https://github.com/jasonp2323/transformmynotes/commit/1bd31bb5f49d3a500545035f574d989528bc4a7b)), closes [#177](https://github.com/jasonp2323/transformmynotes/issues/177) [#181](https://github.com/jasonp2323/transformmynotes/issues/181) [#185](https://github.com/jasonp2323/transformmynotes/issues/185) [#380](https://github.com/jasonp2323/transformmynotes/issues/380)
+
 ## [1.41.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.2...transformmynotes-v1.41.0) (2026-06-12)
 
 
