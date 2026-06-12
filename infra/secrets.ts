@@ -19,3 +19,12 @@ export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
 // secret value is read server-side only in packages/application/lib/turnstile.ts.
 export const turnstileSiteKey = new sst.Secret("TURNSTILE_SITE_KEY");
 export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
+
+// Issue #460 — shared development Cognito pool. PR stages (pr-<N>) reference an
+// existing centralized dev user pool by id instead of provisioning their own,
+// so test users persist across PRs and pools don't churn. Seeded in the FALLBACK
+// Console environment (which covers all pr-<N> stages) with the id of the pool
+// owned by the long-lived `dev` stage. Unset/unused for production (which owns
+// its own pool) — its `.value` is only accessed on the pr-<N> code path, and a
+// missing value fails loudly at deploy on that path (no empty fallback).
+export const devCognitoUserPoolId = new sst.Secret("DEV_COGNITO_USER_POOL_ID");

@@ -1,34 +1,51 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 
 import { userData } from "./db";
+import { devCognitoUserPoolId } from "./secrets";
 
-export const userPool = new sst.aws.CognitoUserPool("UserPool", {
-  usernames: ["email"],
-  triggers: {
-    postConfirmation: {
-      handler: "packages/core/src/handlers/post-confirmation.handler",
-      link: [userData],
-      permissions: [
-        {
-          actions: ["cognito-idp:AdminAddUserToGroup"],
-          // Scoped to any user pool in this account/region. We deliberately do
-          // NOT reference userPool.arn here: the trigger function is created as
-          // part of this very pool, so referencing the pool's own ARN would form
-          // a dependency cycle. The handler reads the concrete pool id from the
-          // Cognito trigger event at runtime.
-          resources: ["arn:aws:cognito-idp:*:*:userpool/*"],
-        },
-      ],
-    },
-  },
-  transform: {
-    userPool: (args) => {
-      // Invite/admin only — no public self sign-up. Core product constraint.
-      args.adminCreateUserConfig = { allowAdminCreateUserOnly: true };
-    },
-  },
-});
+const isPR = $app.stage.startsWith("pr-");
 
+function createOwnedPool() {
+  return new sst.aws.CognitoUserPool("UserPool", {
+    usernames: ["email"],
+    triggers: {
+      postConfirmation: {
+        handler: "packages/core/src/handlers/post-confirmation.handler",
+        link: [userData],
+        permissions: [
+          {
+            actions: ["cognito-idp:AdminAddUserToGroup"],
+            // Scoped to any user pool in this account/region. We deliberately do
+            // NOT reference userPool.arn here: the trigger function is created as
+            // part of this very pool, so referencing the pool's own ARN would form
+            // a dependency cycle. The handler reads the concrete pool id from the
+            // Cognito trigger event at runtime.
+            resources: ["arn:aws:cognito-idp:*:*:userpool/*"],
+          },
+        ],
+      },
+    },
+    transform: {
+      userPool: (args) => {
+        // Invite/admin only — no public self sign-up. Core product constraint.
+        args.adminCreateUserConfig = { allowAdminCreateUserOnly: true };
+      },
+    },
+  });
+}
+
+// PR stages (pr-<N>) reference the single shared dev pool created+owned by the
+// long-lived `dev` stage (its id comes from the DEV_COGNITO_USER_POOL_ID secret,
+// seeded in the fallback Console env). Production and any other named stage own
+// their pool. The post-confirmation trigger + invite-only transform live on the
+// OWNED pool only; a referenced pool inherits whatever its owner configured.
+export const userPool = isPR
+  ? sst.aws.CognitoUserPool.get("UserPool", devCognitoUserPoolId.value)
+  : createOwnedPool();
+
+// addClient works on both an owned and a .get()-referenced pool. Each PR stage
+// gets its own lightweight app client ON the shared pool (SST can't yet
+// reference an existing client); a user in the pool can auth against any client.
 export const userPoolClient = userPool.addClient("Web", {
   transform: {
     client: (args) => {
