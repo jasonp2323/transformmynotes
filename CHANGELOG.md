@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.43.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.43.0...transformmynotes-v1.43.1) (2026-06-12)
+
+
+### 🐛 Fixes
+
+* invite registration, auth/admin UX, and marketing request-access links ([#459](https://github.com/jasonp2323/transformmynotes/issues/459)) ([b6bb18b](https://github.com/jasonp2323/transformmynotes/commit/b6bb18b13c7332e9352c844e5d6852c12f619e4d))
+
 ## [1.43.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.42.0...transformmynotes-v1.43.0) (2026-06-12)
 
 
