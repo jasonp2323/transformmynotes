@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { putAccessRequest } from '@transformmynotes/core';
 import { rateLimit } from '@/lib/ratelimit';
+import { originFromHeaders } from '@/lib/request-origin';
+import { listAdminEmails } from '@/lib/admin-emails';
+import { sendAdminAccessRequestNotification } from '@/lib/email';
 
 /** Basic email regex — validates structure without being overly strict. */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,6 +50,24 @@ export async function POST(req: Request) {
     await putAccessRequest({ name: trimmedName, email: trimmedEmail, note: trimmedNote });
   } catch (err) {
     console.error('[request-access] Failed to write access request', err);
+  }
+
+  // Best-effort: notify admins of the new request. Never affects the response.
+  try {
+    const origin = originFromHeaders(req.headers as Headers, new URL(req.url).origin);
+    let admins: string[] = [];
+    try {
+      admins = await listAdminEmails();
+    } catch (e) {
+      console.error('[request-access] Failed to list admin emails', e);
+    }
+    await sendAdminAccessRequestNotification(
+      admins,
+      { name: trimmedName, email: trimmedEmail, note: trimmedNote },
+      `${origin}/admin/pending`,
+    );
+  } catch (err) {
+    console.error('[request-access] Failed to send admin notification', err);
   }
 
   return NextResponse.json({ ok: true });
