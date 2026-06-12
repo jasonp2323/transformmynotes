@@ -11,5 +11,6 @@ export const config = {
     '/review/:path*',
     '/account/:path*',
     '/admin/:path*',
+    '/search/:path*',
   ],
 };
