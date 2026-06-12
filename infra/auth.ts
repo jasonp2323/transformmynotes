@@ -2,8 +2,6 @@
 
 import { userData } from "./db";
 
-const isProd = $app.stage === "production";
-
 export const userPool = new sst.aws.CognitoUserPool("UserPool", {
   usernames: ["email"],
   triggers: {
@@ -43,22 +41,13 @@ export const userPoolClient = userPool.addClient("Web", {
   },
 });
 
-// Cognito groups drive admin/member authorization (cognito:groups claim).
-// Production's groups are bootstrapped by hand (see docs/runbooks/bootstrap-admin.md)
-// to avoid a deploy-time collision with the manually-created admin group; ephemeral
-// stages provision them here so invite registration + admin gating work out of the box.
-if (!isProd) {
-  new aws.cognito.UserGroup("AdminGroup", {
-    userPoolId: userPool.id,
-    name: "admin",
-    description: "Administrators — full admin panel access.",
-  });
-  new aws.cognito.UserGroup("MemberGroup", {
-    userPoolId: userPool.id,
-    name: "member",
-    description: "Members — standard authenticated users.",
-  });
-}
+// Cognito groups (`admin` / `member`) drive authorization via the cognito:groups
+// claim. They are NOT provisioned here: the GitHub Actions deploy role lacks
+// cognito-idp:CreateGroup, and granting it would broaden CI privileges. Instead the
+// groups are bootstrapped by hand per deployed stage (see docs/runbooks/bootstrap-admin.md);
+// the offline E2E pool seeds them in e2e/application/global-setup.ts. The invite-redeem
+// route adds new users to `member`, so that group must exist in any pool that serves
+// real sign-ups (production: create both `admin` and `member` once, by hand).
 
 // TODO(prod): custom Hosted-UI domain auth.${WEB_DOMAIN} — add a
 // userPool.addDomain(...) call here gated on isProd once the DNS is confirmed.
