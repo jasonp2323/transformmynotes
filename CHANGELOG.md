@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.41.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.2...transformmynotes-v1.41.0) (2026-06-12)
+
+
+### 🚀 Features
+
+* **application:** M11.1 security foundations — Turnstile helper, headers/CSP, code scanning ([#425](https://github.com/jasonp2323/transformmynotes/issues/425)) ([6541145](https://github.com/jasonp2323/transformmynotes/commit/6541145684e62e8859b5778fcb1f629bfbdc4cd6))
+
+
+### 🧰 Maintenance
+
+* **deps:** bump actions/checkout from 4 to 6 ([#443](https://github.com/jasonp2323/transformmynotes/issues/443)) ([2b94131](https://github.com/jasonp2323/transformmynotes/commit/2b941319b2cdffae88429ffb95314472bd77b16d))
+* **deps:** bump actions/github-script from 7 to 9 ([#432](https://github.com/jasonp2323/transformmynotes/issues/432)) ([bc27c61](https://github.com/jasonp2323/transformmynotes/commit/bc27c61e53a5882a384861a8d7200421092f3b3d))
+* **deps:** bump actions/setup-node from 4 to 6 ([#431](https://github.com/jasonp2323/transformmynotes/issues/431)) ([85f4e70](https://github.com/jasonp2323/transformmynotes/commit/85f4e7031b5ed039bfff921e45294987cd923053))
+* **deps:** bump aws-actions/configure-aws-credentials from 4 to 6 ([#429](https://github.com/jasonp2323/transformmynotes/issues/429)) ([ef9e93d](https://github.com/jasonp2323/transformmynotes/commit/ef9e93df37efb09796f8f66535935370e7444ceb))
+* **deps:** bump aws-jwt-verify from 4.0.1 to 5.2.1 ([#444](https://github.com/jasonp2323/transformmynotes/issues/444)) ([3f98420](https://github.com/jasonp2323/transformmynotes/commit/3f984208701cf8781af7ecc208add0cfea76ae9c))
+* **deps:** bump github/codeql-action from 3 to 4 ([#430](https://github.com/jasonp2323/transformmynotes/issues/430)) ([29b39e1](https://github.com/jasonp2323/transformmynotes/commit/29b39e187b562b90c465a234c4dc189d926a4abf))
+* **deps:** bump googleapis/release-please-action from 4 to 5 ([#428](https://github.com/jasonp2323/transformmynotes/issues/428)) ([2056187](https://github.com/jasonp2323/transformmynotes/commit/205618743092f4a060dc71e1bba745b4ffcfff04))
+* **deps:** bump lucide-react from 0.460.0 to 1.17.0 ([#440](https://github.com/jasonp2323/transformmynotes/issues/440)) ([370e16a](https://github.com/jasonp2323/transformmynotes/commit/370e16a65a51584cf2d1c18ff701b4a208f6844d))
+* **deps:** bump resend from 4.8.0 to 6.12.4 ([#435](https://github.com/jasonp2323/transformmynotes/issues/435)) ([52ac41b](https://github.com/jasonp2323/transformmynotes/commit/52ac41b857b7f448fdc3e97f539fb590e2af3f6b))
+* **deps:** bump the minor-patch group with 17 updates ([#433](https://github.com/jasonp2323/transformmynotes/issues/433)) ([2a14235](https://github.com/jasonp2323/transformmynotes/commit/2a14235d46e6ae1e661c32dfbe1f355a79588f55))
+* **deps:** bump ulid from 2.4.0 to 3.0.2 ([#439](https://github.com/jasonp2323/transformmynotes/issues/439)) ([80f9f2d](https://github.com/jasonp2323/transformmynotes/commit/80f9f2d43e09dd4bed75f91250b1a51957eb0cfd))
+
+## [1.40.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.1...transformmynotes-v1.40.2) (2026-06-12)
+
+
+### 🐛 Fixes
+
+* **auth:** admin auto-auth, sign-in challenge handling, and request-access approval flow ([#422](https://github.com/jasonp2323/transformmynotes/issues/422)) ([7269606](https://github.com/jasonp2323/transformmynotes/commit/7269606172e5ea14e5d6c0544280362fdae6d1ae))
+
 ## [1.40.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.0...transformmynotes-v1.40.1) (2026-06-12)
 
 
