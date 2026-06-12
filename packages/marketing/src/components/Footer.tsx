@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
-const SIGNUP = 'https://app.transformmynotes.com/signup';
+const SIGNUP = 'https://app.transformmynotes.com/request-access';
 const LOGIN = 'https://app.transformmynotes.com/login';
 
 export default function Footer() {
