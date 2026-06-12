@@ -372,7 +372,7 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
 .tmn-tag {
   font-family: var(--font-sans); font-size: 13px; font-weight: 500;
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: var(--radius-pill);
+  padding: 5px 11px; border-radius: var(--radius-pill); line-height: 1;
   background: var(--surface-sunken); color: var(--text-body);
   border: 1px solid var(--border-subtle);
   transition: background var(--dur-fast) var(--ease-soft), border-color var(--dur-fast) var(--ease-soft);
@@ -580,6 +580,7 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   padding: 2px 7px; border-radius: var(--radius-pill);
   background: var(--surface-sunken); color: var(--text-subtle);
   flex: none;
+  display: inline-flex; align-items: center; line-height: 1;
 }
 .tmn-sidebar__pill--accent {
   background: var(--accent); color: var(--on-accent);
@@ -608,6 +609,27 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
 .tmn-sidebar__footer-settings {
   color: var(--text-subtle); flex: none;
 }
+.tmn-sidebar__footer-logout {
+  color: var(--text-subtle); flex: none;
+  background: none; border: none; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-fast) var(--ease-soft);
+}
+.tmn-sidebar__footer-logout:hover { color: var(--danger-500); }
+
+.tmn-bottomnav__logout {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1;
+}
+.tmn-bottomnav__logout button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; padding: 6px 4px; width: 100%;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-subtle); font-family: var(--font-sans); font-size: 10px;
+  transition: color var(--dur-fast) var(--ease-soft);
+}
+.tmn-bottomnav__logout button:hover { color: var(--danger-500); }
 
 /* ---- Main area (desktop) ---- */
 .tmn-shell__main {

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyIdToken } from '@/lib/verify-id-token';
 import { isAdmin } from '@/lib/auth-gate';
 import { AdminShellProvider } from '@/src/components/admin';
+import { getPendingAccessRequestCount } from '@/lib/pending-count';
 
 /**
  * Server-side gate for the entire /admin/** subtree.
@@ -38,8 +39,10 @@ export default async function AdminLayout({
     (claims['cognito:username'] as string | undefined) ??
     'You';
 
+  const pendingCount = await getPendingAccessRequestCount().catch(() => 0);
+
   return (
-    <AdminShellProvider userName={userName} isAdmin userSub={(claims.sub as string) ?? ''}>
+    <AdminShellProvider userName={userName} isAdmin userSub={(claims.sub as string) ?? ''} pendingCount={pendingCount}>
       {children}
     </AdminShellProvider>
   );

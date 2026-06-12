@@ -6,7 +6,7 @@ import { Menu, X } from 'lucide-react';
 import Button from './ui/Button';
 import IconButton from './ui/IconButton';
 
-const SIGNUP = 'https://app.transformmynotes.com/signup';
+const SIGNUP = 'https://app.transformmynotes.com/request-access';
 const LOGIN = 'https://app.transformmynotes.com/login';
 
 export default function Header() {

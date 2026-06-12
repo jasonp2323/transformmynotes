@@ -2,7 +2,7 @@ import { ScanLine } from 'lucide-react';
 import Button from './ui/Button';
 import TransformVisual from './TransformVisual';
 
-const SIGNUP = 'https://app.transformmynotes.com/signup';
+const SIGNUP = 'https://app.transformmynotes.com/request-access';
 const LOGIN = 'https://app.transformmynotes.com/login';
 
 export default function Hero() {

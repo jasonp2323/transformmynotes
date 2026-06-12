@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signIn, confirmSignIn, fetchAuthSession } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Input, Button, Icon } from '@/src/components/ui';
@@ -11,6 +11,24 @@ type Step = 'signin' | 'new-password';
 
 export default function LoginPage() {
   const router = useRouter();
+
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  useEffect(() => {
+    fetchAuthSession()
+      .then((session) => {
+        const idToken = session.tokens?.idToken?.toString();
+        if (idToken) {
+          document.cookie = `CognitoIdToken=${idToken}; path=/; samesite=lax`;
+          router.replace('/dashboard');
+        } else {
+          setSessionChecked(true);
+        }
+      })
+      .catch(() => {
+        setSessionChecked(true);
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sign-in step state
   const [step, setStep] = useState<Step>('signin');
@@ -77,6 +95,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  if (!sessionChecked) return null;
 
   return (
     <div

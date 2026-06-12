@@ -428,7 +428,7 @@ function InviteContent() {
           size="lg"
           fullWidth
           loading={submitting}
-          leftIcon={<Icon name="sparkles" size={18} />}
+          leftIcon={<Icon name="user-plus" size={18} />}
           style={{ marginTop: 7 }}
         >
           Accept &amp; create account

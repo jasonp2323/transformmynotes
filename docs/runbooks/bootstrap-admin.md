@@ -69,9 +69,17 @@ aws cognito-idp list-user-pools --max-results 60 --region us-east-1 \
 
 ---
 
-## 2. Pre-create the `admin` group
+## 2. Pre-create the `admin` and `member` groups
 
-The group must exist before a user can join it.
+The groups must exist before a user can join them. Create **both**: `admin` gates the
+`/admin/**` routes, and `member` is the group the invite-redeem route
+(`app/api/auth/invite/redeem/route.ts`) adds every newly-invited user to — if `member` is
+missing, invite registration fails with a generic error and leaves a half-created user behind.
+
+> These groups are **not** provisioned by SST/IaC: the GitHub Actions deploy role lacks
+> `cognito-idp:CreateGroup` (granting it would broaden CI privileges), so each deployed stage's
+> groups are created by hand here. (The offline E2E pool seeds them in
+> `e2e/application/global-setup.ts`.)
 
 ```bash
 aws cognito-idp create-group \
@@ -79,11 +87,18 @@ aws cognito-idp create-group \
   --group-name admin \
   --description "Administrators" \
   --region us-east-1
+
+aws cognito-idp create-group \
+  --user-pool-id <POOL_ID> \
+  --group-name member \
+  --description "Members" \
+  --region us-east-1
 ```
 
 `GroupExistsException` is safe to ignore — it means a prior run already created it.
 
-**Console:** pool → **Groups** tab → **Create group** → name `admin` → **Create group**.
+**Console:** pool → **Groups** tab → **Create group** → name `admin` → **Create group**; repeat
+for `member`.
 
 ---
 

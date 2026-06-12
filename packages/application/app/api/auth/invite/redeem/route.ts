@@ -4,6 +4,7 @@ import {
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
   AdminAddUserToGroupCommand,
+  AdminDeleteUserCommand,
   UsernameExistsException,
 } from '@aws-sdk/client-cognito-identity-provider';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
@@ -156,58 +157,73 @@ export async function POST(req: Request) {
       throw err;
     }
 
-    // Step 2: Set a permanent password so the user can sign in immediately
-    // without going through a forced password-change challenge.
-    await cognito.send(
-      new AdminSetUserPasswordCommand({
-        UserPoolId: userPoolId,
-        Username: trimmedEmail,
-        Password: trimmedPassword,
-        Permanent: true,
-      }),
-    );
+    try {
+      // Step 2: Set a permanent password so the user can sign in immediately
+      // without going through a forced password-change challenge.
+      await cognito.send(
+        new AdminSetUserPasswordCommand({
+          UserPoolId: userPoolId,
+          Username: trimmedEmail,
+          Password: trimmedPassword,
+          Permanent: true,
+        }),
+      );
 
-    // Step 3: Add the user to the 'member' Cognito group.
-    await cognito.send(
-      new AdminAddUserToGroupCommand({
-        UserPoolId: userPoolId,
-        Username: trimmedEmail,
-        GroupName: MEMBER_GROUP,
-      }),
-    );
+      // Step 3: Add the user to the 'member' Cognito group.
+      await cognito.send(
+        new AdminAddUserToGroupCommand({
+          UserPoolId: userPoolId,
+          Username: trimmedEmail,
+          GroupName: MEMBER_GROUP,
+        }),
+      );
 
-    // Step 4: Write the UserData profile to DynamoDB.
-    const profile = buildUserProfileItem({
-      sub,
-      email: trimmedEmail,
-      name: trimmedName,
-      status: 'active',
-      role: 'member',
-      groupIds: invite!.groupId ? [invite!.groupId] : [],
-    });
-    await ddb.send(
-      new PutCommand({
-        TableName: TableNames.UserData,
-        Item: profile,
-      }),
-    );
-
-    // Step 5: Atomically claim the invite (LAST — so a Cognito failure doesn't burn the invite).
-    // If claimInvite returns ok:false, the invite was claimed concurrently. This is safe to
-    // ignore: the Cognito user and profile already exist, so the user has a working account.
-    // We log a warning for observability but still return success.
-    const claimResult = await claimInvite(trimmedCode);
-    if (!claimResult.ok) {
-      console.warn('[invite/redeem] claimInvite returned ok:false after successful account creation', {
-        reason: claimResult.reason,
+      // Step 4: Write the UserData profile to DynamoDB.
+      const profile = buildUserProfileItem({
+        sub,
         email: trimmedEmail,
-        // Note: this can happen in a rare race where two redemptions of the same
-        // multi-use invite land simultaneously — the second claim loses the
-        // conditional check but both accounts are valid. Acceptable trade-off.
+        name: trimmedName,
+        status: 'active',
+        role: 'member',
+        groupIds: invite!.groupId ? [invite!.groupId] : [],
       });
-    }
+      await ddb.send(
+        new PutCommand({
+          TableName: TableNames.UserData,
+          Item: profile,
+        }),
+      );
 
-    return NextResponse.json({ ok: true });
+      // Step 5: Atomically claim the invite (LAST — so a Cognito failure doesn't burn the invite).
+      // If claimInvite returns ok:false, the invite was claimed concurrently. This is safe to
+      // ignore: the Cognito user and profile already exist, so the user has a working account.
+      // We log a warning for observability but still return success.
+      const claimResult = await claimInvite(trimmedCode);
+      if (!claimResult.ok) {
+        console.warn('[invite/redeem] claimInvite returned ok:false after successful account creation', {
+          reason: claimResult.reason,
+          email: trimmedEmail,
+          // Note: this can happen in a rare race where two redemptions of the same
+          // multi-use invite land simultaneously — the second claim loses the
+          // conditional check but both accounts are valid. Acceptable trade-off.
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    } catch (postCreateErr) {
+      // Roll back the just-created Cognito user so the invite can be retried cleanly.
+      try {
+        await cognito.send(
+          new AdminDeleteUserCommand({
+            UserPoolId: userPoolId,
+            Username: trimmedEmail,
+          }),
+        );
+      } catch (deleteErr) {
+        console.error('[invite/redeem] Rollback delete failed — orphan user may exist', deleteErr);
+      }
+      throw postCreateErr;
+    }
   } catch (err) {
     console.error('[invite/redeem] Unexpected error during account creation', err);
     return NextResponse.json(

@@ -4,6 +4,7 @@ import { Icon } from '@/src/components/ui/Icon';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Input } from '@/src/components/ui/Input';
 import { ReviewNavBadge } from '@/src/components/review/ReviewNavBadge';
+import { LogoutButton } from './LogoutButton';
 
 export interface DesktopShellProps {
   active?: string;
@@ -11,6 +12,7 @@ export interface DesktopShellProps {
   eyebrow?: string;
   actions?: React.ReactNode;
   isAdmin?: boolean;
+  pendingCount?: number;
   search?: string;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
@@ -42,30 +44,35 @@ const NOTEBOOK_GROUP: NavGroup = {
   ],
 };
 
-const ADMIN_GROUP: NavGroup = {
-  group: 'Admin',
-  items: [
-    { id: 'pending', icon: 'user-plus', label: 'Pending', count: 3, accent: true, href: '/admin/pending' },
-    { id: 'members', icon: 'users',     label: 'Members',                          href: '/admin/members' },
-    { id: 'invites', icon: 'ticket',    label: 'Invites',                          href: '/admin/invites' },
-  ],
-};
-
 export function DesktopShell({
   active,
   title,
   eyebrow,
   actions,
   isAdmin = false,
+  pendingCount,
   search = 'Search your notes',
   searchValue,
   onSearchChange,
   userName = 'You',
   children,
 }: DesktopShellProps) {
-  const navGroups: NavGroup[] = isAdmin
-    ? [NOTEBOOK_GROUP, ADMIN_GROUP]
-    : [NOTEBOOK_GROUP];
+  const adminGroup: NavGroup = {
+    group: 'Admin',
+    items: [
+      {
+        id: 'pending',
+        icon: 'user-plus',
+        label: 'Pending',
+        ...(pendingCount != null && pendingCount > 0 ? { count: pendingCount } : {}),
+        accent: true,
+        href: '/admin/pending',
+      },
+      { id: 'members', icon: 'users',  label: 'Members', href: '/admin/members' },
+      { id: 'invites', icon: 'ticket', label: 'Invites', href: '/admin/invites' },
+    ],
+  };
+  const navGroups: NavGroup[] = isAdmin ? [NOTEBOOK_GROUP, adminGroup] : [NOTEBOOK_GROUP];
 
   const roleLabel = isAdmin ? 'Admin' : 'Member';
 
@@ -136,7 +143,7 @@ export function DesktopShell({
             <div className="tmn-sidebar__footer-name">{userName}</div>
             <div className="tmn-sidebar__footer-role">{roleLabel}</div>
           </div>
-          <Icon name="settings" size={17} className="tmn-sidebar__footer-settings" />
+          <LogoutButton />
         </div>
       </aside>
 

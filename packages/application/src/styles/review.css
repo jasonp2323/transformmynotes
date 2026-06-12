@@ -160,7 +160,8 @@
   background: var(--surface-sunken);
   border: 1px solid var(--border-brand);
   border-radius: var(--radius-pill);
-  padding: 4px 12px;
+  padding: 5px 11px;
+  line-height: 1;
   outline: none;
   min-width: 120px;
   max-width: 200px;
