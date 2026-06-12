@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.40.0...transformmynotes-v1.40.1) (2026-06-12)
+
+
+### ✅ Tests
+
+* **application:** M10.4 integration gate (capture note appears in dashboard) ([f2564aa](https://github.com/jasonp2323/transformmynotes/commit/f2564aac7d638e7144318415180eed8485c1e46b))
+
 ## [1.40.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.39.3...transformmynotes-v1.40.0) (2026-06-11)
 
 
