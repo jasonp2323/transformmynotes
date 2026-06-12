@@ -36,7 +36,7 @@ interface NavGroup {
 const NOTEBOOK_GROUP: NavGroup = {
   group: 'Notebook',
   items: [
-    { id: 'library', icon: 'book-open', label: 'Library',    href: '/library' },
+    { id: 'library', icon: 'book-open', label: 'Library',    href: '/dashboard' },
     { id: 'search',  icon: 'search',    label: 'Search',     href: '/search' },
     { id: 'review',  icon: 'layers',    label: 'Review deck', liveBadge: true, href: '/review' },
   ],
