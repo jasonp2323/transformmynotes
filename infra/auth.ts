@@ -43,5 +43,22 @@ export const userPoolClient = userPool.addClient("Web", {
   },
 });
 
+// Cognito groups drive admin/member authorization (cognito:groups claim).
+// Production's groups are bootstrapped by hand (see docs/runbooks/bootstrap-admin.md)
+// to avoid a deploy-time collision with the manually-created admin group; ephemeral
+// stages provision them here so invite registration + admin gating work out of the box.
+if (!isProd) {
+  new aws.cognito.UserGroup("AdminGroup", {
+    userPoolId: userPool.id,
+    name: "admin",
+    description: "Administrators — full admin panel access.",
+  });
+  new aws.cognito.UserGroup("MemberGroup", {
+    userPoolId: userPool.id,
+    name: "member",
+    description: "Members — standard authenticated users.",
+  });
+}
+
 // TODO(prod): custom Hosted-UI domain auth.${WEB_DOMAIN} — add a
 // userPool.addDomain(...) call here gated on isProd once the DNS is confirmed.
