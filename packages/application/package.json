@@ -24,7 +24,7 @@
     "@tiptap/suggestion": "^3.26.1",
     "@transformmynotes/core": "*",
     "aws-amplify": "^6.18.0",
-    "aws-jwt-verify": "^4.0.1",
+    "aws-jwt-verify": "^5.2.1",
     "clsx": "^2.1.1",
     "jose": "^6.2.3",
     "lucide-react": "^1.17.0",
