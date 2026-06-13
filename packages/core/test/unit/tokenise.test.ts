@@ -19,11 +19,11 @@ describe('STOP_WORDS', () => {
     expect(STOP_WORDS.has('and')).toBe(true);
   });
 
-  it('contains a known Spanish stop-word ("que")', () => {
+  it('contains a known Portuguese stop-word ("que")', () => {
     expect(STOP_WORDS.has('que')).toBe(true);
   });
 
-  it('contains a known Spanish stop-word ("de")', () => {
+  it('contains a known Portuguese stop-word ("de")', () => {
     expect(STOP_WORDS.has('de')).toBe(true);
   });
 
@@ -116,13 +116,13 @@ describe('tokenise', () => {
     expect(result).toContain('fox');
   });
 
-  it('removes common Spanish stop-words', () => {
-    const result = tokenise('el zorro rápido de la montaña');
-    expect(result).not.toContain('el');
-    expect(result).not.toContain('de');
-    expect(result).not.toContain('la');
-    expect(result).toContain('zorro');
-    expect(result).toContain('montaña');
+  it('removes common Portuguese stop-words', () => {
+    const result = tokenise('o cachorro rápido da montanha');
+    expect(result).not.toContain('o');
+    expect(result).not.toContain('da');
+    expect(result).toContain('cachorro');
+    expect(result).toContain('rápido');
+    expect(result).toContain('montanha');
   });
 
   it('removes "and", "or", "but", "if" from a sentence', () => {
@@ -184,18 +184,18 @@ describe('tokenise', () => {
 
   // ── Unicode / accented characters ────────────────────────────────────────
 
-  it('preserves an accented Spanish word as a single token — canción', () => {
-    const result = tokenise('canción bonita');
-    // "canción" should not be split mid-word
-    expect(result).toContain('canción');
+  it('preserves an accented Portuguese word as a single token — canção', () => {
+    const result = tokenise('canção bonita');
+    // "canção" should not be split mid-word
+    expect(result).toContain('canção');
     // "bonita" should also survive
     expect(result).toContain('bonita');
   });
 
-  it('preserves "mañana" as a single token', () => {
-    const result = tokenise('mañana temprano');
-    expect(result).toContain('mañana');
-    expect(result).toContain('temprano');
+  it('preserves "coração" as a single token', () => {
+    const result = tokenise('coração humano');
+    expect(result).toContain('coração');
+    expect(result).toContain('humano');
   });
 
   it('preserves accented French-style word "café"', () => {
@@ -203,11 +203,11 @@ describe('tokenise', () => {
     expect(result).toContain('café');
   });
 
-  it('does not split "niño" on the ñ character', () => {
-    const result = tokenise('el niño juega');
-    // "el" is a stop-word; "niño" and "juega" must survive
-    expect(result).toContain('niño');
-    expect(result).toContain('juega');
+  it('does not split "maçã" on accented characters', () => {
+    const result = tokenise('uma maçã vermelha');
+    // "uma" is a stop-word; "maçã" and "vermelha" must survive intact
+    expect(result).toContain('maçã');
+    expect(result).toContain('vermelha');
   });
 
   // ── Mixed content sentences ──────────────────────────────────────────────
@@ -224,17 +224,16 @@ describe('tokenise', () => {
     expect(result).toContain('cell');
   });
 
-  it('processes a mixed English/Spanish sentence', () => {
-    const text = 'El proceso de fotosíntesis is important para las plantas';
+  it('processes a mixed English/Portuguese sentence', () => {
+    const text = 'O processo de fotossíntese is important para as plantas';
     const result = tokenise(text);
-    // stop-words: el, de, is, para, las
-    expect(result).not.toContain('el');
+    // stop-words: o, de, is, para, as
     expect(result).not.toContain('de');
     expect(result).not.toContain('is');
     expect(result).not.toContain('para');
-    expect(result).not.toContain('las');
-    expect(result).toContain('proceso');
-    expect(result).toContain('fotosíntesis');
+    expect(result).not.toContain('as');
+    expect(result).toContain('processo');
+    expect(result).toContain('fotossíntese');
     expect(result).toContain('important');
     expect(result).toContain('plantas');
   });
