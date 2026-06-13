@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   Card,
+  Dialog,
   Icon,
   Input,
   SegmentedControl,
@@ -70,6 +71,7 @@ export default function AdminInvitesPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [busy, setBusy] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState<InviteItem | null>(null);
 
   // -------------------------------------------------------------------------
   // Create form state
@@ -248,6 +250,52 @@ export default function AdminInvitesPage() {
     showToast,
     fetchInvites,
   ]);
+
+  // -------------------------------------------------------------------------
+  // Hard-delete invite (DELETE /api/admin/invites/:codeHash?hard=true)
+  // Only for terminal invites (status 'revoked' or 'expired').
+  // -------------------------------------------------------------------------
+
+  const doDeleteInvite = useCallback(
+    async (invite: InviteItem | null) => {
+      if (!invite) return;
+      const { codeHash } = invite;
+
+      setBusy((s) => new Set(s).add(codeHash));
+      setConfirmDelete(null);
+
+      const res = await fetch(`/api/admin/invites/${codeHash}?hard=true`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+
+      setBusy((s) => {
+        const n = new Set(s);
+        n.delete(codeHash);
+        return n;
+      });
+
+      if (!res.ok || !data.ok) {
+        showToast({
+          tone: 'danger',
+          icon: <Icon name="x" size={20} />,
+          title: 'Delete failed — please try again.',
+          body: data.error ?? `HTTP ${res.status}`,
+        });
+        return;
+      }
+
+      // Remove from list
+      setRows((rs) => (rs ? rs.filter((r) => r.codeHash !== codeHash) : rs));
+      showToast({
+        tone: 'neutral',
+        icon: <Icon name="trash-2" size={20} />,
+        title: 'Invite permanently deleted',
+        body: `The invite for ${inviteRecipientLabel(invite)} has been removed.`,
+      });
+    },
+    [showToast],
+  );
 
   // -------------------------------------------------------------------------
   // Revoke invite (DELETE /api/admin/invites/:codeHash)
@@ -661,12 +709,57 @@ export default function AdminInvitesPage() {
                         Revoke
                       </Button>
                     )}
+                    {isDimmed && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        leftIcon={
+                          <Icon
+                            name="trash-2"
+                            size={15}
+                            style={{ color: 'var(--danger-500)' }}
+                          />
+                        }
+                        aria-label={`Permanently delete invite for ${inviteRecipientLabel(inv)}`}
+                        disabled={isBusy}
+                        onClick={() => setConfirmDelete(inv)}
+                      >
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
             })}
         </Card>
       )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Hard-delete confirmation dialog                                       */}
+      {/* ------------------------------------------------------------------ */}
+      <Dialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Permanently delete invite?"
+        description={
+          confirmDelete
+            ? `The invite for ${inviteRecipientLabel(confirmDelete)} will be permanently removed from the database. This can't be undone.`
+            : ''
+        }
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void doDeleteInvite(confirmDelete)}
+            >
+              Delete permanently
+            </Button>
+          </>
+        }
+      />
 
       {/* ------------------------------------------------------------------ */}
       {/* Toast                                                                */}

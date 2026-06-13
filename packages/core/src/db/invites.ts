@@ -1,4 +1,4 @@
-import { PutCommand, GetCommand, UpdateCommand, QueryCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, GetCommand, UpdateCommand, QueryCommand, DeleteCommand, type UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { inviteKeys } from './keys.js';
 import { buildInviteItem, hashInviteCode, type InviteItem, type InviteType, type InviteStatus } from '../auth/invite.js';
@@ -273,6 +273,28 @@ export async function revokeInvite(
     }
     throw err;
   }
+}
+
+/**
+ * Hard-deletes an invite from the Invites table by its codeHash (primary key).
+ *
+ * This is a permanent, irreversible deletion — the invite record is removed
+ * entirely from DynamoDB. Intended only for terminal invites (status `revoked`
+ * or `expired`) that the admin wants to purge from the list. The operation is
+ * naturally idempotent: deleting a non-existent item is a no-op.
+ *
+ * @param codeHash - The SHA-256 hash of the invite code (NOT the raw code).
+ * @returns `{ ok: true }` on success (including when the item was already absent).
+ */
+export async function deleteInvite(codeHash: string): Promise<{ ok: true }> {
+  await ddb.send(
+    new DeleteCommand({
+      TableName: TableNames.Invites,
+      Key: inviteKeys.invite(codeHash),
+    }),
+  );
+
+  return { ok: true };
 }
 
 /**
