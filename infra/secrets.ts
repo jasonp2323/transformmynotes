@@ -19,3 +19,13 @@ export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
 // secret value is read server-side only in packages/application/lib/turnstile.ts.
 export const turnstileSiteKey = new sst.Secret("TURNSTILE_SITE_KEY");
 export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
+
+// Issue #460 — the shared dev Cognito pool id is NOT an sst.Secret. A declared
+// sst.Secret with no value throws SecretMissingError at deploy for EVERY stage
+// (the value Output resolves eagerly, regardless of whether it's referenced),
+// which would break production + the dev stage that owns the pool, and creates a
+// chicken-and-egg (the dev stage mints the pool whose id the secret would hold).
+// The pool id is a public value (already exposed via NEXT_PUBLIC_), so it is read
+// from a plain env var (process.env.DEV_COGNITO_USER_POOL_ID) on the pr-<N> code
+// path only — see infra/auth.ts. Set it as a GitHub Actions variable (deploy.yml)
+// / shell env, mirroring how CLOUDFLARE_API_TOKEN is handled.

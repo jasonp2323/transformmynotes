@@ -53,6 +53,10 @@ jobs:
       AWS_REGION: us-east-1
       # Read by sst.config.ts via process.env at app() time.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # Issue #460 — shared dev Cognito pool id. Read by infra/auth.ts (process.env)
+      # only on the pr-<N> deploy path; owned-pool stages (production/dev) ignore it.
+      # Public value (a Cognito pool id), so a GitHub Actions *variable*, not a secret.
+      DEV_COGNITO_USER_POOL_ID: ${{ vars.DEV_COGNITO_USER_POOL_ID }}
 
     steps:
       - name: Checkout

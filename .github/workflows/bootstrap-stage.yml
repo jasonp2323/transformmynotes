@@ -1,0 +1,135 @@
+# Bootstrap Stage
+#
+# Manually deploys a named SST stage (default: dev) that OWNS its Cognito user
+# pool. Designed for the one-time setup of a long-lived stage so that ephemeral
+# PR stages can reference its pool via the DEV_COGNITO_USER_POOL_ID GitHub
+# Actions repository variable (issue #460).
+#
+# Why this workflow exists: deploying locally on Windows/WSL fails due to an
+# OpenNext incompatibility. Running the deploy in the GitHub Actions Linux
+# environment sidesteps the problem.
+#
+# After a successful run:
+#   1. Copy the surfaced Cognito user pool id from the step summary / notice
+#      banner into the DEV_COGNITO_USER_POOL_ID GitHub Actions repository
+#      variable (Settings → Secrets and variables → Actions → Variables).
+#   2. Create admin + member groups and a test user in the pool
+#      (see docs/runbooks/bootstrap-admin.md).
+#   3. Future PR deploys will reference this pool automatically.
+
+name: Bootstrap stage
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'SST stage to deploy (creates+owns its Cognito pool)'
+        required: true
+        default: dev
+
+permissions:
+  contents: read
+  # Required for OIDC: lets the runner mint a JWT that AWS STS will trade
+  # for short-lived credentials via configure-aws-credentials.
+  id-token: write
+
+env:
+  # Run the JS GitHub Actions themselves on Node 24. Node 20 is deprecated
+  # for action runtimes (forced June 2026, removed Sept 2026). Doesn't
+  # affect the Node version setup-node provisions for npm/tsc/next.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      AWS_REGION: us-east-1
+      # Read by sst.config.ts via process.env at app() time.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # DEV_COGNITO_USER_POOL_ID is intentionally NOT set here. An owned-pool
+      # stage (like dev) creates its own pool and must not read an existing id.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: SST unlock
+        run: npx sst unlock --stage ${{ inputs.stage }}
+        continue-on-error: true
+
+      - name: SST deploy
+        id: sst_deploy
+        run: |
+          set -o pipefail
+          npx sst deploy --stage ${{ inputs.stage }} 2>&1 | tee /tmp/sst-deploy.log
+
+      - name: Surface Cognito pool id
+        if: ${{ success() }}
+        run: |
+          POOL_ID=$(sed 's/\x1b\[[0-9;]*m//g' /tmp/sst-deploy.log \
+            | grep -oiE 'cognitoUserPoolId:[[:space:]]*[a-z]{2}-[a-z]+-[0-9]_[A-Za-z0-9]+' \
+            | head -1 | sed -E 's/.*:[[:space:]]*//')
+
+          echo ""
+          echo "================================================================"
+          echo "  Bootstrap complete — stage: ${{ inputs.stage }}"
+          echo "================================================================"
+          if [ -n "$POOL_ID" ]; then
+            echo "  Cognito User Pool Id: ${POOL_ID}"
+            echo ""
+            echo "  Next steps:"
+            echo "  1. Set DEV_COGNITO_USER_POOL_ID=${POOL_ID} as a GitHub Actions"
+            echo "     repository variable (Settings → Secrets and variables → Actions → Variables)"
+            echo "  2. Create admin + member groups and a test user in the pool"
+            echo "     (see docs/runbooks/bootstrap-admin.md)"
+            echo "  3. Future PR deploys will reference this pool automatically"
+          else
+            echo "  Could not extract the Cognito pool id automatically."
+            echo "  Read it from the 'SST deploy' step output — look for the"
+            echo "  'cognitoUserPoolId' line in the deploy log."
+          fi
+          echo "================================================================"
+          echo ""
+
+          if [ -n "$POOL_ID" ]; then
+            echo "::notice title=Cognito Pool Id (${{ inputs.stage }})::Pool id: ${POOL_ID} — set this as the DEV_COGNITO_USER_POOL_ID repository variable (Settings → Secrets and variables → Actions → Variables)"
+          else
+            echo "::notice title=Cognito Pool Id (${{ inputs.stage }})::Could not extract pool id automatically — read the cognitoUserPoolId line from the SST deploy step output"
+          fi
+
+          {
+            echo "## Bootstrap complete — stage: \`${{ inputs.stage }}\`"
+            echo ""
+            if [ -n "$POOL_ID" ]; then
+              echo "**Cognito User Pool Id:** \`${POOL_ID}\`"
+              echo ""
+              echo "### Next steps"
+              echo ""
+              echo "1. Set \`DEV_COGNITO_USER_POOL_ID\` to \`${POOL_ID}\` as a GitHub Actions repository variable"
+              echo "   (Settings → Secrets and variables → Actions → Variables)."
+              echo "2. Create \`admin\` + \`member\` groups and a test user in the pool"
+              echo "   (see \`docs/runbooks/bootstrap-admin.md\`)."
+              echo "3. Future PR deploys will reference this pool automatically via the variable."
+            else
+              echo "> **Warning:** Could not extract the Cognito pool id automatically."
+              echo "> Read the \`cognitoUserPoolId\` line from the **SST deploy** step output and"
+              echo "> set it as the \`DEV_COGNITO_USER_POOL_ID\` repository variable manually."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

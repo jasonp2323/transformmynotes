@@ -98,7 +98,7 @@ PR stages (`pr-<N>`): both the application and marketing get their own CloudFron
 ### Stages
 
 - `production` is the only named stage — it gets the custom domain, and its Cognito user pool can use a custom Hosted-UI domain (`auth.transformmynotes.com`, wired in `infra/auth.ts`).
-- All other stage names are ephemeral (`pr-<N>`); each gets its own **per-stage custom subdomain** (see "Routing" above for the exact hostnames and the grey-cloud Cloudflare/ACM setup), **not** an auto-generated URL. Because the Cognito user pool is a native AWS resource provisioned per stage, each `pr-<N>` gets its own pool automatically — no third-party dashboard step and no per-PR subdomain allow-listing.
+- All other stage names are ephemeral (`pr-<N>`); each gets its own **per-stage custom subdomain** (see "Routing" above for the exact hostnames and the grey-cloud Cloudflare/ACM setup), **not** an auto-generated URL. Each `pr-<N>` references the shared dev Cognito pool (via the `DEV_COGNITO_USER_POOL_ID` env var — a GitHub Actions repository variable passed through by `deploy.yml`) and creates its own lightweight app client on it; each gets its own DynamoDB tables (UserData, Notes, etc.) as before — no third-party dashboard step and no per-PR subdomain allow-listing.
 - CI/CD runs via GitHub Actions (`.github/workflows/deploy.yml` + `.github/workflows/teardown.yml`): push to `master` deploys `production`; opening / updating a PR deploys `pr-<number>`; closing the PR tears that stage down.
 
 ### Persistence — DynamoDB single-table design
@@ -128,7 +128,10 @@ Domain tables are defined in `infra/db.ts` and linked by both the application (`
 
 ### Auth — AWS Cognito
 
-`infra/auth.ts` provisions an `sst.aws.CognitoUserPool` + a user-pool app client per stage and links them to `application`. Because Cognito is a native AWS resource, **every stage gets its own pool** — production and each ephemeral `pr-<N>` alike — with no separate third-party dashboard and no per-PR allow-listing.
+`infra/auth.ts` provisions (or references) a `sst.aws.CognitoUserPool` + a user-pool app client per stage and links them to `application`. Pool ownership depends on the stage:
+
+- **Production (and any long-lived named stage like `dev`)** OWNS its Cognito pool — created in code with the post-confirmation trigger and the invite-only (`allowAdminCreateUserOnly`) transform. These pools are created fresh by SST and torn down only when the stage is removed.
+- **Ephemeral `pr-<N>` stages** REFERENCE a single centralized shared dev pool via `sst.aws.CognitoUserPool.get(...)`, reading the pool id from the `DEV_COGNITO_USER_POOL_ID` env var (a public Cognito pool id, set as a GitHub Actions repository variable in `deploy.yml` — NOT an `sst.Secret`, which would eager-throw `SecretMissingError` on every stage). Each PR stage still creates its own lightweight app client on that shared pool (SST cannot yet reference an existing client). Benefit: test users persist across PRs; no per-PR pool churn. See `docs/runbooks/shared-dev-cognito-pool.md` for one-time setup.
 
 - `packages/application/proxy.ts` is the auth middleware (not `middleware.ts`): it verifies the Cognito-issued JWT with `aws-jwt-verify` (pool id + client id read from the `sst.Resource` binding) and protects the authed routes (e.g. `/dashboard`, `/account`, …).
 - Client sign-in / sign-up uses **AWS Amplify Auth** (`aws-amplify/auth`), configured from the user-pool id + app-client id. Those are **public** values (safe to expose via `NEXT_PUBLIC_`) — Cognito has no publishable/secret API-key pair like a third-party provider, so there is **no `sst.Secret` for auth**.
@@ -149,7 +152,7 @@ Secrets are declared in `infra/secrets.ts` as `sst.Secret` and seeded via the SS
 Stack-standard secrets to configure in Console (same names for both environments, different values):
 `WEB_DOMAIN`. Feature-specific secrets (e.g. `RESEND_API_KEY` + `INVITE_FROM_ADDRESS` for M3 invite emails) are declared in the milestone that introduces the feature that consumes them, not up front.
 
-(Cognito needs no secret here — the app reads the user-pool id + app-client id from the `sst.Resource` binding, not from `sst.Secret`.)
+(Cognito auth credentials — pool id + app client id — are read from the `sst.Resource` binding, not from `sst.Secret`. The shared dev pool id (`DEV_COGNITO_USER_POOL_ID`) is NOT an `sst.Secret` — a declared-but-unset `sst.Secret` throws `SecretMissingError` at deploy for every stage, including production. Instead it is a public value (like `CLOUDFLARE_API_TOKEN`) read from a plain env var / GitHub Actions repository variable (Settings → Secrets and variables → Actions → Variables). `deploy.yml` forwards it to the SST deploy step; production and the `dev` stage ignore it entirely. See `docs/runbooks/shared-dev-cognito-pool.md`.)
 
 Add app-specific secrets to `infra/secrets.ts` as you build features (API keys, model ids, system prompts, etc.). When a value is read by a route or cron, read it server-side and **fail loudly if unset** — no silent fallback (see the rule below).
 
