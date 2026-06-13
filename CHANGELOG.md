@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.44.0...transformmynotes-v1.45.0) (2026-06-13)
+
+
+### 🚀 Features
+
+* **marketing:** surface changelog in header nav ([#472](https://github.com/jasonp2323/transformmynotes/issues/472)) ([af85d21](https://github.com/jasonp2323/transformmynotes/commit/af85d2101415778ad6d1181575f2fed23b6e63d9)), closes [#453](https://github.com/jasonp2323/transformmynotes/issues/453)
+
 ## [1.44.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.43.2...transformmynotes-v1.44.0) (2026-06-13)
 
 
