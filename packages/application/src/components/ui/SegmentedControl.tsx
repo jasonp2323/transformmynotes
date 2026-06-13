@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import { cn } from '@/src/lib/cn';
+
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export interface SegmentedOption {
   value: string;
@@ -47,6 +49,19 @@ export function SegmentedControl({
   const n = normalised.length;
 
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+
+  const measure = useCallback(() => {
+    const btn = btnRefs.current[activeIndex];
+    if (btn) setPill({ left: btn.offsetLeft, width: btn.offsetWidth });
+  }, [activeIndex]);
+
+  useIsoLayoutEffect(() => { measure(); }, [measure, n, options]);
+
+  useEffect(() => {
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
 
   function handleSelect(optValue: string) {
     if (!isControlled) {
@@ -95,10 +110,14 @@ export function SegmentedControl({
         className="tmn-seg__pill"
         aria-hidden="true"
         suppressHydrationWarning
-        style={{
-          width: `calc((100% - 8px - ${(n - 1) * 2}px) / ${n})`,
-          transform: `translateX(calc(${activeIndex} * (100% + 2px)))`,
-        }}
+        style={
+          pill
+            ? { left: pill.left, width: pill.width }
+            : {
+                left: 4,
+                width: `calc((100% - 8px - ${(n - 1) * 2}px) / ${n})`,
+              }
+        }
       />
       {normalised.map((opt, idx) => {
         const isActive = opt.value === activeValue;
