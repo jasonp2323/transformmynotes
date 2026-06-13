@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import Button from './ui/Button';
 import IconButton from './ui/IconButton';
@@ -41,6 +42,9 @@ export default function Header() {
           />
         </a>
         <div className="header-actions">
+          <Link href="/changelog" className="header-nav-link header-actions__whatsnew">
+            What&apos;s new
+          </Link>
           <Button
             as="a"
             href={LOGIN}
@@ -78,6 +82,9 @@ export default function Header() {
             <Button as="a" href={LOGIN} variant="secondary" size="md" fullWidth>
               Sign in
             </Button>
+            <Link href="/changelog" className="mobile-menu__link">
+              What&apos;s new
+            </Link>
           </div>
         ) : null}
       </div>
