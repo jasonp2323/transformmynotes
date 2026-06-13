@@ -16,9 +16,10 @@ vi.mock('@transformmynotes/core', () => ({
   updateUserStatus: updateUserStatusMock,
 }));
 
-// The status route does not use Cognito, but we mock it to assert it is NOT called.
 vi.mock('@aws-sdk/client-cognito-identity-provider', () => ({
   CognitoIdentityProviderClient: vi.fn(() => ({ send: cognitoSendMock })),
+  AdminDisableUserCommand: vi.fn((input) => ({ kind: 'DisableUser', input })),
+  AdminEnableUserCommand: vi.fn((input) => ({ kind: 'EnableUser', input })),
   AdminAddUserToGroupCommand: vi.fn((input) => ({ kind: 'AddToGroup', input })),
   AdminRemoveUserFromGroupCommand: vi.fn((input) => ({ kind: 'RemoveFromGroup', input })),
   AdminDeleteUserCommand: vi.fn((input) => ({ kind: 'DeleteUser', input })),
@@ -30,12 +31,18 @@ vi.mock('@aws-sdk/client-cognito-identity-provider', () => ({
 // ---------------------------------------------------------------------------
 
 import { PATCH } from './route';
+import {
+  AdminDisableUserCommand,
+  AdminEnableUserCommand,
+  UserNotFoundException,
+} from '@aws-sdk/client-cognito-identity-provider';
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
 const ADMIN = { sub: 'admin-sub-001', claims: { 'cognito:groups': ['admin'] } };
+const USER_POOL_ID = 'us-east-1_testpool';
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/admin/users/user-001/status', {
@@ -54,6 +61,7 @@ beforeEach(() => {
   getAdminApiUserMock.mockResolvedValue(ADMIN);
   updateUserStatusMock.mockResolvedValue({ ok: true });
   cognitoSendMock.mockResolvedValue({});
+  process.env['NEXT_PUBLIC_COGNITO_USER_POOL_ID'] = USER_POOL_ID;
 });
 
 // ---------------------------------------------------------------------------
@@ -133,10 +141,35 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
       expect(updateUserStatusMock).toHaveBeenCalledWith('user-001', 'disabled');
     });
 
-    it('does NOT call Cognito send for status changes', async () => {
+    it('sends AdminDisableUserCommand to Cognito when disabling', async () => {
+      await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+
+      expect(AdminDisableUserCommand).toHaveBeenCalledWith({
+        UserPoolId: USER_POOL_ID,
+        Username: 'user-001',
+      });
+      expect(cognitoSendMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends AdminEnableUserCommand to Cognito when enabling', async () => {
       await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
 
-      expect(cognitoSendMock).not.toHaveBeenCalled();
+      expect(AdminEnableUserCommand).toHaveBeenCalledWith({
+        UserPoolId: USER_POOL_ID,
+        Username: 'user-001',
+      });
+      expect(cognitoSendMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('tolerates UserNotFoundException from Cognito (idempotent success)', async () => {
+      const UserNotFound = new UserNotFoundException({ message: 'User not found', $metadata: {} });
+      cognitoSendMock.mockRejectedValueOnce(UserNotFound);
+
+      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.ok).toBe(true);
     });
   });
 
@@ -155,6 +188,27 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
       updateUserStatusMock.mockResolvedValueOnce({ ok: false });
 
       const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(500);
+      expect(body.ok).toBe(false);
+    });
+
+    it('returns 500 when NEXT_PUBLIC_COGNITO_USER_POOL_ID is not set', async () => {
+      delete process.env['NEXT_PUBLIC_COGNITO_USER_POOL_ID'];
+
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(500);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Server configuration error.');
+    });
+
+    it('returns 500 when Cognito send throws a non-UserNotFoundException error', async () => {
+      cognitoSendMock.mockRejectedValueOnce(new Error('Network failure'));
+
+      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);

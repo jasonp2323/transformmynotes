@@ -226,8 +226,8 @@ export default function AdminMembersPage() {
       showToast({
         tone: 'neutral',
         icon: <Icon name="trash-2" size={20} />,
-        title: `${target.name || target.email} removed`,
-        body: 'Their notes have been archived.',
+        title: `${target.name || target.email} permanently deleted`,
+        body: 'Account removed from Cognito and database. Their email can now be invited again.',
       });
     },
     [rows, showToast],
@@ -446,19 +446,29 @@ export default function AdminMembersPage() {
                       gap: 4,
                     }}
                   >
-                    {/* Enable / Disable */}
-                    <IconButton
-                      variant="plain"
-                      size="sm"
-                      label={isActive ? `Disable ${u.name || u.email}` : `Enable ${u.name || u.email}`}
-                      disabled={isBusy || isSelf}
-                      onClick={() => void toggleStatus(u.sub)}
-                    >
-                      <Icon
-                        name={isActive ? 'ban' : 'circle-check'}
-                        size={18}
-                      />
-                    </IconButton>
+                    {/* Grant access (disabled rows) / Disable (active rows) */}
+                    {!isActive ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        leftIcon={<Icon name="circle-check" size={15} />}
+                        disabled={isBusy}
+                        aria-label={`Grant access to ${u.name || u.email}`}
+                        onClick={() => void toggleStatus(u.sub)}
+                      >
+                        Grant access
+                      </Button>
+                    ) : (
+                      <IconButton
+                        variant="plain"
+                        size="sm"
+                        label={`Disable ${u.name || u.email}`}
+                        disabled={isBusy || isSelf}
+                        onClick={() => void toggleStatus(u.sub)}
+                      >
+                        <Icon name="ban" size={18} />
+                      </IconButton>
+                    )}
 
                     {/* Remove */}
                     <IconButton
@@ -491,10 +501,10 @@ export default function AdminMembersPage() {
       <Dialog
         open={!!confirm}
         onClose={() => setConfirm(null)}
-        title="Remove member?"
+        title="Permanently delete member?"
         description={
           confirm
-            ? `${confirm.name || confirm.email} will lose access and their ${confirm.noteCount} notes will be archived. This can't be undone.`
+            ? `${confirm.name || confirm.email} will be permanently deleted from Cognito and the database, and their ${confirm.noteCount} notes archived. This frees their email to be invited again. This can't be undone.`
             : ''
         }
         footer={
@@ -503,7 +513,7 @@ export default function AdminMembersPage() {
               Cancel
             </Button>
             <Button variant="danger" onClick={() => void doRemove(confirm)}>
-              Remove member
+              Delete permanently
             </Button>
           </>
         }
