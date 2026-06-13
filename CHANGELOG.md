@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.44.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.43.2...transformmynotes-v1.44.0) (2026-06-13)
+
+
+### 🚀 Features
+
+* **infra:** share a centralized dev Cognito pool across PR stages [skip deploy] ([#466](https://github.com/jasonp2323/transformmynotes/issues/466)) ([8403b65](https://github.com/jasonp2323/transformmynotes/commit/8403b652610172d5e21c15d04bd8b8eaa12873c7))
+
 ## [1.43.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.43.1...transformmynotes-v1.43.2) (2026-06-12)
 
 
