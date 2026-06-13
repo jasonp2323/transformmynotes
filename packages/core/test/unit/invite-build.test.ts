@@ -87,6 +87,23 @@ describe('buildInviteItem', () => {
     });
   });
 
+  describe('role attribute', () => {
+    it('includes role when provided as "admin"', () => {
+      const item = buildInviteItem({ codeHash: BASE_HASH, type: 'code', role: 'admin', now: FIXED_TS });
+      expect(item.role).toBe('admin');
+    });
+
+    it('includes role when provided as "member"', () => {
+      const item = buildInviteItem({ codeHash: BASE_HASH, type: 'code', role: 'member', now: FIXED_TS });
+      expect(item.role).toBe('member');
+    });
+
+    it('omits role when not provided', () => {
+      const item = buildInviteItem({ codeHash: BASE_HASH, type: 'code', now: FIXED_TS });
+      expect('role' in item).toBe(false);
+    });
+  });
+
   describe('attribute passthrough', () => {
     it('propagates codeHash', () => {
       const item = buildInviteItem({ codeHash: BASE_HASH, type: 'code', now: FIXED_TS });

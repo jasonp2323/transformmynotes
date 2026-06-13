@@ -113,6 +113,7 @@ export async function POST(req: Request) {
       maxUses: invite.maxUses,
       expiresAt,
       createdBy: admin.sub,
+      role: invite.role,
     });
   } catch (err) {
     console.error('[admin/invites] Failed to create invite', err);

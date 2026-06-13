@@ -223,6 +223,70 @@ describe('parseCreateInviteBody — type=code', () => {
 });
 
 // ---------------------------------------------------------------------------
+// parseCreateInviteBody — role parsing
+// ---------------------------------------------------------------------------
+
+describe('parseCreateInviteBody — role (email)', () => {
+  it('defaults role to "member" when absent', () => {
+    const result = parseCreateInviteBody({ type: 'email', email: 'user@example.com' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.role).toBe('member');
+  });
+
+  it('parses role "admin" correctly', () => {
+    const result = parseCreateInviteBody({ type: 'email', email: 'user@example.com', role: 'admin' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.role).toBe('admin');
+  });
+
+  it('parses role "member" explicitly', () => {
+    const result = parseCreateInviteBody({ type: 'email', email: 'user@example.com', role: 'member' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.role).toBe('member');
+  });
+
+  it('returns error when role is an invalid non-empty value', () => {
+    const result = parseCreateInviteBody({ type: 'email', email: 'user@example.com', role: 'superuser' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('role must be "member" or "admin".');
+  });
+
+  it('defaults role to "member" when role is empty string', () => {
+    const result = parseCreateInviteBody({ type: 'email', email: 'user@example.com', role: '' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.role).toBe('member');
+  });
+});
+
+describe('parseCreateInviteBody — role (code)', () => {
+  it('defaults role to "member" when absent', () => {
+    const result = parseCreateInviteBody({ type: 'code', label: 'Batch A' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.role).toBe('member');
+  });
+
+  it('parses role "admin" correctly', () => {
+    const result = parseCreateInviteBody({ type: 'code', label: 'Batch A', role: 'admin' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.role).toBe('admin');
+  });
+
+  it('returns error when role is an invalid non-empty value', () => {
+    const result = parseCreateInviteBody({ type: 'code', label: 'Batch A', role: 'owner' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('role must be "member" or "admin".');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseCreateInviteBody — invalid type
 // ---------------------------------------------------------------------------
 

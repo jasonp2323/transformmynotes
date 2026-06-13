@@ -92,6 +92,8 @@ export async function POST(req: Request) {
     );
   }
 
+  const invitedRole = invite!.role === 'admin' ? 'admin' : 'member';
+
   // For email-targeted invites, enforce email match.
   if (invite!.type === 'email') {
     if (trimmedEmail.toLowerCase() !== (invite!.targetEmail ?? '').toLowerCase()) {
@@ -169,7 +171,8 @@ export async function POST(req: Request) {
         }),
       );
 
-      // Step 3: Add the user to the 'member' Cognito group.
+      // Step 3: Add the user to the 'member' Cognito group (always).
+      // If the invite role is 'admin', also add to the 'admin' group.
       await cognito.send(
         new AdminAddUserToGroupCommand({
           UserPoolId: userPoolId,
@@ -177,6 +180,15 @@ export async function POST(req: Request) {
           GroupName: MEMBER_GROUP,
         }),
       );
+      if (invitedRole === 'admin') {
+        await cognito.send(
+          new AdminAddUserToGroupCommand({
+            UserPoolId: userPoolId,
+            Username: trimmedEmail,
+            GroupName: 'admin',
+          }),
+        );
+      }
 
       // Step 4: Write the UserData profile to DynamoDB.
       const profile = buildUserProfileItem({
@@ -184,7 +196,7 @@ export async function POST(req: Request) {
         email: trimmedEmail,
         name: trimmedName,
         status: 'active',
-        role: 'member',
+        role: invitedRole,
         groupIds: invite!.groupId ? [invite!.groupId] : [],
       });
       await ddb.send(

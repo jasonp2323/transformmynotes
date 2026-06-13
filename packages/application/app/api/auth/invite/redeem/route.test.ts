@@ -135,6 +135,58 @@ describe('POST /api/auth/invite/redeem', () => {
       await POST(makeRequest(VALID_BODY));
       expect(claimInviteMock).toHaveBeenCalledWith('ABCD-EFGH');
     });
+
+    it('adds user only to member group for a member invite', async () => {
+      getInviteByCodeMock.mockResolvedValue({ ...VALID_INVITE, role: 'member' });
+      evaluateInviteMock.mockReturnValue({ valid: true, role: 'member' });
+
+      await POST(makeRequest(VALID_BODY));
+
+      const groupAddCalls = (cognitoSendMock.mock.calls as unknown[][]).filter(
+        (args) => (args[0] as { constructor: { name: string } }).constructor.name === 'AdminAddUserToGroupCommand',
+      );
+      expect(groupAddCalls).toHaveLength(1);
+      expect((groupAddCalls[0]![0] as { input: { GroupName: string } }).input.GroupName).toBe('member');
+    });
+
+    it('adds user to both member and admin groups for an admin invite', async () => {
+      getInviteByCodeMock.mockResolvedValue({ ...VALID_INVITE, role: 'admin' });
+      evaluateInviteMock.mockReturnValue({ valid: true, role: 'admin' });
+
+      await POST(makeRequest(VALID_BODY));
+
+      const groupAddCalls = (cognitoSendMock.mock.calls as unknown[][]).filter(
+        (args) => (args[0] as { constructor: { name: string } }).constructor.name === 'AdminAddUserToGroupCommand',
+      );
+      expect(groupAddCalls).toHaveLength(2);
+      const groupNames = groupAddCalls.map(
+        (args) => (args[0] as { input: { GroupName: string } }).input.GroupName,
+      );
+      expect(groupNames).toContain('member');
+      expect(groupNames).toContain('admin');
+    });
+
+    it('passes invitedRole to buildUserProfileItem for an admin invite', async () => {
+      getInviteByCodeMock.mockResolvedValue({ ...VALID_INVITE, role: 'admin' });
+      evaluateInviteMock.mockReturnValue({ valid: true, role: 'admin' });
+
+      await POST(makeRequest(VALID_BODY));
+
+      expect(buildUserProfileItemMock).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'admin' }),
+      );
+    });
+
+    it('passes role "member" to buildUserProfileItem when invite has no role', async () => {
+      getInviteByCodeMock.mockResolvedValue(VALID_INVITE);
+      evaluateInviteMock.mockReturnValue({ valid: true });
+
+      await POST(makeRequest(VALID_BODY));
+
+      expect(buildUserProfileItemMock).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'member' }),
+      );
+    });
   });
 
   describe('rollback on post-create failure', () => {
