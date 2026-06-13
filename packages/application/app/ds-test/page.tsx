@@ -8,45 +8,46 @@ import {
   HandNote,
 } from '@/src/components/ui';
 
-/** Spanish grammar note exercising all supported Markdown constructs. */
-const SAMPLE_MD = `## El Subjuntivo — Spanish Grammar Notes
+/** Brazilian Portuguese grammar note exercising all supported Markdown constructs. */
+const SAMPLE_MD = `## O Subjuntivo — Notas de Gramática (Português)
 
-### What Is the Subjunctive?
+### O Que É o Subjuntivo?
 
-The subjunctive is a ==mood== (not a tense) used to express **doubt**, *desire*, and
-possibility. Mastering it is one of the biggest leaps toward fluency.
+O subjuntivo é um ==modo== (não um tempo) usado para expressar **dúvida**, *desejo* e
+possibilidade. Dominá-lo é um dos maiores saltos rumo à fluência.
 
-> "Quiero que tú **hables** más despacio." — I want you to speak more slowly.
+> "Quero que você **fale** mais devagar." — I want you to speak more slowly.
 
-### When to Use It
+### Quando Usá-lo
 
-- After expressions of **will** or **desire**: \`querer que\`, \`esperar que\`
-- After expressions of *doubt* or denial: \`dudar que\`, \`no creer que\`
-- After impersonal expressions: \`es importante que\`, \`es posible que\`
-- In \`ojalá\` constructions expressing ==hope==
+- Após expressões de **vontade** ou **desejo**: \`querer que\`, \`esperar que\`
+- Após expressões de *dúvida* ou negação: \`duvidar que\`, \`não acreditar que\`
+- Após expressões impessoais: \`é importante que\`, \`é possível que\`
+- Em construções com \`tomara\` expressando ==esperança==
 
-### Formation — Present Subjunctive
+### Formação — Presente do Subjuntivo
 
-| Pronoun | -ar (hablar) | -er (comer) | -ir (vivir) |
+| Pronome | -ar (falar) | -er (comer) | -ir (viver) |
 | --- | --- | --- | --- |
-| yo | hable | coma | viva |
-| tú | hables | comas | vivas |
-| él/ella | hable | coma | viva |
-| nosotros | hablemos | comamos | vivamos |
+| eu | fale | coma | viva |
+| você | fale | coma | viva |
+| ele/ela | fale | coma | viva |
+| nós | falemos | comamos | vivamos |
+| vocês | falem | comam | vivam |
 
-### The "WEIRDO" Trigger Categories
+### As Categorias "WEIRDO" de Gatilho
 
-1. **W**ishes — querer, desear, esperar
-2. **E**motion — alegrarse, temer, sorprender
-3. **I**mpersonal expressions — es necesario, es raro
-4. **R**ecommendations — recomendar, sugerir, aconsejar
-5. **D**oubt / Denial — dudar, negar, no creer
-6. **O**jalá — always triggers subjunctive
+1. **W**ishes (Desejos) — querer, desejar, esperar
+2. **E**motion (Emoção) — alegrar-se, temer, surpreender
+3. **I**mpersonal expressions (Expressões impessoais) — é necessário, é raro
+4. **R**ecommendations (Recomendações) — recomendar, sugerir, aconselhar
+5. **D**oubt / Denial (Dúvida / Negação) — duvidar, negar, não acreditar
+6. **O**jalá → Tomara — sempre aciona o subjuntivo
 
 ---
 
-*Tip: If the main clause and the subordinate clause have ==different subjects==, use
-\`que\` + subjunctive. Same subject? Use the infinitive instead.*
+*Dica: Se a oração principal e a subordinada têm ==sujeitos diferentes==, use
+\`que\` + subjuntivo. Mesmo sujeito? Use o \`infinitivo\` no lugar.*
 `;
 
 export default function DesignSystemTestPage() {

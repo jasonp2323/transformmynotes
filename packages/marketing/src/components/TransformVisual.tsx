@@ -8,11 +8,11 @@ import Tag from './ui/Tag';
 import SegmentedControl from './ui/SegmentedControl';
 
 const HAND_LINES = [
-  'El subjuntivo — duda,',
-  'deseo, posibilidad.',
-  'que yo hable / coma / viva',
-  'ojalá que llueva ☂',
-  '* repasar para examen *',
+  'O subjuntivo — dúvida,',
+  'desejo, possibilidade.',
+  'que eu fale / coma / viva',
+  'tomara que chova ☂',
+  '* revisar para a prova *',
 ];
 
 interface TransformVisualProps {
@@ -69,8 +69,8 @@ export default function TransformVisual({ autoplay = false }: TransformVisualPro
     <div className="hero__visual" data-reveal data-delay="2">
       <div className="note-paper">
         <div className="note-paper__meta">
-          <span className="note-paper__eyebrow">Spanish 201</span>
-          <span className="note-paper__detail">es → en · 1,204 words · OCR 98%</span>
+          <span className="note-paper__eyebrow">Portuguese 201</span>
+          <span className="note-paper__detail">pt → en · 1,204 words · OCR 98%</span>
         </div>
 
         <div className="note-stage">
@@ -105,7 +105,7 @@ export default function TransformVisual({ autoplay = false }: TransformVisualPro
                 desire and possibility — three verb patterns across <em>-ar</em>, <em>-er</em>,{' '}
                 <em>-ir</em>.
               </p>
-              <p className="clean-note__es">que yo hable · que tú comas · que él viva</p>
+              <p className="clean-note__es">que eu fale · que você coma · que ele viva</p>
               <div className="clean-note__tags">
                 <Tag hash tone="brand">
                   subjunctive
