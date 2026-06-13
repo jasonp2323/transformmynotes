@@ -17,6 +17,7 @@ export interface PutInviteInput {
   /** Maximum number of times this invite can be claimed. Defaults to 1. */
   maxUses?: number;
   createdBy?: string;
+  role?: 'member' | 'admin';
 }
 
 /**
@@ -39,6 +40,7 @@ export async function putInvite(input: PutInviteInput): Promise<InviteItem> {
     expiresAt: input.expiresAt,
     maxUses: input.maxUses,
     createdBy: input.createdBy,
+    role: input.role,
   });
 
   await ddb.send(

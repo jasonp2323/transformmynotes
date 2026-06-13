@@ -80,6 +80,7 @@ export default function AdminInvitesPage() {
   const [codeLabel, setCodeLabel] = useState('');
   const [maxUses, setMaxUses] = useState(25);
   const [expiry, setExpiry] = useState<ExpiryOption>('In 30 days');
+  const [role, setRole] = useState<'member' | 'admin'>('member');
   const [submitting, setSubmitting] = useState(false);
 
   // -------------------------------------------------------------------------
@@ -180,12 +181,13 @@ export default function AdminInvitesPage() {
 
     const body =
       createMode === 'email'
-        ? { type: 'email' as const, email: email.trim(), expiresAt }
+        ? { type: 'email' as const, email: email.trim(), expiresAt, role }
         : {
             type: 'code' as const,
             label: codeLabel.trim(),
             maxUses,
             expiresAt,
+            role,
           };
 
     setSubmitting(true);
@@ -228,6 +230,7 @@ export default function AdminInvitesPage() {
       setCodeLabel('');
       setMaxUses(25);
       setExpiry('In 30 days');
+      setRole('member');
 
       // Re-fetch so the new invite appears
       fetchInvites(statusFilter);
@@ -240,6 +243,7 @@ export default function AdminInvitesPage() {
     codeLabel,
     maxUses,
     expiry,
+    role,
     statusFilter,
     showToast,
     fetchInvites,
@@ -415,12 +419,10 @@ export default function AdminInvitesPage() {
 
           <div style={{ width: 170 }}>
             <Select
-              label="Joins group"
-              options={['No group']}
-              value="No group"
-              onChange={() => {
-                /* placeholder — full group admin is a later milestone */
-              }}
+              label="Joins as"
+              options={['Member', 'Admin']}
+              value={role === 'admin' ? 'Admin' : 'Member'}
+              onChange={(e) => setRole(e.target.value === 'Admin' ? 'admin' : 'member')}
               disabled={submitting}
             />
           </div>

@@ -96,8 +96,8 @@ export function SegmentedControl({
         aria-hidden="true"
         suppressHydrationWarning
         style={{
-          width: `calc((100% - 8px) / ${n})`,
-          transform: `translateX(${activeIndex * 100}%)`,
+          width: `calc((100% - 8px - ${(n - 1) * 2}px) / ${n})`,
+          transform: `translateX(calc(${activeIndex} * (100% + 2px)))`,
         }}
       />
       {normalised.map((opt, idx) => {

@@ -59,6 +59,7 @@ export const handler: PostConfirmationTriggerHandler = async (
     let status: 'active' | 'pending' = 'pending';
     const groupIds: string[] = [];
     let activate = false;
+    let invitedRole: 'member' | 'admin' = 'member';
 
     // Invite path — only attempt if an invite code was supplied AND the Invites
     // table env var is set (the M3 table may not exist yet; absence ⇒ skip).
@@ -86,6 +87,7 @@ export const handler: PostConfirmationTriggerHandler = async (
       if (evaluation.valid) {
         status = 'active';
         activate = true;
+        invitedRole = evaluation.role === 'admin' ? 'admin' : 'member';
         if (evaluation.groupId) {
           groupIds.push(evaluation.groupId);
         }
@@ -116,7 +118,7 @@ export const handler: PostConfirmationTriggerHandler = async (
     }
 
     // Build and write the user profile item.
-    const profile = buildUserProfileItem({ sub, email, name, status, role: 'member', groupIds });
+    const profile = buildUserProfileItem({ sub, email, name, status, role: invitedRole, groupIds });
     await ddb.send(
       new PutCommand({
         TableName: TableNames.UserData,
@@ -125,6 +127,7 @@ export const handler: PostConfirmationTriggerHandler = async (
     );
 
     // If activated via invite, add the user to the Cognito member group.
+    // If the invited role is 'admin', also add to the 'admin' group.
     if (activate) {
       try {
         await cognito.send(
@@ -135,7 +138,20 @@ export const handler: PostConfirmationTriggerHandler = async (
           }),
         );
       } catch (err) {
-        console.error('[post-confirmation] Failed to add user to Cognito group; continuing', err);
+        console.error('[post-confirmation] Failed to add user to Cognito member group; continuing', err);
+      }
+      if (invitedRole === 'admin') {
+        try {
+          await cognito.send(
+            new AdminAddUserToGroupCommand({
+              UserPoolId: event.userPoolId,
+              Username: event.userName,
+              GroupName: 'admin',
+            }),
+          );
+        } catch (err) {
+          console.error('[post-confirmation] Failed to add user to Cognito admin group; continuing', err);
+        }
       }
     }
 

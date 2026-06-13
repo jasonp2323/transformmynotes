@@ -134,6 +134,24 @@ describe('evaluateInvite', () => {
       expect(evaluateInvite(invite).valid).toBe(true);
     });
 
+    it('returns role: "admin" when the invite has role "admin"', () => {
+      const result = evaluateInvite({ codeHash: 'x', role: 'admin' }, NOW);
+      expect(result.valid).toBe(true);
+      expect(result.role).toBe('admin');
+    });
+
+    it('returns role: "member" when the invite has role "member"', () => {
+      const result = evaluateInvite({ codeHash: 'x', role: 'member' }, NOW);
+      expect(result.valid).toBe(true);
+      expect(result.role).toBe('member');
+    });
+
+    it('returns role: undefined when the invite has no role', () => {
+      const result = evaluateInvite({ codeHash: 'x' }, NOW);
+      expect(result.valid).toBe(true);
+      expect(result.role).toBeUndefined();
+    });
+
     it('invite with expiresAt in the future and headroom from maxUses is valid', () => {
       const invite: InviteRecord = {
         ...validInvite,

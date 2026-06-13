@@ -35,6 +35,7 @@ export interface InviteRecord {
   usedCount?: number;
   revoked?: boolean;
   status?: InviteStatus;
+  role?: 'member' | 'admin';
 }
 
 /** The outcome of evaluating an invite record against the current time. */
@@ -43,6 +44,7 @@ export interface InviteEvaluation {
   reason?: 'missing' | 'revoked' | 'expired' | 'exhausted';
   groupId?: string;
   groupName?: string;
+  role?: 'member' | 'admin';
 }
 
 /**
@@ -90,6 +92,7 @@ export function evaluateInvite(
     valid: true,
     groupId: invite.groupId,
     groupName: invite.groupName,
+    role: invite.role,
   };
 }
 
@@ -117,6 +120,7 @@ export interface InviteItem {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+  role?: 'member' | 'admin';
 }
 
 /** Input to the `buildInviteItem` builder. */
@@ -138,6 +142,7 @@ export interface BuildInviteItemInput {
   createdAt?: string;
   /** ISO-8601 datetime to use as the current time (for updatedAt). Defaults to `new Date().toISOString()`. */
   now?: string;
+  role?: 'member' | 'admin';
 }
 
 /**
@@ -170,6 +175,7 @@ export function buildInviteItem(input: BuildInviteItemInput): InviteItem {
     ...(input.createdBy !== undefined ? { createdBy: input.createdBy } : {}),
     createdAt,
     updatedAt: ts,
+    ...(input.role !== undefined ? { role: input.role } : {}),
   };
 }
 

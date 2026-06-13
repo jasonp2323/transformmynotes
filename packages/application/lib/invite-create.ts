@@ -55,6 +55,7 @@ export interface ParsedEmailInvite {
   groupId?: string;
   expiresAt?: string;
   maxUses: 1;
+  role: 'member' | 'admin';
 }
 
 /** Parsed invite for `type === 'code'`. */
@@ -64,6 +65,7 @@ export interface ParsedCodeInvite {
   groupId?: string;
   expiresAt?: string;
   maxUses: number;
+  role: 'member' | 'admin';
 }
 
 export type ParsedInvite = ParsedEmailInvite | ParsedCodeInvite;
@@ -101,9 +103,15 @@ export function parseCreateInviteBody(body: unknown): ParseCreateInviteResult {
       expiresAt = b.expiresAt;
     }
 
+    const rawRole = typeof b.role === 'string' ? b.role.trim() : '';
+    if (rawRole && rawRole !== 'member' && rawRole !== 'admin') {
+      return { ok: false, error: 'role must be "member" or "admin".' };
+    }
+    const role: 'member' | 'admin' = rawRole === 'admin' ? 'admin' : 'member';
+
     return {
       ok: true,
-      value: { type: 'email', email: rawEmail, groupId, expiresAt, maxUses: 1 },
+      value: { type: 'email', email: rawEmail, groupId, expiresAt, maxUses: 1, role },
     };
   }
 
@@ -136,9 +144,15 @@ export function parseCreateInviteBody(body: unknown): ParseCreateInviteResult {
       maxUses = b.maxUses;
     }
 
+    const rawRole = typeof b.role === 'string' ? b.role.trim() : '';
+    if (rawRole && rawRole !== 'member' && rawRole !== 'admin') {
+      return { ok: false, error: 'role must be "member" or "admin".' };
+    }
+    const role: 'member' | 'admin' = rawRole === 'admin' ? 'admin' : 'member';
+
     return {
       ok: true,
-      value: { type: 'code', label: rawLabel, groupId, expiresAt, maxUses },
+      value: { type: 'code', label: rawLabel, groupId, expiresAt, maxUses, role },
     };
   }
 
