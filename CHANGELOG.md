@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.0...transformmynotes-v1.45.1) (2026-06-13)
+
+
+### 🐛 Fixes
+
+* **application:** admin-panel bug fixes — pills, Search nav, invite roles, revoke/grant/delete ([#473](https://github.com/jasonp2323/transformmynotes/issues/473)) ([bb65781](https://github.com/jasonp2323/transformmynotes/commit/bb65781b8dfb2b98207befb5d8cfa884fb037fed))
+
 ## [1.45.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.44.0...transformmynotes-v1.45.0) (2026-06-13)
 
 
