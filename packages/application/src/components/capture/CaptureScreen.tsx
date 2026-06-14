@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
-import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage, readCameraCapabilities, clampZoom, normalizeFocusPoint, buildFocusConstraints, buildZoomConstraints } from '@/lib/capture';
+import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage, readCameraCapabilities, clampZoom, normalizeFocusPoint, buildFocusConstraints, buildZoomConstraints, buildZoomPresets } from '@/lib/capture';
 import type { ZoomRange } from '@/lib/capture';
 import { ProcessingScreen } from './ProcessingScreen';
 
@@ -251,6 +251,19 @@ export function CaptureScreen() {
   }, [applyTorch]);
 
   // ---------------------------------------------------------------------------
+  // Zoom
+  // ---------------------------------------------------------------------------
+
+  const applyZoom = useCallback((v: number) => {
+    setZoomLevel(v);
+    zoomLevelRef.current = v;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      track.applyConstraints(buildZoomConstraints(v) as MediaTrackConstraints).catch(() => {});
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Flip camera
   // ---------------------------------------------------------------------------
 
@@ -286,13 +299,8 @@ export function CaptureScreen() {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const scale = dist / pinchStartDistRef.current;
     const newZoom = clampZoom(pinchStartZoomRef.current * scale, zoomRange);
-    setZoomLevel(newZoom);
-    zoomLevelRef.current = newZoom;
-    const track = streamRef.current?.getVideoTracks()[0];
-    if (track) {
-      track.applyConstraints(buildZoomConstraints(newZoom) as MediaTrackConstraints).catch(() => {});
-    }
-  }, [zoomRange]);
+    applyZoom(newZoom);
+  }, [zoomRange, applyZoom]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     pinchPointersRef.current.delete(e.pointerId);
@@ -679,54 +687,6 @@ export function CaptureScreen() {
               />
             )}
 
-            {/* Vertical zoom slider */}
-            {zoomRange && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: -28,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <Icon name="zoom-in" size={14} color="rgba(255,255,255,0.6)" />
-                <input
-                  type="range"
-                  aria-label="Zoom"
-                  min={zoomRange.min}
-                  max={zoomRange.max}
-                  step={zoomRange.step}
-                  value={zoomLevel}
-                  {...{'orient': 'vertical'}}
-                  onChange={(e) => {
-                    const val = clampZoom(parseFloat(e.target.value), zoomRange);
-                    setZoomLevel(val);
-                    zoomLevelRef.current = val;
-                    const track = streamRef.current?.getVideoTracks()[0];
-                    if (track) {
-                      track.applyConstraints(buildZoomConstraints(val) as MediaTrackConstraints).catch(() => {});
-                    }
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onPointerMove={(e) => e.stopPropagation()}
-                  onPointerUp={(e) => e.stopPropagation()}
-                  style={{
-                    writingMode: 'vertical-lr' as React.CSSProperties['writingMode'],
-                    direction: 'rtl' as React.CSSProperties['direction'],
-                    WebkitAppearance: 'slider-vertical' as unknown as undefined,
-                    height: 120,
-                    width: 24,
-                    cursor: 'pointer',
-                    accentColor: 'var(--gold-400)',
-                  }}
-                />
-                <Icon name="zoom-out" size={14} color="rgba(255,255,255,0.6)" />
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -744,6 +704,50 @@ export function CaptureScreen() {
           }}
         >
           Hold steady — keep the whole page in frame.
+        </div>
+      )}
+
+      {/* ------------------------------------------------------- Zoom preset pills */}
+      {cameraAvailable !== false && zoomRange && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 8,
+            paddingBottom: 8,
+            flexShrink: 0,
+          }}
+        >
+          {buildZoomPresets(zoomRange).map((preset) => {
+            const active = Math.abs(zoomLevel - preset.value) < 0.01;
+            return (
+              <button
+                key={preset.value}
+                type="button"
+                aria-label={`Zoom ${preset.label}`}
+                aria-pressed={active}
+                disabled={!preset.enabled}
+                onClick={preset.enabled ? () => applyZoom(clampZoom(preset.value, zoomRange)) : undefined}
+                style={{
+                  borderRadius: 999,
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                  minWidth: 44,
+                  border: active ? '1px solid var(--gold-400)' : '1px solid transparent',
+                  background: active ? 'rgba(255,215,0,0.28)' : 'rgba(255,255,255,0.14)',
+                  color: active ? 'var(--gold-400)' : '#fff',
+                  cursor: preset.enabled ? 'pointer' : 'default',
+                  opacity: preset.enabled ? 1 : 0.35,
+                }}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
       )}
 

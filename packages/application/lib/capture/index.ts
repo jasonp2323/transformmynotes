@@ -17,11 +17,13 @@ export { formatBytes } from './format-bytes';
 export type { PickImageOpts } from './pick-image';
 export { pickImage } from './pick-image';
 
-export type { ZoomRange, CameraCapabilities } from './camera-controls';
+export type { ZoomRange, CameraCapabilities, ZoomPreset } from './camera-controls';
 export {
   readCameraCapabilities,
   clampZoom,
   normalizeFocusPoint,
   buildZoomConstraints,
   buildFocusConstraints,
+  buildZoomPresets,
+  ZOOM_PRESETS,
 } from './camera-controls';

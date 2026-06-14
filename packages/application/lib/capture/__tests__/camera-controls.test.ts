@@ -5,6 +5,7 @@ import {
   normalizeFocusPoint,
   buildZoomConstraints,
   buildFocusConstraints,
+  buildZoomPresets,
 } from '../camera-controls';
 
 // ---------------------------------------------------------------------------
@@ -180,5 +181,34 @@ describe('buildFocusConstraints', () => {
     expect(buildFocusConstraints({ x: 0.3, y: 0.7 })).toEqual({
       advanced: [{ pointsOfInterest: [{ x: 0.3, y: 0.7 }], focusMode: 'single-shot' }],
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildZoomPresets
+// ---------------------------------------------------------------------------
+
+describe('buildZoomPresets', () => {
+  it('returns [] when range is null', () => {
+    expect(buildZoomPresets(null)).toEqual([]);
+  });
+
+  it('returns 5 presets with correct labels and enabled flags for range { min: 1, max: 3 }', () => {
+    const presets = buildZoomPresets({ min: 1, max: 3 });
+    expect(presets).toHaveLength(5);
+    expect(presets.map((p) => p.label)).toEqual(['0.5x', '1x', '1.5x', '2x', '5x']);
+    expect(presets.map((p) => p.enabled)).toEqual([false, true, true, true, false]);
+  });
+
+  it('marks all 5 presets enabled for range { min: 0.5, max: 8 }', () => {
+    const presets = buildZoomPresets({ min: 0.5, max: 8 });
+    expect(presets.every((p) => p.enabled)).toBe(true);
+  });
+
+  it('disables 0.5x and enables 5x (inclusive bounds) for range { min: 1, max: 5 }', () => {
+    const presets = buildZoomPresets({ min: 1, max: 5 });
+    const byLabel = Object.fromEntries(presets.map((p) => [p.label, p.enabled]));
+    expect(byLabel['0.5x']).toBe(false);
+    expect(byLabel['5x']).toBe(true);
   });
 });

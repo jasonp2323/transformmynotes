@@ -127,3 +127,28 @@ export function buildFocusConstraints(point: { x: number; y: number }): Record<s
     advanced: [{ pointsOfInterest: [point], focusMode: 'single-shot' }],
   };
 }
+
+// ---------------------------------------------------------------------------
+// Zoom presets
+// ---------------------------------------------------------------------------
+
+export const ZOOM_PRESETS = [0.5, 1, 1.5, 2, 5] as const;
+
+export interface ZoomPreset {
+  value: number;
+  label: string;
+  enabled: boolean;
+}
+
+/**
+ * Map the fixed presets to UI options, marking each enabled only if it falls
+ * within the device's reported zoom range. Returns [] when range is null.
+ */
+export function buildZoomPresets(range: { min: number; max: number } | null): ZoomPreset[] {
+  if (!range) return [];
+  return ZOOM_PRESETS.map((value) => ({
+    value,
+    label: `${value}x`,
+    enabled: value >= range.min && value <= range.max,
+  }));
+}
