@@ -105,7 +105,7 @@ export function CaptureScreen() {
   // Upload status state machine
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [capturedJobId, setCapturedJobId] = useState<string | null>(null);
-  const [, setUploadError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -630,7 +630,6 @@ export function CaptureScreen() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         style={{ display: 'none' }}
         onChange={handleFileChange}
         aria-hidden="true"
@@ -728,7 +727,7 @@ export function CaptureScreen() {
               textAlign: 'center',
             }}
           >
-            Upload failed — please try again
+            {uploadError ?? 'Upload failed — please try again'}
           </p>
           <div style={{ display: 'flex', gap: 12 }}>
             <Button variant="accent" size="md" onClick={handleRetry}>
