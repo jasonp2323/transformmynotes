@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { inviteKeys } from '../src/db/keys.js';
-import { putInvite, getInviteByCode, claimInvite, revokeInvite, listInvites } from '../src/db/invites.js';
+import { putInvite, getInviteByCode, claimInvite, revokeInvite, listInvites, deleteInvite } from '../src/db/invites.js';
 import { hashInviteCode } from '../src/auth/invite.js';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +56,33 @@ describe('Invites — putInvite / getInviteByCode round-trip', () => {
     const fetched = await getInviteByCode(code.toLowerCase());
     expect(fetched).toBeDefined();
     expect(fetched!.pk).toBe(`INVITE#${hashInviteCode(code)}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// putInvite — raw code storage
+// ---------------------------------------------------------------------------
+
+describe('Invites — putInvite stores raw code', () => {
+  it('stores the raw code and codeHash together when code is supplied', async () => {
+    const rawCode = 'STORETEST1';
+    const item = await putInvite({
+      code: rawCode,
+      type: 'code',
+      maxUses: 1,
+      label: 'Code storage test',
+    });
+
+    // The raw code must be present on the returned item.
+    expect(item.code).toBe(rawCode);
+    // The codeHash must be the SHA-256 of the raw code.
+    expect(item.codeHash).toBe(hashInviteCode(rawCode));
+
+    // Fetch from DynamoDB and verify both fields survived the round-trip.
+    const fetched = await getInviteByCode(rawCode);
+    expect(fetched).toBeDefined();
+    expect(fetched!.code).toBe(rawCode);
+    expect(fetched!.codeHash).toBe(hashInviteCode(rawCode));
   });
 });
 
@@ -429,5 +456,83 @@ describe('listInvites', () => {
 
     // All returned items have status 'revoked'.
     revoked.forEach((i) => expect(i.status).toBe('revoked'));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteInvite — hard delete
+// ---------------------------------------------------------------------------
+
+describe('deleteInvite', () => {
+  it('hard-deletes a revoked invite: item is gone after deletion', async () => {
+    const code = 'DELETE-REVOKED-001';
+    await putInvite({ code, type: 'code', maxUses: 5 });
+    const codeHash = hashInviteCode(code);
+
+    // Revoke first so it's in a terminal state.
+    const revokeResult = await revokeInvite(codeHash);
+    expect(revokeResult.ok).toBe(true);
+
+    // Confirm it's retrievable before deletion.
+    const before = await getInviteByCode(code);
+    expect(before).toBeDefined();
+    expect(before!.status).toBe('revoked');
+
+    // Hard-delete.
+    const deleteResult = await deleteInvite(codeHash);
+    expect(deleteResult).toEqual({ ok: true });
+
+    // Item must be gone.
+    const after = await getInviteByCode(code);
+    expect(after).toBeUndefined();
+  });
+
+  it('hard-deletes an expired-like invite (invite with past expiresAt): item is gone', async () => {
+    const code = 'DELETE-EXPIRED-001';
+    await putInvite({
+      code,
+      type: 'code',
+      maxUses: 5,
+      expiresAt: '2020-01-01T00:00:00.000Z', // expired
+    });
+    const codeHash = hashInviteCode(code);
+
+    // Confirm it exists.
+    const before = await getInviteByCode(code);
+    expect(before).toBeDefined();
+
+    // Hard-delete.
+    const deleteResult = await deleteInvite(codeHash);
+    expect(deleteResult).toEqual({ ok: true });
+
+    // Item must be gone.
+    const after = await getInviteByCode(code);
+    expect(after).toBeUndefined();
+  });
+
+  it('is idempotent: deleting a non-existent invite returns { ok: true }', async () => {
+    // This codeHash was never written to the table.
+    const result = await deleteInvite('nonexistent-hash-for-delete-test');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('deleted invite no longer appears in listInvites()', async () => {
+    const code = 'DELETE-LIST-001';
+    await putInvite({ code, type: 'code', maxUses: 5 });
+    const codeHash = hashInviteCode(code);
+
+    // Revoke and then hard-delete.
+    await revokeInvite(codeHash);
+    await deleteInvite(codeHash);
+
+    // Must not appear in listInvites("revoked").
+    const revoked = await listInvites('revoked');
+    const pks = revoked.map((i) => i.pk);
+    expect(pks).not.toContain(`INVITE#${codeHash}`);
+
+    // Must not appear in listInvites() either.
+    const all = await listInvites();
+    const allPks = all.map((i) => i.pk);
+    expect(allPks).not.toContain(`INVITE#${codeHash}`);
   });
 });

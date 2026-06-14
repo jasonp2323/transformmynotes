@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import { cn } from '@/src/lib/cn';
+
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export interface SegmentedOption {
   value: string;
@@ -46,7 +48,37 @@ export function SegmentedControl({
   );
   const n = normalised.length;
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+
+  const measure = useCallback(() => {
+    const btn = btnRefs.current[activeIndex];
+    if (btn) setPill({ left: btn.offsetLeft, width: btn.offsetWidth });
+  }, [activeIndex]);
+
+  useIsoLayoutEffect(() => { measure(); }, [measure, n, options]);
+
+  // Re-measure whenever the control or its segments change size. A plain
+  // window-resize listener misses two cases that silently break alignment:
+  // container reflows that don't resize the window, and async web-font swaps
+  // (the custom UI font can load *after* the first layout-effect measurement,
+  // widening the labels). A ResizeObserver on the container + buttons catches
+  // both; `document.fonts.ready` is a belt-and-suspenders trigger for the swap.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    btnRefs.current.forEach((b) => { if (b) ro.observe(b); });
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(() => measure()).catch(() => {});
+    }
+    return () => ro.disconnect();
+  }, [measure, n]);
 
   function handleSelect(optValue: string) {
     if (!isControlled) {
@@ -87,6 +119,7 @@ export function SegmentedControl({
 
   return (
     <div
+      ref={containerRef}
       role="radiogroup"
       aria-label={ariaLabel}
       className={cn('tmn-seg', className)}
@@ -95,10 +128,14 @@ export function SegmentedControl({
         className="tmn-seg__pill"
         aria-hidden="true"
         suppressHydrationWarning
-        style={{
-          width: `calc((100% - 8px - ${(n - 1) * 2}px) / ${n})`,
-          transform: `translateX(calc(${activeIndex} * (100% + 2px)))`,
-        }}
+        style={
+          pill
+            ? { left: pill.left, width: pill.width }
+            : {
+                left: 4,
+                width: `calc((100% - 8px - ${(n - 1) * 2}px) / ${n})`,
+              }
+        }
       />
       {normalised.map((opt, idx) => {
         const isActive = opt.value === activeValue;

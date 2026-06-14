@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { revokeInvite } from '@transformmynotes/core';
+import { revokeInvite, deleteInvite } from '@transformmynotes/core';
 import { getAdminApiUser } from '@/lib/require-admin';
 
 export const runtime = 'nodejs';
@@ -21,7 +21,25 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: 'Missing codeHash.' }, { status: 400 });
   }
 
-  // 3. Optionally read auditNotes from the request body (best-effort; ignore parse errors).
+  // 3. Check for hard-delete mode (?hard=true).
+  const hard = new URL(req.url).searchParams.get('hard') === 'true';
+
+  if (hard) {
+    // Hard delete: permanently remove the invite record from DynamoDB.
+    // Intended for terminal invites (revoked / expired). Idempotent.
+    try {
+      await deleteInvite(codeHash);
+    } catch (err) {
+      console.error('[admin/invites/:codeHash] Failed to hard-delete invite', err);
+      return NextResponse.json({ ok: false, error: 'Failed to delete invite.' }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, status: 'deleted' });
+  }
+
+  // 4. Soft revoke (default behavior — unchanged).
+
+  // Optionally read auditNotes from the request body (best-effort; ignore parse errors).
   let auditNotes: string | undefined;
   try {
     const body = await req.json() as Record<string, unknown>;
@@ -32,7 +50,7 @@ export async function DELETE(
     // No body or non-JSON body — perfectly fine; auditNotes stays undefined.
   }
 
-  // 4. Revoke the invite.
+  // Revoke the invite.
   let result: Awaited<ReturnType<typeof revokeInvite>>;
   try {
     result = await revokeInvite(codeHash, auditNotes ? { auditNotes } : undefined);
@@ -41,7 +59,7 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: 'Failed to revoke invite.' }, { status: 500 });
   }
 
-  // 5. Map result.
+  // Map result.
   if (result.ok) {
     return NextResponse.json({ ok: true, status: 'revoked' });
   }

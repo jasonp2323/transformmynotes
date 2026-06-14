@@ -279,7 +279,7 @@
 .tmn-seg__pill {
   position: absolute; top: 4px; bottom: 4px; left: 4px; z-index: 0;
   background: var(--surface-card); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
-  transition: transform var(--dur-base) var(--ease-soft);
+  transition: left var(--dur-base) var(--ease-soft), width var(--dur-base) var(--ease-soft);
 }
 .tmn-seg__btn {
   position: relative; z-index: 1; flex: 1 1 0; appearance: none; border: none; background: transparent; cursor: pointer;

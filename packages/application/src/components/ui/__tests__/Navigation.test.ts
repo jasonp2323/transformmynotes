@@ -82,13 +82,16 @@ describe('SegmentedControl', () => {
     expect(html).toContain('aria-checked="true"');
   });
 
-  it('renders tmn-seg__pill with correct gap-aware transform for second option', () => {
+  it('renders tmn-seg__pill with SSR fallback left/width style', () => {
     const html = renderToStaticMarkup(
       React.createElement(SegmentedControl, { options, value: 'y' }),
     );
     expect(html).toContain('tmn-seg__pill');
-    // activeIndex=1, n=2: translateX(calc(1 * (100% + 2px))) accounts for the 2px gap
-    expect(html).toContain('translateX(calc(1 * (100% + 2px)))');
+    // On SSR there is no DOM to measure, so the pill renders the static fallback:
+    // left:4 and a calc()-based width. The transform approach is replaced by
+    // measured left/width positioning (see useIsoLayoutEffect measure callback).
+    expect(html).toContain('left:4');
+    expect(html).not.toContain('translateX');
   });
 
   it('normalises string options and renders both labels', () => {

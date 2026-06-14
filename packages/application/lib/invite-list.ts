@@ -1,4 +1,5 @@
 import type { InviteItem } from '@transformmynotes/core';
+import { formatInviteCode } from './invite-create';
 
 // ---------------------------------------------------------------------------
 // Short UTC month names used for deterministic formatting across timezones.
@@ -41,6 +42,16 @@ export function inviteRecipientLabel(invite: Pick<InviteItem, 'type' | 'targetEm
  */
 export function inviteCodeRef(invite: Pick<InviteItem, 'codeHash'>): string {
   return invite.codeHash.slice(0, 8);
+}
+
+/**
+ * The invite code to display in the admin table. Returns the real, formatted
+ * invite code when it was stored (new invites); falls back to the hash-fragment
+ * reference for legacy invites whose raw code was never persisted.
+ */
+export function inviteCodeDisplay(invite: Pick<InviteItem, 'code' | 'codeHash'>): string {
+  if (invite.code) return formatInviteCode(invite.code);
+  return inviteCodeRef(invite);
 }
 
 /**

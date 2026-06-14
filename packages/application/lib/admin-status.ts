@@ -30,8 +30,10 @@ export function statusTone(status: string): BadgeProps['tone'] {
 /**
  * Returns a display label for a status string with the first letter capitalised.
  * e.g. 'pending' → 'Pending'
+ * Special case: 'used' → 'Active' (display only; the stored value remains 'used').
  */
 export function statusLabel(status: string): string {
   if (!status) return '';
+  if (status === 'used') return 'Active';
   return status.charAt(0).toUpperCase() + status.slice(1);
 }

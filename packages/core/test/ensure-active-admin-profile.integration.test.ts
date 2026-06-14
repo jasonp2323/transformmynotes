@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../src/db/client.js';
 import { buildUserProfileItem } from '../src/auth/profile.js';
-import { getUserProfileBySub, ensureActiveAdminProfile } from '../src/db/users.js';
+import { getUserProfileBySub, ensureActiveAdminProfile, ensureActiveProfile } from '../src/db/users.js';
 
 describe('ensureActiveAdminProfile', () => {
   it('creates an active admin profile when none exists', async () => {
@@ -113,6 +113,122 @@ describe('ensureActiveAdminProfile', () => {
       sub,
       email: 'ensure-admin-004@example.com',
       name: 'Idempotent Admin',
+    });
+
+    expect(first.status).toBe('active');
+    expect(second.status).toBe('active');
+    expect(second.createdAt).toBe(first.createdAt);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ensureActiveProfile with role:'member'
+// ---------------------------------------------------------------------------
+
+describe('ensureActiveProfile — member role', () => {
+  it('creates an active member profile when none exists', async () => {
+    const sub = 'ensure-member-001';
+
+    const result = await ensureActiveProfile({
+      sub,
+      email: 'ensure-member-001@example.com',
+      name: 'Member One',
+      role: 'member',
+    });
+
+    expect(result.sub).toBe(sub);
+    expect(result.status).toBe('active');
+    expect(result.role).toBe('member');
+    expect(result.email).toBe('ensure-member-001@example.com');
+    expect(result.name).toBe('Member One');
+
+    // Verify the item is readable from DynamoDB.
+    const stored = await getUserProfileBySub(sub);
+    expect(stored).not.toBeNull();
+    expect(stored!.status).toBe('active');
+    expect(stored!.role).toBe('member');
+  });
+
+  it('returns the existing profile unchanged when it is already active', async () => {
+    const sub = 'ensure-member-002';
+    const existing = buildUserProfileItem({
+      sub,
+      email: 'ensure-member-002@example.com',
+      name: 'Member Two',
+      status: 'active',
+      role: 'member',
+    });
+
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.UserData,
+        Item: existing,
+      }),
+    );
+
+    const result = await ensureActiveProfile({
+      sub,
+      email: 'ensure-member-002@example.com',
+      name: 'Member Two',
+      role: 'member',
+    });
+
+    expect(result.status).toBe('active');
+    expect(result.role).toBe('member');
+    // createdAt must be the original value (not re-stamped).
+    expect(result.createdAt).toBe(existing.createdAt);
+  });
+
+  it('activates a pending profile and sets it to member role', async () => {
+    const sub = 'ensure-member-003';
+    const pending = buildUserProfileItem({
+      sub,
+      email: 'ensure-member-003@example.com',
+      name: 'Pending Member',
+      status: 'pending',
+      role: 'member',
+    });
+
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.UserData,
+        Item: pending,
+      }),
+    );
+
+    const result = await ensureActiveProfile({
+      sub,
+      email: 'ensure-member-003@example.com',
+      name: 'Pending Member',
+      role: 'member',
+    });
+
+    expect(result.status).toBe('active');
+    expect(result.role).toBe('member');
+    // createdAt must be preserved from the original pending item.
+    expect(result.createdAt).toBe(pending.createdAt);
+
+    // Confirm the stored item reflects the activation.
+    const stored = await getUserProfileBySub(sub);
+    expect(stored!.status).toBe('active');
+    expect(stored!.role).toBe('member');
+  });
+
+  it('is idempotent: calling twice returns the same active member profile', async () => {
+    const sub = 'ensure-member-004';
+
+    const first = await ensureActiveProfile({
+      sub,
+      email: 'ensure-member-004@example.com',
+      name: 'Idempotent Member',
+      role: 'member',
+    });
+
+    const second = await ensureActiveProfile({
+      sub,
+      email: 'ensure-member-004@example.com',
+      name: 'Idempotent Member',
+      role: 'member',
     });
 
     expect(first.status).toBe('active');
