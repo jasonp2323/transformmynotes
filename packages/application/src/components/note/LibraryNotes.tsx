@@ -35,7 +35,7 @@ function NotebookEmptyState() {
       <div style={{ position: 'relative', marginBottom: 24 }}>
         <HandNote
           tilt={-4}
-          lines={['mis apuntes…', 'por transformar', '— ✎ —']}
+          lines={['minhas anotações…', 'para transformar', '— ✎ —']}
           style={{ width: 168, padding: '18px 16px', opacity: 0.96 }}
         />
         <div
