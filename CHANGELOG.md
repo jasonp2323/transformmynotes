@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.47.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.46.0...transformmynotes-v1.47.0) (2026-06-14)
+
+
+### 🚀 Features
+
+* **marketing:** link CTAs to per-stage app URL instead of hardcoded prod ([#485](https://github.com/jasonp2323/transformmynotes/issues/485)) ([fb632bf](https://github.com/jasonp2323/transformmynotes/commit/fb632bf5c4bea8d480ca176431c1249c28817eab)), closes [#481](https://github.com/jasonp2323/transformmynotes/issues/481)
+
 ## [1.46.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.3...transformmynotes-v1.46.0) (2026-06-14)
 
 
