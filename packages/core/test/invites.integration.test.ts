@@ -60,6 +60,33 @@ describe('Invites — putInvite / getInviteByCode round-trip', () => {
 });
 
 // ---------------------------------------------------------------------------
+// putInvite — raw code storage
+// ---------------------------------------------------------------------------
+
+describe('Invites — putInvite stores raw code', () => {
+  it('stores the raw code and codeHash together when code is supplied', async () => {
+    const rawCode = 'STORETEST1';
+    const item = await putInvite({
+      code: rawCode,
+      type: 'code',
+      maxUses: 1,
+      label: 'Code storage test',
+    });
+
+    // The raw code must be present on the returned item.
+    expect(item.code).toBe(rawCode);
+    // The codeHash must be the SHA-256 of the raw code.
+    expect(item.codeHash).toBe(hashInviteCode(rawCode));
+
+    // Fetch from DynamoDB and verify both fields survived the round-trip.
+    const fetched = await getInviteByCode(rawCode);
+    expect(fetched).toBeDefined();
+    expect(fetched!.code).toBe(rawCode);
+    expect(fetched!.codeHash).toBe(hashInviteCode(rawCode));
+  });
+});
+
+// ---------------------------------------------------------------------------
 // claimInvite — multi-use code
 // ---------------------------------------------------------------------------
 

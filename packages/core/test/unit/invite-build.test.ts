@@ -193,6 +193,18 @@ describe('buildInviteItem', () => {
       expect(item.updatedAt).toBe(FIXED_TS);
     });
   });
+
+  describe('code attribute', () => {
+    it('includes code when provided', () => {
+      const item = buildInviteItem({ codeHash: BASE_HASH, type: 'code', code: 'ABCDEFGH', now: FIXED_TS });
+      expect(item.code).toBe('ABCDEFGH');
+    });
+
+    it('omits code when not provided', () => {
+      const item = buildInviteItem({ codeHash: BASE_HASH, type: 'code', now: FIXED_TS });
+      expect('code' in item).toBe(false);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

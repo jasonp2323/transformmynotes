@@ -41,6 +41,7 @@ export async function putInvite(input: PutInviteInput): Promise<InviteItem> {
     maxUses: input.maxUses,
     createdBy: input.createdBy,
     role: input.role,
+    code: input.code,
   });
 
   await ddb.send(

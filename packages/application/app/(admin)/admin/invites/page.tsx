@@ -17,6 +17,7 @@ import { statusTone, statusLabel } from '@/lib/admin-status';
 import {
   inviteRecipientLabel,
   inviteCodeRef,
+  inviteCodeDisplay,
   inviteDetail,
   expiresAtForOption,
   type ExpiryOption,
@@ -50,7 +51,7 @@ const COLS = '1.8fr 1.2fr 0.9fr 1.1fr 0.6fr';
 const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },
-  { value: 'used', label: 'Used' },
+  { value: 'used', label: 'Active' },
   { value: 'expired', label: 'Expired' },
   { value: 'revoked', label: 'Revoked' },
 ];
@@ -213,7 +214,7 @@ export default function AdminInvitesPage() {
 
       // Success — show the code (only chance to see it)
       const codeDisplay: string = data.codeDisplay ?? '';
-      let toastBody = `Code: ${codeDisplay} — copy it now, it won't be shown again.`;
+      let toastBody = `Code: ${codeDisplay} — also shown in the Code column below.`;
       if (createMode === 'email' && data.emailSent === true) {
         toastBody = `Email sent. ${toastBody}`;
       } else if (createMode === 'email' && data.emailSent === false) {
@@ -675,7 +676,7 @@ export default function AdminInvitesPage() {
                       fontWeight: 600,
                     }}
                   >
-                    {inviteCodeRef(inv)}
+                    {inviteCodeDisplay(inv)}
                   </span>
 
                   {/* Status badge cell */}

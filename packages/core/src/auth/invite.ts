@@ -106,6 +106,7 @@ export interface InviteItem {
   gsi1pk: string;
   gsi1sk: string;
   codeHash: string;
+  code?: string;
   type: InviteType;
   targetEmail?: string;
   label?: string;
@@ -126,6 +127,7 @@ export interface InviteItem {
 /** Input to the `buildInviteItem` builder. */
 export interface BuildInviteItemInput {
   codeHash: string;
+  code?: string;
   type: InviteType;
   targetEmail?: string;
   label?: string;
@@ -176,6 +178,7 @@ export function buildInviteItem(input: BuildInviteItemInput): InviteItem {
     createdAt,
     updatedAt: ts,
     ...(input.role !== undefined ? { role: input.role } : {}),
+    ...(input.code !== undefined ? { code: input.code } : {}),
   };
 }
 

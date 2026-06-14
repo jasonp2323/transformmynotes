@@ -3,6 +3,7 @@ import {
   formatShortDate,
   inviteRecipientLabel,
   inviteCodeRef,
+  inviteCodeDisplay,
   inviteDetail,
   expiresAtForOption,
 } from './invite-list';
@@ -141,5 +142,25 @@ describe('expiresAtForOption', () => {
     const nowCopy = new Date(now.getTime());
     expiresAtForOption('In 30 days', now);
     expect(now.toISOString()).toBe(nowCopy.toISOString());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// inviteCodeDisplay
+// ---------------------------------------------------------------------------
+
+describe('inviteCodeDisplay', () => {
+  it('returns formatted code when invite.code is present', () => {
+    // formatInviteCode('ABCDEFGH') → 'ABCD-EFGH'
+    expect(inviteCodeDisplay({ code: 'ABCDEFGH', codeHash: 'abc123' })).toBe('ABCD-EFGH');
+  });
+
+  it('falls back to codeHash slice when invite.code is absent', () => {
+    expect(inviteCodeDisplay({ code: undefined, codeHash: 'abcdef1234567890' })).toBe('abcdef12');
+  });
+
+  it('falls back to codeHash slice when invite.code is empty string', () => {
+    // Empty string is falsy, so falls back to hash ref
+    expect(inviteCodeDisplay({ code: '', codeHash: 'abcdef1234567890' })).toBe('abcdef12');
   });
 });

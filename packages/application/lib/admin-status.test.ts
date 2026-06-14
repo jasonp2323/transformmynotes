@@ -47,7 +47,7 @@ describe('statusTone', () => {
 describe('statusLabel', () => {
   it('capitalizes the first letter of known statuses', () => {
     expect(statusLabel('pending')).toBe('Pending');
-    expect(statusLabel('used')).toBe('Used');
+    expect(statusLabel('used')).toBe('Active');
     expect(statusLabel('expired')).toBe('Expired');
     expect(statusLabel('revoked')).toBe('Revoked');
     expect(statusLabel('active')).toBe('Active');
