@@ -35,6 +35,18 @@ When you start an issue, read its `Size` (the Project field) along with its Stat
 
 If an issue has no Size, set one first (see "Task sizing" under GitHub tooling) — don't run a large task blind.
 
+## Milestone decomposition — `Mx` → `Mx.x` → `Mx.x.x` (three levels, parallel by design)
+
+Every milestone follows the same three-level structure, and the structure exists specifically to enable **parallel subagent execution** (it pairs with the "Orchestrate via subagents" rule at the top of this file):
+
+- **`Mx` — Milestone.** The whole feature (e.g. `M12 · Android app`). Tracked as a GitHub **milestone object** + an **epic issue** holding the full spec (mirrored from `docs/milestones/Mx.md`). Size is usually L/XL.
+- **`Mx.x` — Phase (a dependency "wave").** A milestone is broken into ordered phases. Phases are **sequential**: a later phase may depend on an earlier one, so you finish (commit + push) a phase before starting the next. "Phase `Mx.x`" and "Wave x" are the **same thing** — older milestone docs say "Wave", newer ones say "Phase"; treat them as synonyms. Each phase is its own issue.
+- **`Mx.x.x` — Task.** A phase is split into small, well-scoped tasks. **Tasks within one phase are designed to be independent so they can be worked in parallel.** Each task is its own issue (Size XS/S/M).
+
+**Execution model (how Opus runs a phase):** when the lead (Opus) picks up a phase `Mx.x`, it dispatches **one Sonnet subagent per task `Mx.x.x`** and runs them **in parallel** (Haiku for trivial/mechanical tasks), then reviews + integrates their output. Opus does not write the task code itself — see the "Orchestrate via subagents" rule. To make parallel dispatch safe, **scope each task to non-overlapping files**; the orchestrator owns any shared/integration files (e.g. a manifest, a barrel export, a config touched by several tasks) and edits them centrally after the parallel agents finish.
+
+**When you author a new milestone:** decompose it into phases and tasks up front using exactly this `Mx` / `Mx.x` / `Mx.x.x` numbering, write `docs/milestones/Mx.md` with a "Sub-issues — dependency waves/phases" section, mirror it into the epic issue, and create the GitHub milestone + epic + phase (and, when a phase is queued, task) issues — each with a `Size` and a Status (see "Task sizing" and the Status lifecycle below).
+
 ## Repository layout
 
 npm workspaces monorepo under `packages/*`, deployed with **SST v4** on AWS.
