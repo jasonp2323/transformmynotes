@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.49.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.48.1...transformmynotes-v1.49.0) (2026-06-14)
+
+
+### 🚀 Features
+
+* add greenfield whole-app mode to brainstorming skill ([272918e](https://github.com/jasonp2323/transformmynotes/commit/272918ecfb3abdd8562080e83d9f4ce321fcf5b1))
+
+
+### 🐛 Fixes
+
+* **application:** scrollable library note + tap-to-zoom original image ([#504](https://github.com/jasonp2323/transformmynotes/issues/504)) ([08a94bf](https://github.com/jasonp2323/transformmynotes/commit/08a94bf62eb71778f554c6d3730c8d585ed54590)), closes [#502](https://github.com/jasonp2323/transformmynotes/issues/502)
+
+
+### 🧰 Maintenance
+
+* add project-agnostic brainstorming skill (single-milestone + greenfield modes) ([f9fc035](https://github.com/jasonp2323/transformmynotes/commit/f9fc03536d9739fbbfa96b8dc4bd5b97f0e3850d))
+
 ## [1.48.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.48.0...transformmynotes-v1.48.1) (2026-06-14)
 
 
