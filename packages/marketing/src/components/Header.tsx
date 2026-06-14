@@ -6,9 +6,7 @@ import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import Button from './ui/Button';
 import IconButton from './ui/IconButton';
-
-const SIGNUP = 'https://app.transformmynotes.com/request-access';
-const LOGIN = 'https://app.transformmynotes.com/login';
+import { SIGNUP_URL, LOGIN_URL } from '../lib/appLinks';
 
 export default function Header() {
   const [menu, setMenu] = useState(false);
@@ -47,14 +45,14 @@ export default function Header() {
           </Link>
           <Button
             as="a"
-            href={LOGIN}
+            href={LOGIN_URL}
             variant="ghost"
             size="sm"
             className="header-actions__signin"
           >
             Sign in
           </Button>
-          <Button as="a" href={SIGNUP} variant="primary" size="sm">
+          <Button as="a" href={SIGNUP_URL} variant="primary" size="sm">
             Request access
           </Button>
           <IconButton
@@ -76,10 +74,10 @@ export default function Header() {
         </div>
         {menu ? (
           <div className="mobile-menu" role="menu">
-            <Button as="a" href={SIGNUP} variant="primary" size="md" fullWidth>
+            <Button as="a" href={SIGNUP_URL} variant="primary" size="md" fullWidth>
               Request access
             </Button>
-            <Button as="a" href={LOGIN} variant="secondary" size="md" fullWidth>
+            <Button as="a" href={LOGIN_URL} variant="secondary" size="md" fullWidth>
               Sign in
             </Button>
             <Link href="/changelog" className="mobile-menu__link">
