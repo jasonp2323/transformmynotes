@@ -20,6 +20,13 @@ export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
 export const turnstileSiteKey = new sst.Secret("TURNSTILE_SITE_KEY");
 export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 
+// M12 Android App Links — SHA-256 fingerprint(s) of the release keystore,
+// served at /.well-known/assetlinks.json for Android verified App Links.
+// Supports comma-separated values so both the Play App Signing cert and the
+// upload key can be listed. Seed in both SST Console environments (production
+// + fallback/pr-<N>) once the release keystore exists; the route 500s if unset.
+export const androidSigningFingerprint = new sst.Secret("ANDROID_SIGNING_FINGERPRINT");
+
 // Issue #460 — the shared dev Cognito pool id is NOT an sst.Secret. A declared
 // sst.Secret with no value throws SecretMissingError at deploy for EVERY stage
 // (the value Output resolves eagerly, regardless of whether it's referenced),

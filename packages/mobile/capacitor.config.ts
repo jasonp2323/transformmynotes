@@ -12,6 +12,18 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     allowNavigation: ['*.transformmynotes.com'],
   },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1500,
+      backgroundColor: '#FAF8F3',
+      splashImmersive: false,
+      androidScaleType: 'CENTER_CROP',
+    },
+    StatusBar: {
+      style: 'LIGHT',
+      backgroundColor: '#FAF8F3',
+    },
+  },
 };
 
 export default config;

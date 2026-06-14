@@ -35,6 +35,14 @@
     "tailwind-merge": "^2.6.1",
     "ulid": "^3.0.2"
   },
+  "optionalDependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/camera": "^8.2.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/status-bar": "^8.0.2"
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
