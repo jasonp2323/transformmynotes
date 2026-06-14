@@ -176,22 +176,23 @@ export async function deleteUserProfileWithAudit(
 }
 
 /**
- * Ensure an active admin profile exists for the given Cognito sub.
+ * Ensure an active profile exists for the given Cognito sub with the specified role.
  *
  * - If a profile already exists and is active, returns it unchanged.
  * - If a profile exists but is NOT active, writes a new item with status:'active'
- *   and role:'admin', preserving the original createdAt and groupIds.
- * - If no profile exists, creates one with status:'active' and role:'admin'.
+ *   and the given role, preserving the original createdAt and groupIds.
+ * - If no profile exists, creates one with status:'active' and the given role.
  *
  * The write uses PutCommand (unconditional overwrite) because we always want
- * the result to be an active admin item regardless of the prior state.
+ * the result to be an active item regardless of the prior state.
  */
-export async function ensureActiveAdminProfile(opts: {
+export async function ensureActiveProfile(opts: {
   sub: string;
   email: string;
   name: string;
+  role: 'admin' | 'member';
 }): Promise<UserProfileItem> {
-  const { sub, email, name } = opts;
+  const { sub, email, name, role } = opts;
 
   const existing = await getUserProfileBySub(sub);
   if (existing && existing.status === 'active') {
@@ -203,7 +204,7 @@ export async function ensureActiveAdminProfile(opts: {
     email,
     name,
     status: 'active',
-    role: 'admin',
+    role,
     groupIds: existing?.groupIds ?? [],
     createdAt: existing?.createdAt,
   });
@@ -216,4 +217,21 @@ export async function ensureActiveAdminProfile(opts: {
   );
 
   return profile;
+}
+
+/**
+ * Ensure an active admin profile exists for the given Cognito sub.
+ * Delegates to ensureActiveProfile with role:'admin'.
+ *
+ * - If a profile already exists and is active, returns it unchanged.
+ * - If a profile exists but is NOT active, writes a new item with status:'active'
+ *   and role:'admin', preserving the original createdAt and groupIds.
+ * - If no profile exists, creates one with status:'active' and role:'admin'.
+ */
+export async function ensureActiveAdminProfile(opts: {
+  sub: string;
+  email: string;
+  name: string;
+}): Promise<UserProfileItem> {
+  return ensureActiveProfile({ ...opts, role: 'admin' });
 }

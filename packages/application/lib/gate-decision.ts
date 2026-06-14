@@ -1,20 +1,21 @@
 import type { UserStatus } from '@transformmynotes/core';
 
-export type GateDecision = 'allow' | 'provision-admin' | 'pending';
+export type GateDecision = 'allow' | 'provision' | 'blocked';
 
 /**
- * Pure function: given a profile status (or null for no profile) and whether the
- * user holds the admin Cognito group, returns the gate action to take.
+ * Pure gate decision based on the user's stored profile status.
  *
- * - 'allow'           → profile is active; let the user through.
- * - 'provision-admin' → user is an admin with no active profile; self-provision one.
- * - 'pending'         → non-admin user with a missing or non-active profile; redirect.
+ * The Cognito pool is invite/admin-only, so any user who can authenticate was
+ * deliberately created by an admin ⇒ grant access. A profile that is missing or
+ * still 'pending' is provisioned/activated on the fly; an explicitly 'disabled'
+ * profile is blocked (though Cognito also blocks disabled users at sign-in).
+ *
+ * - 'allow'     → profile is active; let the user through.
+ * - 'provision' → profile missing or 'pending'; self-provision an active profile.
+ * - 'blocked'   → profile explicitly 'disabled'.
  */
-export function gateDecision(
-  profileStatus: UserStatus | null,
-  isAdminUser: boolean,
-): GateDecision {
+export function gateDecision(profileStatus: UserStatus | null): GateDecision {
   if (profileStatus === 'active') return 'allow';
-  if (isAdminUser) return 'provision-admin';
-  return 'pending';
+  if (profileStatus === 'disabled') return 'blocked';
+  return 'provision';
 }
