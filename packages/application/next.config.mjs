@@ -65,7 +65,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), geolocation=(), microphone=()',
+            value: 'camera=(self), geolocation=(), microphone=()',
           },
           {
             // Report-only CSP — see comment at top of file.

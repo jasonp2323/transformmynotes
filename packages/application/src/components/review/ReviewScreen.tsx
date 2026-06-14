@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import NoteEditor from '@/src/components/editor/NoteEditor';
 import type { NoteEditorHandle } from '@/src/components/editor/NoteEditor';
 import { ActionBar } from './ActionBar';
+import { ImageLightbox } from './ImageLightbox';
 import {
   Badge,
   Button,
@@ -77,6 +78,7 @@ export function ReviewScreen({
   const [tagInputValue, setTagInputValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const editorRef = useRef<NoteEditorHandle>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -216,9 +218,23 @@ export function ReviewScreen({
   );
 
   const imageOrPlaceholder = originalImageUrl ? (
-    <div className="tmn-review-image-frame">
-      <img src={originalImageUrl} alt="Original handwriting" />
-    </div>
+    <>
+      <div className="tmn-review-image-frame">
+        <button
+          className="tmn-review-image-btn"
+          aria-label="View full image"
+          onClick={() => setLightboxOpen(true)}
+        >
+          <img src={originalImageUrl} alt="Original handwriting" />
+        </button>
+      </div>
+      <ImageLightbox
+        src={originalImageUrl}
+        alt="Original handwriting — full size"
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+    </>
   ) : (
     <div className="tmn-review-image-placeholder">
       <Icon name="image-off" size={36} />

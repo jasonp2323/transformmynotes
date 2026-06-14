@@ -30,6 +30,7 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_Groups_name: groups.name,
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
+    SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
     SST_STAGE: $app.stage,
     RESEND_API_KEY: resendApiKey.value,
     INVITE_FROM_ADDRESS: inviteFromAddress.value,

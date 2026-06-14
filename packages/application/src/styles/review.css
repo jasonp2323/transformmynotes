@@ -28,7 +28,7 @@
 .tmn-review-screen {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--surface-card);
 }
 
@@ -63,6 +63,7 @@
   overflow-y: auto;
   padding: 16px 18px 120px;
   overscroll-behavior-y: contain;
+  min-height: 0;
 }
 
 /* ---- Section label (eyebrow) ---- */
@@ -111,7 +112,16 @@
   justify-content: center;
 }
 
-.tmn-review-image-frame img {
+.tmn-review-image-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.tmn-review-image-btn img {
   width: 100%;
   height: 220px;
   object-fit: cover;
@@ -517,5 +527,59 @@
   .tmn-deck-card * {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* ---- Image lightbox overlay ---- */
+
+.tmn-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tmn-lightbox-img {
+  max-width: 100vw;
+  max-height: 100dvh;
+  object-fit: contain;
+  display: block;
+}
+
+.tmn-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 201;
+  transition: background var(--dur-fast, 120ms) ease;
+}
+
+.tmn-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.tmn-lightbox-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-lightbox-close {
+    transition: none;
   }
 }

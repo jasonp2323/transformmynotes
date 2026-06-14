@@ -162,6 +162,10 @@ All `sst.Secret` names must use `SCREAMING_SNAKE_CASE` (e.g. `RESEND_API_KEY`, n
 
 **Never give a required secret/config value an empty or placeholder fallback.** A missing required value (an `sst.Secret`, env var, etc.) must fail loudly at deploy/build/startup — do NOT paper over it with `new sst.Secret("X", "")` or any default that lets the app run misconfigured. Empty fallbacks hide misconfiguration and resurface as confusing runtime bugs later. The fix for an unset secret is to **seed the real value** (in both Console environments — production and the fallback env used by `pr-<N>` stages), never to soften the failure.
 
+**Required environment variables MUST fail the application's pipeline — never work around them or make them optional.** If a value is obviously required for a feature to function (a model id, an API key, a bucket/table binding, etc.), the code must throw loudly when it is absent, and the deploy/binding must actually expose it at runtime — do NOT add an optional fallback, a silent default, an `if (!x) return early` short-circuit, or any other workaround that lets the pipeline limp along misconfigured. Two distinct failure modes to keep in mind, both of which must surface loudly rather than be softened:
+- **Unset value** — the secret/env var has no value → fix by seeding the real value (see above).
+- **Unbound value** — the secret exists (and may even be granted to IAM) but was never wired into the function's runtime, so `process.env.SST_RESOURCE_<NAME>_value` is `undefined`. Linking a resource or referencing `secret.value` for IAM/ARNs does **not** inject it into `environment`; the consuming function must explicitly bind it (add it to the function's `link` array, or add the exact `SST_RESOURCE_<NAME>_value` / env key to the `environment` block) so the code that reads it can resolve it. A secret that is declared and IAM-granted but never bound to the runtime is a silent breakage waiting to happen — bind it where the code reads it.
+
 ## CI/CD (GitHub Actions)
 
 Four workflows live in `.github/workflows/` (plus `.github/release.yml`, the GitHub release-notes category config). SST is the deploy tool.
