@@ -1,9 +1,8 @@
 'use client';
 import React, { useState, Suspense } from 'react';
-import { confirmResetPassword } from 'aws-amplify/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input, Button } from '@/src/components/ui';
-import { PasswordField, AuthLink } from '@/src/components/auth';
+import { PasswordField, AuthLink, TurnstileWidget } from '@/src/components/auth';
 import { Brandmark } from '@/src/components/brand';
 
 function ResetForm() {
@@ -17,19 +16,29 @@ function ResetForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await confirmResetPassword({
-        username: email,
-        confirmationCode: code,
-        newPassword: password,
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, newPassword: password, turnstileToken }),
       });
-      setSuccess(true);
-      setTimeout(() => router.push('/login'), 2000);
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (res.status === 429) {
+        setError(data.error ?? 'Too many attempts. Please try again later.');
+        return;
+      }
+      if (res.ok && data.ok) {
+        setSuccess(true);
+        setTimeout(() => router.push('/login'), 2000);
+        return;
+      }
+      setError(data.error ?? 'Unable to reset password. Please check your code and try again.');
     } catch {
       setError('Unable to reset password. Please check your code and try again.');
     } finally {
@@ -100,12 +109,15 @@ function ResetForm() {
         </p>
       )}
 
+      <TurnstileWidget onToken={setTurnstileToken} />
+
       <Button
         type="submit"
         variant="primary"
         size="lg"
         fullWidth
         loading={loading}
+        disabled={!turnstileToken}
       >
         Reset password
       </Button>

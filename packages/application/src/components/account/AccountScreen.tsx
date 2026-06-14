@@ -21,7 +21,8 @@ export function AccountScreen({ email, isAdmin }: AccountScreenProps) {
     } catch {
       // best-effort — clear session regardless
     }
-    document.cookie = 'CognitoIdToken=; path=/; max-age=0';
+    // Authoritative session cookie clear is done server-side.
+    await fetch('/api/auth/sign-out', { method: 'POST' });
     router.push('/login');
   }
 

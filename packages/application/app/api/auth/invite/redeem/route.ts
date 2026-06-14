@@ -10,6 +10,7 @@ import {
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { getInviteByCode, evaluateInvite, buildUserProfileItem, ddb, TableNames, claimInvite } from '@transformmynotes/core';
 import { rateLimit } from '@/lib/ratelimit';
+import { enforceRateLimit, clientIp } from '@/lib/rate-limit';
 
 /** Basic email regex — validates structure without being overly strict. */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -69,6 +70,31 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: 'Too many requests. Please try again later.' },
       { status: 429 },
+    );
+  }
+
+  // DynamoDB-backed rate-limit — persists across instances/restarts.
+  try {
+    const dynRl = await enforceRateLimit(
+      'invite-redeem',
+      clientIp(req.headers as Headers),
+      5,
+      60,
+    );
+    if (!dynRl.ok) {
+      return NextResponse.json(
+        { ok: false, error: 'Too many attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(dynRl.retryAfterSeconds) },
+        },
+      );
+    }
+  } catch (err) {
+    console.error('[invite/redeem] Rate-limit check failed', err);
+    return NextResponse.json(
+      { ok: false, error: 'Something went wrong. Please try again.' },
+      { status: 500 },
     );
   }
 

@@ -6,3 +6,6 @@ export type { AuthLinkProps } from './AuthLink';
 
 export { AuthCardSkeleton } from './AuthCardSkeleton';
 export type { AuthCardSkeletonProps } from './AuthCardSkeleton';
+
+export { TurnstileWidget } from './TurnstileWidget';
+export type { TurnstileWidgetProps } from './TurnstileWidget';
