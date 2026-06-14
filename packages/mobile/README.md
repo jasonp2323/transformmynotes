@@ -2,7 +2,7 @@
 
 ## Overview
 
-`packages/mobile` (`@transformmynotes/mobile`) is the Capacitor Android shell that wraps the live hosted app at `https://app.transformmynotes.com` in a native WebView via `server.url`. There is no static web bundle shipped inside the APK/AAB — the app is a server-side-rendered Next.js application, and the shell simply points the WebView at the live URL. This makes it a pure client artifact: it has no SST entrypoint, is excluded from the SST deploy path, and does not appear in `infra/`. Release builds run in a separate `.github/workflows/android.yml`, triggered by a `mobile-v*` tag push or `workflow_dispatch`, completely independent of `deploy.yml`.
+`packages/mobile` (`@transformmynotes/mobile`) is the Capacitor Android shell that wraps the live hosted app at `https://app.transformmynotes.com` in a native WebView via `server.url`. There is no static web bundle shipped inside the APK — the app is a server-side-rendered Next.js application, and the shell simply points the WebView at the live URL. This makes it a pure client artifact: it has no SST entrypoint, is excluded from the SST deploy path, and does not appear in `infra/`. Release builds run in a separate `.github/workflows/android.yml`, triggered by a `mobile-v*` tag push or `workflow_dispatch`, completely independent of `deploy.yml`.
 
 ---
 
@@ -103,7 +103,7 @@ Run this once and store the output file securely:
 keytool -genkey -v -keystore release.jks -alias transformmynotes -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-> **The keystore is unrecoverable if lost.** Google Play ties the app's identity to the signing certificate — losing the keystore permanently locks you out of publishing updates to the same Play Store listing. Back it up securely (e.g. AWS Secrets Manager or an encrypted offline backup). **Never commit `release.jks` to the repository.**
+> **The keystore is unrecoverable if lost.** Android ties an installed app's identity to its signing certificate — an update signed with a different key will NOT install over an existing install (users would have to uninstall and reinstall, losing nothing server-side but a poor UX). Back it up securely (e.g. AWS Secrets Manager or an encrypted offline backup). **Never commit `release.jks` to the repository.**
 
 ### Gradle signing properties
 
@@ -118,22 +118,22 @@ The `release` signingConfig in `android/app/build.gradle` reads four Gradle proj
 
 Pass them via `-P` flags on the Gradle command line, or place them in an uncommitted `gradle.properties` or `local.properties` file inside `packages/mobile/android/` (add these files to `.gitignore` — they must never be committed).
 
-### Build a signed release bundle
+### Build a signed release APK
 
 From the `packages/mobile/android` directory:
 
 ```bash
-./gradlew bundleRelease \
+./gradlew assembleRelease \
   -PRELEASE_STORE_FILE=/absolute/path/to/release.jks \
   -PRELEASE_STORE_PASSWORD=your_store_password \
   -PRELEASE_KEY_ALIAS=transformmynotes \
   -PRELEASE_KEY_PASSWORD=your_key_password
 ```
 
-Output AAB (the format required for Play Store submissions):
+Output APK (the file end users sideload — distributed via GitHub Releases, not an app store):
 
 ```
-packages/mobile/android/app/build/outputs/bundle/release/app-release.aab
+packages/mobile/android/app/build/outputs/apk/release/app-release.apk
 ```
 
 ---
@@ -164,7 +164,7 @@ npm run bump-version -w packages/mobile
 2. Commit the change with a message like `chore(mobile): bump version to x.y.z`.
 3. Push and tag: `git tag mobile-vx.y.z && git push origin mobile-vx.y.z`.
 
-**Important:** `versionCode` must be monotonically increasing for every Play Store submission and must never be auto-incremented by CI — doing so creates drift risk if a CI run fails mid-build. Always bump on the release coordinator's machine and commit the result.
+**Important:** `versionCode` must be monotonically increasing for every published release and must never be auto-incremented by CI — doing so creates drift risk if a CI run fails mid-build. Always bump on the release coordinator's machine and commit the result.
 
 Current values (as of last commit): `versionCode 2`, `versionName "1.40.1"`.
 
@@ -172,4 +172,4 @@ Current values (as of last commit): `versionCode 2`, `versionName "1.40.1"`.
 
 ## CI — Android Release Builds
 
-Android release builds run in `.github/workflows/android.yml`, added in M12.3. That workflow is triggered by a `mobile-v*` tag push or `workflow_dispatch`. It builds the signed `.aab`, uploads it as a workflow artifact, and is completely independent of `deploy.yml` — it has no SST or AWS deploy steps. The SST/Pulumi deploy path (PR stages, `production`) is never aware of the mobile package.
+Android release builds run in `.github/workflows/android.yml`, added in M12.3. That workflow is triggered by a `mobile-v*` tag push or `workflow_dispatch`. It builds the signed release APK, uploads it as a workflow artifact and attaches it to the GitHub Release for the tag, and is completely independent of `deploy.yml` — it has no SST or AWS deploy steps. The SST/Pulumi deploy path (PR stages, `production`) is never aware of the mobile package.
