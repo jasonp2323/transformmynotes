@@ -71,6 +71,8 @@ async function signInAsMainUser(page: import('@playwright/test').Page) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.username);
   await page.getByLabel('Password').first().fill(runtime.password);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 }
@@ -83,6 +85,8 @@ async function signInAsAdmin(page: import('@playwright/test').Page) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 }

@@ -39,6 +39,13 @@ export async function enforceRateLimit(
   windowSeconds: number,
   now: number = Date.now(),
 ): Promise<{ ok: boolean; retryAfterSeconds: number }> {
+  // Test/offline escape hatch: the offline E2E suite runs every sign-in from a single
+  // localhost IP, which would trip the per-IP login limit. This flag is set ONLY by the
+  // E2E global-setup — it is NEVER added to the SST environment map, so production and
+  // pr-<N> never see it and always rate-limit normally.
+  if (process.env.RATE_LIMIT_DISABLED === '1') {
+    return { ok: true, retryAfterSeconds: 0 };
+  }
   const windowStart = Math.floor(now / 1000 / windowSeconds) * windowSeconds;
   const { count } = await hitRateLimit({ route, ip, windowStart, windowSeconds });
   if (count > threshold) {
