@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.3...transformmynotes-v1.46.0) (2026-06-14)
+
+
+### 🚀 Features
+
+* **application:** add login/dashboard loading skeletons + fix post-login navigation race ([#486](https://github.com/jasonp2323/transformmynotes/issues/486)) ([5603f58](https://github.com/jasonp2323/transformmynotes/commit/5603f58eddf06a5f5266216998b6d1af85823a33))
+
 ## [1.45.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.2...transformmynotes-v1.45.3) (2026-06-14)
 
 
