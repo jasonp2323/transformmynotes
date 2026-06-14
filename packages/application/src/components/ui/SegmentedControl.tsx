@@ -48,6 +48,7 @@ export function SegmentedControl({
   );
   const n = normalised.length;
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
 
@@ -58,10 +59,26 @@ export function SegmentedControl({
 
   useIsoLayoutEffect(() => { measure(); }, [measure, n, options]);
 
+  // Re-measure whenever the control or its segments change size. A plain
+  // window-resize listener misses two cases that silently break alignment:
+  // container reflows that don't resize the window, and async web-font swaps
+  // (the custom UI font can load *after* the first layout-effect measurement,
+  // widening the labels). A ResizeObserver on the container + buttons catches
+  // both; `document.fonts.ready` is a belt-and-suspenders trigger for the swap.
   useEffect(() => {
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [measure]);
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    btnRefs.current.forEach((b) => { if (b) ro.observe(b); });
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(() => measure()).catch(() => {});
+    }
+    return () => ro.disconnect();
+  }, [measure, n]);
 
   function handleSelect(optValue: string) {
     if (!isControlled) {
@@ -102,6 +119,7 @@ export function SegmentedControl({
 
   return (
     <div
+      ref={containerRef}
       role="radiogroup"
       aria-label={ariaLabel}
       className={cn('tmn-seg', className)}
