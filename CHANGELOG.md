@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.48.0...transformmynotes-v1.48.1) (2026-06-14)
+
+
+### 🐛 Fixes
+
+* **application:** repair mobile note capture → transcribe → review flow ([#499](https://github.com/jasonp2323/transformmynotes/issues/499)) ([c1dc9b2](https://github.com/jasonp2323/transformmynotes/commit/c1dc9b201b9bdf4c58152460c135b9149e365c66))
+
 ## [1.48.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.47.0...transformmynotes-v1.48.0) (2026-06-14)
 
 
