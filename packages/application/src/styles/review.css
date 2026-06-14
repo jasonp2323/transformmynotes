@@ -210,18 +210,6 @@
   margin-bottom: var(--space-2);
 }
 
-/* ---- Toast container ---- */
-
-.tmn-review-toast-container {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  width: max-content;
-  max-width: calc(100vw - 40px);
-}
-
 /* ===== M8.3 Review deck ===== */
 
 /* ---- Deck page wrapper ---- */

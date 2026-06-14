@@ -333,19 +333,17 @@ export function NoteViewScreen({
 
       {/* ── Toast ── */}
       {toast && (
-        <div className="tmn-review-toast-container">
-          <Toast
-            tone={toast.tone}
-            icon={
-              toast.tone === 'success' ? (
-                <Icon name="check" size={16} />
-              ) : undefined
-            }
-            title={toast.title}
-            onClose={() => setToast(null)}
-            duration={3200}
-          />
-        </div>
+        <Toast
+          tone={toast.tone}
+          icon={
+            toast.tone === 'success' ? (
+              <Icon name="check" size={16} />
+            ) : undefined
+          }
+          title={toast.title}
+          onClose={() => setToast(null)}
+          duration={3200}
+        />
       )}
     </div>
   );
