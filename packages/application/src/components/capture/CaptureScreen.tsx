@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
-import { uploadImageForTranscription, CaptureUploadError, formatBytes } from '@/lib/capture';
+import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage } from '@/lib/capture';
 import { ProcessingScreen } from './ProcessingScreen';
 import { ErrorScreen } from './ErrorScreen';
 
@@ -117,6 +117,13 @@ export function CaptureScreen() {
 
   // Hidden file input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pending callbacks for the web-fallback promise wired through pickImage.
+  // When handleUploadClick uses pickImage on web, it clicks the hidden input
+  // and parks resolve/reject here; handleFileChange picks them up so the file
+  // travels through a single runUpload call — no double-trigger.
+  const fileInputResolveRef = useRef<((f: File) => void) | null>(null);
+  const fileInputRejectRef = useRef<((reason?: unknown) => void) | null>(null);
 
   // Canvas used for shutter capture (off-screen)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -309,17 +316,53 @@ export function CaptureScreen() {
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file) return;
-      runUpload(file);
       // Reset so the same file can be re-selected
       e.target.value = '';
+      if (!file) {
+        // User cancelled — reject any waiting pickImage promise.
+        fileInputRejectRef.current?.(new DOMException('No file chosen', 'AbortError'));
+        fileInputResolveRef.current = null;
+        fileInputRejectRef.current = null;
+        return;
+      }
+
+      if (fileInputResolveRef.current) {
+        // Resolve the promise created by the web-fallback inside pickImage.
+        // runUpload will be called by the handleUploadClick await chain below.
+        const resolve = fileInputResolveRef.current;
+        fileInputResolveRef.current = null;
+        fileInputRejectRef.current = null;
+        resolve(file);
+      } else {
+        // Direct onChange (e.g. user activated the input without going through
+        // handleUploadClick) — forward straight to runUpload as before.
+        runUpload(file);
+      }
     },
     [runUpload],
   );
 
   const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+    /**
+     * Web fallback: returns a Promise that resolves with the File the user
+     * picks via the existing hidden <input>. We click the input and park the
+     * resolve/reject callbacks in refs so handleFileChange can pick them up —
+     * this avoids creating a second transient input and keeps the same resize /
+     * upload pipeline active regardless of platform.
+     */
+    const webFallback = (): Promise<File> =>
+      new Promise<File>((resolve, reject) => {
+        fileInputResolveRef.current = resolve;
+        fileInputRejectRef.current = reject;
+        fileInputRef.current?.click();
+      });
+
+    // pickImage routes to native Capacitor camera on device, web fallback on
+    // browser. Either way we get a File and hand it to runUpload.
+    pickImage({ webFallback }).then(runUpload).catch(() => {
+      // User cancelled or error — nothing to upload.
+    });
+  }, [runUpload]);
 
   // ---------------------------------------------------------------------------
   // Navigate to review screen when transcription is done

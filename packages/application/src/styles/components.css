@@ -444,6 +444,7 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   background: var(--surface-app);
   font-family: var(--font-sans);
   position: relative;
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Content area — scrollable, fills remaining height */
@@ -466,7 +467,7 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 10px 8px 6px;
+  padding: 10px 8px calc(6px + env(safe-area-inset-bottom));
   flex: none;
   background: rgba(255, 253, 248, 0.9);
   backdrop-filter: blur(14px);

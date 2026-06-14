@@ -35,6 +35,9 @@ export const application = new sst.aws.Nextjs("Application", {
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
     TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
+    ...(process.env.ANDROID_SIGNING_FINGERPRINT
+      ? { ANDROID_SIGNING_FINGERPRINT: process.env.ANDROID_SIGNING_FINGERPRINT }
+      : {}),
   },
   permissions: [
     // Least privilege: scoped to this stage's user pool ARN only.

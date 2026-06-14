@@ -14,3 +14,5 @@ export { CaptureUploadError, uploadImageForTranscription, MULTIPART_THRESHOLD } 
 export { withUploadRetry, isTransientUploadError, putToS3WithProgress } from './upload-retry';
 export type { UploadRetryOpts, PutS3Opts } from './upload-retry';
 export { formatBytes } from './format-bytes';
+export type { PickImageOpts } from './pick-image';
+export { pickImage } from './pick-image';

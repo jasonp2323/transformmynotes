@@ -57,6 +57,11 @@ jobs:
       # only on the pr-<N> deploy path; owned-pool stages (production/dev) ignore it.
       # Public value (a Cognito pool id), so a GitHub Actions *variable*, not a secret.
       DEV_COGNITO_USER_POOL_ID: ${{ vars.DEV_COGNITO_USER_POOL_ID }}
+      # M12 Android App Links — release keystore SHA-256 fingerprint, served at
+      # /.well-known/assetlinks.json. Public value (published in assetlinks.json),
+      # so a GitHub Actions *variable*, not a secret. Read via process.env in
+      # infra/application.ts. Unset until the release keystore exists (Wave 3).
+      ANDROID_SIGNING_FINGERPRINT: ${{ vars.ANDROID_SIGNING_FINGERPRINT }}
 
     steps:
       - name: Checkout
