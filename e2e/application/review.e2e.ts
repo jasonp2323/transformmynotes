@@ -58,6 +58,8 @@ test.describe('[E2E] review round-trip', () => {
     await page.goto('/login');
     await page.getByLabel('Email').fill(runtime.reviewUsername);
     await page.getByLabel('Password').first().fill(runtime.reviewPassword);
+    // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
   }

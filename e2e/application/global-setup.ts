@@ -937,6 +937,18 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     // s3rver's hardcoded dummy credentials (node_modules/s3rver/lib/models/account.js)
     AWS_ACCESS_KEY_ID: 'S3RVER',
     AWS_SECRET_ACCESS_KEY: 'S3RVER',
+    // Cloudflare Turnstile always-pass test keys (see https://developers.cloudflare.com/turnstile/troubleshooting/testing/)
+    // The sitekey causes the widget to auto-resolve in the browser; the secret key
+    // short-circuits verifyTurnstile() without making a network call to challenges.cloudflare.com.
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+    TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+    // Disable the live Turnstile widget for offline E2E — the widget script can't reach
+    // cloudflare.com in CI; the server still short-circuits verifyTurnstile() on the test secret.
+    NEXT_PUBLIC_TURNSTILE_DISABLED: '1',
+    // Disable per-IP DynamoDB-backed rate limiting for the offline E2E suite — all 37 tests
+    // sign in from the same localhost IP, which would trip the 10-logins/60s limit after 10 attempts.
+    // This var is NEVER added to the SST environment map, so production and pr-<N> always rate-limit normally.
+    RATE_LIMIT_DISABLED: '1',
   };
 
   // 5. Spawn next dev

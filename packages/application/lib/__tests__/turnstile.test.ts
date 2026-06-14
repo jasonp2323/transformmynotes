@@ -54,4 +54,13 @@ describe('verifyTurnstile', () => {
       'TURNSTILE_SECRET_KEY is not set',
     );
   });
+
+  it('resolves immediately without calling fetch when secret is the always-pass test secret', async () => {
+    process.env.TURNSTILE_SECRET_KEY = '1x0000000000000000000000000000000AA';
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(verifyTurnstile('anything')).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls.length).toBe(0);
+  });
 });

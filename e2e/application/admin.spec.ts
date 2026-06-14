@@ -38,6 +38,8 @@ test('admin sign-in sees pending queue and admin nav', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
@@ -82,6 +84,8 @@ test('approve pending user → toast + row gone + user can sign in', async ({ pa
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
@@ -128,6 +132,8 @@ test('approve pending user → toast + row gone + user can sign in', async ({ pa
   await freshPage.goto('/login');
   await freshPage.getByLabel('Email').fill(runtime.pendingUser1.email);
   await freshPage.getByLabel('Password').first().fill(runtime.pendingUser1.password);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(freshPage.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await freshPage.getByRole('button', { name: 'Sign in' }).click();
 
   // Approved user should reach /dashboard (not /pending or /login)
@@ -148,6 +154,8 @@ test('members page shows table with admin (you) row', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
@@ -179,6 +187,8 @@ test('create email invite shows toast with code', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
@@ -220,6 +230,8 @@ test('create shareable code invite shows toast with code and row appears', async
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
@@ -269,6 +281,8 @@ test('revoke seeded invite → status badge flips to Revoked', async ({ page }) 
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.adminUsername);
   await page.getByLabel('Password').first().fill(runtime.adminPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
@@ -325,6 +339,8 @@ test('non-admin hitting /admin/pending is redirected to /dashboard?forbidden=1',
   await page.goto('/login');
   await page.getByLabel('Email').fill(runtime.username);
   await page.getByLabel('Password').first().fill(runtime.password);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 

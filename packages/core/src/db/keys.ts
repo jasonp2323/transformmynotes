@@ -569,3 +569,16 @@ export const uploadKeys = {
     sk: `UPLOAD#${uploadToken}`,
   }),
 };
+
+/**
+ * Fixed-window rate-limit counter keys (stored in the UserData table, M11.2.2).
+ * One item per (route, ip, window). PK groups by route; SK pins the ip + window
+ * start (epoch seconds). Items carry an `expiresAt` TTL attribute so exhausted
+ * windows are auto-removed by DynamoDB without an explicit delete.
+ */
+export const rateLimitKeys = {
+  counter: (route: string, ip: string, windowStart: string) => ({
+    pk: `RATELIMIT#${route}`,
+    sk: `IP#${ip}#WIN#${windowStart}`,
+  }),
+};

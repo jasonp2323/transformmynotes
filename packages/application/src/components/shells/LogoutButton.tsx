@@ -9,12 +9,14 @@ export function LogoutButton() {
   const router = useRouter();
 
   async function handleLogout() {
+    // Best-effort: clear any Amplify local state from the invite flow.
     try {
       await signOut();
     } catch {
       // Proceed with cleanup even if signOut fails
     }
-    document.cookie = 'CognitoIdToken=; path=/; max-age=0; samesite=lax';
+    // Authoritative session cookie clear is done server-side.
+    await fetch('/api/auth/sign-out', { method: 'POST' });
     router.push('/login');
   }
 

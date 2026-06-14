@@ -244,13 +244,18 @@ function InviteContent() {
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (data.ok) {
-        // Account created — sign in with Amplify
+        // Account created — sign in with Amplify, then hand the token to the
+        // server so it can set an HttpOnly session cookie (no client-side cookie write).
         try {
           await signIn({ username: redeemEmail, password });
           const session = await fetchAuthSession();
           const idToken = session.tokens?.idToken?.toString();
           if (idToken) {
-            document.cookie = `CognitoIdToken=${idToken}; path=/; samesite=lax`;
+            await fetch('/api/auth/set-session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken }),
+            });
           }
           router.push('/dashboard');
         } catch {

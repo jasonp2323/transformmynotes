@@ -51,6 +51,8 @@ vi.mock('@transformmynotes/core', () => ({
   ddb: { send: ddbSendMock },
   TableNames: { UserData: 'UserData' },
   claimInvite: claimInviteMock,
+  // hitRateLimit is consumed by @/lib/rate-limit which is used by this route.
+  hitRateLimit: vi.fn().mockResolvedValue({ count: 1, expiresAt: 0 }),
 }));
 
 vi.mock('@/lib/ratelimit', () => ({

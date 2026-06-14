@@ -38,9 +38,14 @@ test('login lands on dashboard', async ({ page }) => {
 
   await page.goto('/login');
 
+  // Capture the login page with the Turnstile widget area (M11.2 verification)
+  await page.screenshot({ path: path.join(__dirname, '../../docs/verification/m11.2-login-turnstile.png'), fullPage: true });
+
   await page.getByLabel('Email').fill(runtime.username);
   // getByLabel('Password') is ambiguous (also matches the "Show password" toggle button) — use first()
   await page.getByLabel('Password').first().fill(runtime.password);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
@@ -121,6 +126,8 @@ test('forgot password reset round-trip', async ({ page }) => {
   await page.goto('/forgot-password');
 
   await page.getByLabel('Email').fill(runtime.forgotUsername);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Send reset code' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Send reset code' }).click();
 
   await expect(page).toHaveURL(/\/reset-password/, { timeout: 15_000 });
@@ -128,6 +135,8 @@ test('forgot password reset round-trip', async ({ page }) => {
   // Step 2: Submit the deterministic OTP code + new password
   await page.getByLabel('Verification code').fill('123456');
   await page.getByLabel('New password').fill(runtime.forgotNewPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Reset password' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Reset password' }).click();
 
   // Expect success message
@@ -147,6 +156,8 @@ test('forgot password reset round-trip', async ({ page }) => {
   await page.getByLabel('Email').fill(runtime.forgotUsername);
   // getByLabel('Password') is ambiguous — use first()
   await page.getByLabel('Password').first().fill(runtime.forgotNewPassword);
+  // Wait for Turnstile widget to resolve (test sitekey fires onToken immediately via useEffect)
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });

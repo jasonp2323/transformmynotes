@@ -1,9 +1,8 @@
 'use client';
 import React, { useState } from 'react';
-import { resetPassword } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Input, Button } from '@/src/components/ui';
-import { AuthLink } from '@/src/components/auth';
+import { AuthLink, TurnstileWidget } from '@/src/components/auth';
 import { Brandmark } from '@/src/components/brand';
 
 export default function ForgotPasswordPage() {
@@ -11,18 +10,31 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await resetPassword({ username: email });
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, turnstileToken }),
+      });
+      if (res.status === 429) {
+        const data = (await res.json()) as { error?: string };
+        setError(data.error ?? 'Too many attempts. Please try again later.');
+        return;
+      }
+      // Always proceed to reset-password for 200 (and swallow other errors
+      // to avoid email enumeration, matching the original behaviour).
+      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } catch {
       // Intentionally swallow error — always proceed to avoid email enumeration
+      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     } finally {
       setLoading(false);
-      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
     }
   }
 
@@ -92,12 +104,15 @@ export default function ForgotPasswordPage() {
           </p>
         )}
 
+        <TurnstileWidget onToken={setTurnstileToken} />
+
         <Button
           type="submit"
           variant="primary"
           size="lg"
           fullWidth
           loading={loading}
+          disabled={!turnstileToken}
         >
           Send reset code
         </Button>
