@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.48.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.47.0...transformmynotes-v1.48.0) (2026-06-14)
+
+
+### 🚀 Features
+
+* **application:** security hardening — Turnstile, rate limiting, HttpOnly cookies (M11.2) ([#490](https://github.com/jasonp2323/transformmynotes/issues/490)) ([52f7f28](https://github.com/jasonp2323/transformmynotes/commit/52f7f28417124e069735f99fd3d9ed66316e5bb7))
+* **mobile:** M12.2 — native camera, App Links, icons/splash, push stub ([#489](https://github.com/jasonp2323/transformmynotes/issues/489)) ([a044bb6](https://github.com/jasonp2323/transformmynotes/commit/a044bb695cbf8eff4986ff5b41cf32e671516e21))
+
 ## [1.47.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.46.0...transformmynotes-v1.47.0) (2026-06-14)
 
 
