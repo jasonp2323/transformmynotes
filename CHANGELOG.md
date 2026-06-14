@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.2...transformmynotes-v1.45.3) (2026-06-14)
+
+
+### 🐛 Fixes
+
+* localize frontpage card + search tokeniser to Brazilian Portuguese ([#475](https://github.com/jasonp2323/transformmynotes/issues/475)) ([#480](https://github.com/jasonp2323/transformmynotes/issues/480)) ([a88d240](https://github.com/jasonp2323/transformmynotes/commit/a88d2404b7397dd0d74e5de4f210e7ae5d762ee9))
+
 ## [1.45.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.1...transformmynotes-v1.45.2) (2026-06-14)
 
 
