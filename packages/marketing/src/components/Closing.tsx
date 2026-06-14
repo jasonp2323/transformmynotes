@@ -1,7 +1,5 @@
 import Button from './ui/Button';
-
-const SIGNUP = 'https://app.transformmynotes.com/request-access';
-const LOGIN = 'https://app.transformmynotes.com/login';
+import { SIGNUP_URL, LOGIN_URL } from '../lib/appLinks';
 
 export default function Closing() {
   return (
@@ -14,8 +12,8 @@ export default function Closing() {
             Access is invite-gated. Request a spot and we&apos;ll be in touch. Already a member? Sign in.
           </p>
           <div className="closing__cta">
-            <Button as="a" href={SIGNUP} variant="primary" size="lg">Request access</Button>
-            <Button as="a" href={LOGIN} variant="secondary" size="lg">Sign in</Button>
+            <Button as="a" href={SIGNUP_URL} variant="primary" size="lg">Request access</Button>
+            <Button as="a" href={LOGIN_URL} variant="secondary" size="lg">Sign in</Button>
           </div>
         </div>
       </div>

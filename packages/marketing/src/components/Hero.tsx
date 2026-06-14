@@ -1,9 +1,7 @@
 import { ScanLine } from 'lucide-react';
 import Button from './ui/Button';
 import TransformVisual from './TransformVisual';
-
-const SIGNUP = 'https://app.transformmynotes.com/request-access';
-const LOGIN = 'https://app.transformmynotes.com/login';
+import { SIGNUP_URL, LOGIN_URL } from '../lib/appLinks';
 
 export default function Hero() {
   return (
@@ -28,14 +26,14 @@ export default function Hero() {
           <div className="hero__cta" data-reveal data-delay="3">
             <Button
               as="a"
-              href={SIGNUP}
+              href={SIGNUP_URL}
               variant="primary"
               size="lg"
               leftIcon={<ScanLine size={18} aria-hidden />}
             >
               Request access
             </Button>
-            <Button as="a" href={LOGIN} variant="secondary" size="lg">
+            <Button as="a" href={LOGIN_URL} variant="secondary" size="lg">
               Sign in
             </Button>
           </div>

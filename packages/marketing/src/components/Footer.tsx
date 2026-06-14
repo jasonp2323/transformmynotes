@@ -1,8 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-
-const SIGNUP = 'https://app.transformmynotes.com/request-access';
-const LOGIN = 'https://app.transformmynotes.com/login';
+import { SIGNUP_URL, LOGIN_URL } from '../lib/appLinks';
 
 export default function Footer() {
   return (
@@ -22,11 +20,11 @@ export default function Footer() {
             What&apos;s new
           </Link>
           <span className="footer-dot" aria-hidden="true">·</span>
-          <a className="footer-link" href={LOGIN}>
+          <a className="footer-link" href={LOGIN_URL}>
             Sign in
           </a>
           <span className="footer-dot" aria-hidden="true">·</span>
-          <a className="footer-link" href={SIGNUP}>
+          <a className="footer-link" href={SIGNUP_URL}>
             Request access
           </a>
         </nav>
