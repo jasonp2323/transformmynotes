@@ -15,7 +15,7 @@ export interface NoteCardProps {
   status?: 'clean' | 'original';
   onClick?: () => void;
   className?: string;
-  /** Optional line shown beneath the title, e.g. "Shared by Ana Ruiz · Spanish 201" */
+  /** Optional line shown beneath the title, e.g. "Shared by Ana Ruiz · Portuguese 201" */
   sharedBy?: string;
 }
 

@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 /**
- * A compact set of common English and Spanish stop-words (~100 words).
+ * A compact set of common English and Brazilian Portuguese stop-words (~150 words).
  * All entries are lowercase. Used by `tokenise` to discard uninformative tokens.
  */
 export const STOP_WORDS: ReadonlySet<string> = new Set([
@@ -27,13 +27,20 @@ export const STOP_WORDS: ReadonlySet<string> = new Set([
   'also', 'so', 'up', 'out', 'my', 'your', 'his', 'her', 'our', 'their',
   'what', 'which', 'who', 'whom', 'when', 'where', 'why', 'how', 'any',
   'me', 'him', 'us', 'them',
-  // Spanish
-  'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'o',
-  'pero', 'si', 'de', 'del', 'al', 'en', 'con', 'por', 'para', 'que',
-  'como', 'su', 'sus', 'lo', 'le', 'les', 'se', 'es', 'son', 'era',
-  'eran', 'ser', 'este', 'esta', 'estos', 'estas', 'eso', 'esa', 'mas',
-  'muy', 'ya', 'nos', 'mi', 'mis', 'tu', 'tus', 'hay', 'sin', 'hasta',
-  'desde', 'sobre', 'entre', 'porque', 'cuando', 'donde', 'quien',
+  // Brazilian Portuguese
+  'o', 'os', 'um', 'uma', 'uns', 'umas', 'ao', 'aos', 'à', 'às',
+  'do', 'da', 'dos', 'das', 'no', 'na', 'nos', 'nas', 'num', 'numa',
+  'pelo', 'pela', 'pelos', 'pelas', 'dum', 'duma', 'de', 'em', 'com',
+  'por', 'para', 'sem', 'sob', 'sobre', 'entre', 'até', 'desde', 'e',
+  'ou', 'mas', 'se', 'que', 'como', 'porque', 'quando', 'onde', 'quem',
+  'qual', 'quais', 'cujo', 'cuja', 'eu', 'tu', 'ele', 'ela', 'eles',
+  'elas', 'você', 'vocês', 'me', 'te', 'lhe', 'lhes', 'vos', 'meu',
+  'minha', 'meus', 'minhas', 'teu', 'tua', 'seu', 'sua', 'seus', 'suas',
+  'nosso', 'nossa', 'este', 'esta', 'estes', 'estas', 'esse', 'essa',
+  'esses', 'essas', 'isso', 'isto', 'aquele', 'aquela', 'aquilo', 'é',
+  'são', 'era', 'eram', 'foi', 'ser', 'está', 'estão', 'estar', 'ter',
+  'tem', 'têm', 'há', 'havia', 'já', 'não', 'sim', 'muito', 'mais',
+  'menos', 'também', 'ainda', 'só', 'bem', 'aqui', 'ali', 'lá', 'assim',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -48,7 +55,7 @@ export const STOP_WORDS: ReadonlySet<string> = new Set([
  * 1. Coerce `null`/`undefined` / empty input → return `[]`.
  * 2. Lowercase.
  * 3. Split on one-or-more non-alphanumeric characters (unicode-aware via
- *    `\p{L}` + `\p{N}`), so accented letters (e.g. "canción", "façade") are
+ *    `\p{L}` + `\p{N}`), so accented letters (e.g. "coração", "lição") are
  *    kept intact.
  * 4. Discard empty strings produced by leading/trailing separators.
  * 5. Filter out stop-words (`STOP_WORDS`).
