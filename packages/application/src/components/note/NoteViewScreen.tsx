@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import NoteEditor from '@/src/components/editor/NoteEditor';
 import type { NoteEditorHandle } from '@/src/components/editor/NoteEditor';
 import { ActionBar } from '@/src/components/review/ActionBar';
+import { ImageLightbox } from '@/src/components/review/ImageLightbox';
 import {
   Badge,
   Button,
@@ -62,6 +63,7 @@ export function NoteViewScreen({
   const [toast, setToast] = useState<ToastState | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [cardSyncing, setCardSyncing] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // ── Save handler ──────────────────────────────────────────────────────────
 
@@ -222,9 +224,23 @@ export function NoteViewScreen({
         {!editing && view === 'original' && (
           <div className="tmn-note-image-section">
             {originalImageUrl ? (
-              <div className="tmn-review-image-frame">
-                <img src={originalImageUrl} alt="Original handwriting" />
-              </div>
+              <>
+                <div className="tmn-review-image-frame">
+                  <button
+                    className="tmn-review-image-btn"
+                    aria-label="View full image"
+                    onClick={() => setLightboxOpen(true)}
+                  >
+                    <img src={originalImageUrl} alt="Original handwriting" />
+                  </button>
+                </div>
+                <ImageLightbox
+                  src={originalImageUrl}
+                  alt="Original handwriting — full size"
+                  open={lightboxOpen}
+                  onClose={() => setLightboxOpen(false)}
+                />
+              </>
             ) : (
               <div className="tmn-review-image-placeholder">
                 <Icon name="image-off" size={36} />
