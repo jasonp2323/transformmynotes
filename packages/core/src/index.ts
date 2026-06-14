@@ -4,6 +4,7 @@ export * from './db/access-requests';
 export * from './db/groups';
 export * from './db/invites';
 export * from './db/notes';
+export * from './db/rate-limit';
 export * from './db/shares';
 export * from './db/cards';
 export * from './db/transcription-jobs';

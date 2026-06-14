@@ -7,6 +7,7 @@ export const userData = new sst.aws.Dynamo("UserData", {
     GSI1: { hashKey: "gsi1pk", rangeKey: "gsi1sk" },
   },
   stream: "new-and-old-images",
+  ttl: "expiresAt",
 });
 
 export const invites = new sst.aws.Dynamo("Invites", {
