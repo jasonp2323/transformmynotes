@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.45.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.1...transformmynotes-v1.45.2) (2026-06-14)
+
+
+### 🐛 Fixes
+
+* **application:** align segmented-control pill + add invite hard-delete ([#479](https://github.com/jasonp2323/transformmynotes/issues/479)) ([7badec4](https://github.com/jasonp2323/transformmynotes/commit/7badec44832fe32c3ed6a02d905a99b6b069c4b7))
+
 ## [1.45.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.45.0...transformmynotes-v1.45.1) (2026-06-13)
 
 
