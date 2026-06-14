@@ -1,18 +1,16 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { signIn, confirmSignIn, fetchAuthSession } from 'aws-amplify/auth';
-import { useRouter } from 'next/navigation';
 import { Input, Button, Icon } from '@/src/components/ui';
-import { PasswordField, AuthLink } from '@/src/components/auth';
+import { PasswordField, AuthLink, AuthCardSkeleton } from '@/src/components/auth';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { unhandledSignInStepMessage, passwordMatchError } from '@/lib/auth-next-step';
 
 type Step = 'signin' | 'new-password';
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     fetchAuthSession()
@@ -20,7 +18,8 @@ export default function LoginPage() {
         const idToken = session.tokens?.idToken?.toString();
         if (idToken) {
           document.cookie = `CognitoIdToken=${idToken}; path=/; samesite=lax`;
-          router.replace('/dashboard');
+          setRedirecting(true);
+          window.location.replace('/dashboard');
         } else {
           setSessionChecked(true);
         }
@@ -47,7 +46,8 @@ export default function LoginPage() {
     if (idToken) {
       document.cookie = `CognitoIdToken=${idToken}; path=/; samesite=lax`;
     }
-    router.push('/dashboard');
+    setRedirecting(true);
+    window.location.assign('/dashboard');
   }
 
   async function onSignInSubmit(e: React.FormEvent) {
@@ -96,7 +96,9 @@ export default function LoginPage() {
     }
   }
 
-  if (!sessionChecked) return null;
+  if (!sessionChecked || redirecting) {
+    return <AuthCardSkeleton label={redirecting ? 'Signing you in…' : 'Loading…'} />;
+  }
 
   return (
     <div
