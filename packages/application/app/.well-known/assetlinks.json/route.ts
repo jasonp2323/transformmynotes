@@ -8,7 +8,7 @@
  *
  * The SHA-256 certificate fingerprint(s) in this document must match the
  * signing certificate(s) of the installed APK. The `ANDROID_SIGNING_FINGERPRINT`
- * secret supports comma-separated values so both the Play App Signing certificate
+ * value supports comma-separated values so both the Play App Signing certificate
  * (managed by Google) and the upload key fingerprint can be listed — Android
  * accepts the APK if ANY listed fingerprint matches.
  *

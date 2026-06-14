@@ -1,6 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey, androidSigningFingerprint } from "./secrets";
+import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups, notes } from "./db";
 import { notesBucket } from "./storage";
@@ -35,7 +35,9 @@ export const application = new sst.aws.Nextjs("Application", {
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
     TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
-    ANDROID_SIGNING_FINGERPRINT: androidSigningFingerprint.value,
+    ...(process.env.ANDROID_SIGNING_FINGERPRINT
+      ? { ANDROID_SIGNING_FINGERPRINT: process.env.ANDROID_SIGNING_FINGERPRINT }
+      : {}),
   },
   permissions: [
     // Least privilege: scoped to this stage's user pool ARN only.

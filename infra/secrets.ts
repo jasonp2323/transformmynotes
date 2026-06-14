@@ -20,12 +20,17 @@ export const inviteFromAddress = new sst.Secret("INVITE_FROM_ADDRESS");
 export const turnstileSiteKey = new sst.Secret("TURNSTILE_SITE_KEY");
 export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 
-// M12 Android App Links — SHA-256 fingerprint(s) of the release keystore,
-// served at /.well-known/assetlinks.json for Android verified App Links.
-// Supports comma-separated values so both the Play App Signing cert and the
-// upload key can be listed. Seed in both SST Console environments (production
-// + fallback/pr-<N>) once the release keystore exists; the route 500s if unset.
-export const androidSigningFingerprint = new sst.Secret("ANDROID_SIGNING_FINGERPRINT");
+// M12 Android App Links — the release keystore's SHA-256 cert fingerprint(s),
+// served at /.well-known/assetlinks.json. This is NOT an sst.Secret: the
+// fingerprint is a PUBLIC value (it is literally published in assetlinks.json
+// for the world to read), and — like DEV_COGNITO_USER_POOL_ID (#460) — a
+// declared-but-unset sst.Secret throws SecretMissingError at deploy for EVERY
+// stage because its .value Output resolves eagerly. Since the fingerprint does
+// not even exist until the release keystore is created (Wave 3 / #382), making
+// it a secret would block all deploys. Instead it is a plain env var read from
+// a GitHub Actions repository variable (forwarded by deploy.yml), threaded into
+// the app environment in infra/application.ts and read via process.env in the
+// assetlinks route — which fails loudly at request time if unset.
 
 // Issue #460 — the shared dev Cognito pool id is NOT an sst.Secret. A declared
 // sst.Secret with no value throws SecretMissingError at deploy for EVERY stage
