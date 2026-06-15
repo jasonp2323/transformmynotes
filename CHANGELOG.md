@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.50.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.50.0...transformmynotes-v1.50.1) (2026-06-15)
+
+
+### 🐛 Fixes
+
+* **application:** make "Note saved" toast card span its full content ([#508](https://github.com/jasonp2323/transformmynotes/issues/508)) ([9e29e62](https://github.com/jasonp2323/transformmynotes/commit/9e29e624af497791c15cc63fddf13ee32eec4c2c))
+
 ## [1.50.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.49.0...transformmynotes-v1.50.0) (2026-06-15)
 
 
