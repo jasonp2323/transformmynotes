@@ -132,7 +132,7 @@ export function buildFocusConstraints(point: { x: number; y: number }): Record<s
 // Zoom presets
 // ---------------------------------------------------------------------------
 
-export const ZOOM_PRESETS = [0.5, 1, 1.5, 2, 5] as const;
+export const ZOOM_PRESETS = [1, 1.5, 2, 5] as const;
 
 export interface ZoomPreset {
   value: number;

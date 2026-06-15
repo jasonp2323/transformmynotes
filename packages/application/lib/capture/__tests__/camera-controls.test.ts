@@ -193,22 +193,22 @@ describe('buildZoomPresets', () => {
     expect(buildZoomPresets(null)).toEqual([]);
   });
 
-  it('returns 5 presets with correct labels and enabled flags for range { min: 1, max: 3 }', () => {
+  it('returns 4 presets with correct labels and enabled flags for range { min: 1, max: 3 }', () => {
     const presets = buildZoomPresets({ min: 1, max: 3 });
-    expect(presets).toHaveLength(5);
-    expect(presets.map((p) => p.label)).toEqual(['0.5x', '1x', '1.5x', '2x', '5x']);
-    expect(presets.map((p) => p.enabled)).toEqual([false, true, true, true, false]);
+    expect(presets).toHaveLength(4);
+    expect(presets.map((p) => p.label)).toEqual(['1x', '1.5x', '2x', '5x']);
+    expect(presets.map((p) => p.enabled)).toEqual([true, true, true, false]);
   });
 
-  it('marks all 5 presets enabled for range { min: 0.5, max: 8 }', () => {
+  it('marks all presets enabled for range { min: 0.5, max: 8 }', () => {
     const presets = buildZoomPresets({ min: 0.5, max: 8 });
     expect(presets.every((p) => p.enabled)).toBe(true);
   });
 
-  it('disables 0.5x and enables 5x (inclusive bounds) for range { min: 1, max: 5 }', () => {
+  it('enables 1x and 5x (inclusive bounds) for range { min: 1, max: 5 }', () => {
     const presets = buildZoomPresets({ min: 1, max: 5 });
     const byLabel = Object.fromEntries(presets.map((p) => [p.label, p.enabled]));
-    expect(byLabel['0.5x']).toBe(false);
+    expect(byLabel['1x']).toBe(true);
     expect(byLabel['5x']).toBe(true);
   });
 });
