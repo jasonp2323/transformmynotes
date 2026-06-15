@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.49.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.49.0...transformmynotes-v1.49.1) (2026-06-15)
+
+
+### 📝 Documentation
+
+* Add M23 milestone spec for admin cost breakdown ([13538fd](https://github.com/jasonp2323/transformmynotes/commit/13538fdd6686f10f8fc646f0e5cbb6fb73917afb))
+* **milestones:** add M23 · Admin Cost Breakdown spec ([ea1951a](https://github.com/jasonp2323/transformmynotes/commit/ea1951a0340efa71e66e2da3f6acd77c796e7fa9))
+
 ## [1.49.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.48.1...transformmynotes-v1.49.0) (2026-06-14)
 
 
