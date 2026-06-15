@@ -173,3 +173,59 @@ Current values (as of last commit): `versionCode 2`, `versionName "1.40.1"`.
 ## CI — Android Release Builds
 
 Android release builds run in `.github/workflows/android.yml`, added in M12.3. That workflow is triggered by a `mobile-v*` tag push or `workflow_dispatch`. It builds the signed release APK, uploads it as a workflow artifact and attaches it to the GitHub Release for the tag, and is completely independent of `deploy.yml` — it has no SST or AWS deploy steps. The SST/Pulumi deploy path (PR stages, `production`) is never aware of the mobile package.
+
+---
+
+## APK distribution & install (sideload) runbook
+
+### Cutting a release
+
+1. Bump the version from the repo root:
+   ```bash
+   npm run bump-version -w packages/mobile
+   ```
+   This script reads the root `package.json` `version` field, sets `versionName` to match, and increments `versionCode` by 1 in `android/app/build.gradle`. See the "## Version Bumping Before a Release" section above for full details on the bump process.
+
+2. Commit the version bump:
+   ```bash
+   git commit -m "chore(mobile): bump version to x.y.z"
+   ```
+   Replace `x.y.z` with the actual version number.
+
+3. Push a `mobile-v<x.y.z>` tag (e.g., for version 1.41.0):
+   ```bash
+   git tag mobile-v1.41.0 && git push origin mobile-v1.41.0
+   ```
+
+4. The tag push automatically triggers `.github/workflows/android.yml`, which:
+   - Builds the signed `app-release.apk`
+   - Uploads it as a workflow artifact
+   - Attaches it to the GitHub Release for that tag, providing a stable public download URL on the Releases page
+
+### Installing on an Android device (end users)
+
+1. Download the `.apk` file on the Android device. You can find releases at `https://github.com/jasonp2323/transformmynotes/releases`.
+2. When prompted, allow the browser or Files app to "install unknown apps" — the toggle is located under **Settings → Apps → Special app access → Install unknown apps**, granted per-app (e.g., to Chrome or Files).
+3. Open the downloaded `.apk` file.
+4. Tap **Install**.
+5. On first launch, Android Play Protect may scan the app — this is expected and normal for sideloaded apps that aren't distributed through the Play Store.
+
+### Updating in place (same keystore required)
+
+A newer `mobile-v*` release carries a higher `versionCode`, so installing its APK over an existing installation updates the app **in place** without losing any data or requiring an uninstall — **provided the new APK is signed with the same release keystore**. An APK signed with a different key will be rejected by Android as a signature mismatch, and users would be forced to uninstall the old app and reinstall from scratch.
+
+See the "## Release Keystore" section above for details on the keystore. The keystore is unrecoverable if lost and must be backed up securely — losing it means future APKs cannot be signed with the same certificate, breaking in-place updates.
+
+### What requires a new APK (and what doesn't)
+
+**No APK update needed for web/UI changes:** The WebView loads the UI from `server.url` (the live hosted application at `app.transformmynotes.com`). Web and UI changes ship instantly to all installed apps without requiring a new APK.
+
+**APK update required only for native-shell changes:**
+- Capacitor plugin updates or new plugins
+- Android manifest modifications
+- App icons or native resources
+- Version code / version name bumps (required for Play Store compliance, release tracking, or app-update mechanics)
+
+### Privacy policy
+
+The app's privacy policy is published at `https://transformmynotes.com/privacy`.
