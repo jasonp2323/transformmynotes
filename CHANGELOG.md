@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.53.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.53.0...transformmynotes-v1.53.1) (2026-06-15)
+
+
+### 🐛 Fixes
+
+* **mobile:** use JDK 21 for Android release build (Capacitor 8 requires it) ([#526](https://github.com/jasonp2323/transformmynotes/issues/526)) ([f14da73](https://github.com/jasonp2323/transformmynotes/commit/f14da73362c961d460180fc9b0378bb561265a8b))
+
 ## [1.53.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.52.0...transformmynotes-v1.53.0) (2026-06-15)
 
 
