@@ -27,6 +27,19 @@ export default function Footer() {
           <a className="footer-link" href={SIGNUP_URL}>
             Request access
           </a>
+          <span className="footer-dot" aria-hidden="true">·</span>
+          <a
+            className="footer-link"
+            href="https://github.com/jasonp2323/transformmynotes/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Get the Android app
+          </a>
+          <span className="footer-dot" aria-hidden="true">·</span>
+          <Link className="footer-link" href="/privacy">
+            Privacy
+          </Link>
         </nav>
       </div>
     </footer>
