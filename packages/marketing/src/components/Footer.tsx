@@ -28,14 +28,9 @@ export default function Footer() {
             Request access
           </a>
           <span className="footer-dot" aria-hidden="true">·</span>
-          <a
-            className="footer-link"
-            href="https://github.com/jasonp2323/transformmynotes/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <Link className="footer-link" href="/download">
             Get the Android app
-          </a>
+          </Link>
           <span className="footer-dot" aria-hidden="true">·</span>
           <Link className="footer-link" href="/privacy">
             Privacy

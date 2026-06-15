@@ -17,6 +17,11 @@
 // Types
 // ---------------------------------------------------------------------------
 
+export interface GitHubReleaseAsset {
+  name: string;
+  browser_download_url: string;
+}
+
 export interface GitHubRelease {
   tag_name: string;
   name: string | null;
@@ -26,6 +31,7 @@ export interface GitHubRelease {
   html_url: string;
   draft: boolean;
   prerelease: boolean;
+  assets: GitHubReleaseAsset[];
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +80,28 @@ export function releaseTitle(release: GitHubRelease): string {
  */
 export function filterPublishedReleases(releases: GitHubRelease[]): GitHubRelease[] {
   return releases.filter((r) => !r.draft);
+}
+
+/**
+ * Find the direct download URL for the APK in the newest `mobile-v*` release.
+ * Pure and network-free — safe to unit-test.
+ *
+ * - Filters to non-draft releases whose tag_name starts with "mobile-v".
+ * - Sorts newest-first.
+ * - On the newest match, looks for an asset named "app-release.apk".
+ * - Returns null when no qualifying release or asset is found.
+ */
+export function findLatestMobileApkUrl(releases: GitHubRelease[]): string | null {
+  const mobileReleases = releases.filter(
+    (r) => !r.draft && r.tag_name.startsWith('mobile-v'),
+  );
+  if (mobileReleases.length === 0) return null;
+
+  const sorted = sortReleasesNewestFirst(mobileReleases);
+  const newest = sorted[0];
+
+  const apk = (newest.assets ?? []).find((a) => a.name === 'app-release.apk');
+  return apk?.browser_download_url ?? null;
 }
 
 // ---------------------------------------------------------------------------
