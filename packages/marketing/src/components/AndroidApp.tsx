@@ -1,8 +1,5 @@
 import Button from './ui/Button';
 
-const ANDROID_RELEASE_URL =
-  'https://github.com/jasonp2323/transformmynotes/releases/latest';
-
 export default function AndroidApp() {
   return (
     <section className="section-pad">
@@ -11,19 +8,16 @@ export default function AndroidApp() {
           Get the Android app
         </h2>
         <p className="changelog-sub" data-reveal data-delay="1">
-          Download the APK directly from GitHub Releases and sideload it on your
-          Android device to capture and transcribe notes on the go.
+          Visit our download page to get the APK and install it on your Android device.
         </p>
         <div data-reveal data-delay="2" style={{ marginTop: '1.5rem' }}>
           <Button
             as="a"
-            href={ANDROID_RELEASE_URL}
+            href="/download"
             variant="secondary"
             size="lg"
-            target="_blank"
-            rel="noopener noreferrer"
           >
-            Download APK from GitHub
+            Get the Android app
           </Button>
         </div>
       </div>

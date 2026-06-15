@@ -43,6 +43,9 @@ export default function Header() {
           <Link href="/changelog" className="header-nav-link header-actions__whatsnew">
             What&apos;s new
           </Link>
+          <Link href="/download" className="header-nav-link header-actions__whatsnew">
+            Android app
+          </Link>
           <Button
             as="a"
             href={LOGIN_URL}
@@ -82,6 +85,9 @@ export default function Header() {
             </Button>
             <Link href="/changelog" className="mobile-menu__link">
               What&apos;s new
+            </Link>
+            <Link href="/download" className="mobile-menu__link">
+              Android app
             </Link>
           </div>
         ) : null}

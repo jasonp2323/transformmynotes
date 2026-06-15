@@ -880,3 +880,51 @@ section { position: relative; }
   line-height: var(--leading-relaxed);
 }
 .changelog-empty p { margin: 0; }
+
+/* ================================================================
+   Download page
+   ================================================================ */
+
+/* Hero section — centered column */
+.download-hero {
+  text-align: center;
+}
+.download-hero .changelog-sub {
+  margin-inline: auto;
+}
+
+/* "How to install" section */
+.download-install__heading {
+  text-align: center;
+}
+.download-install__body {
+  font-family: var(--font-serif);
+  font-size: clamp(15px, 1.2vw, 17px);
+  line-height: var(--leading-relaxed);
+  color: var(--text-body);
+  max-width: 680px;
+  margin-inline: auto;
+}
+.download-install__body > * + * { margin-top: 16px; }
+.download-install__body p { margin: 0; }
+.download-install__body ol {
+  margin: 0;
+  padding-inline-start: 22px;
+}
+.download-install__body li + li { margin-top: 6px; }
+.download-install__body a {
+  color: var(--brand-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--dur-fast) var(--ease-soft);
+}
+.download-install__body a:hover { color: var(--brand-hover); }
+.download-install__body code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
+.download-install__body strong { font-weight: var(--weight-semibold); color: var(--text-strong); }

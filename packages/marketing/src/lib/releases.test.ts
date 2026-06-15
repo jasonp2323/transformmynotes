@@ -4,6 +4,7 @@ import {
   formatReleaseDate,
   releaseTitle,
   filterPublishedReleases,
+  findLatestMobileApkUrl,
   type GitHubRelease,
 } from './releases';
 
@@ -21,6 +22,7 @@ function makeRelease(overrides: Partial<GitHubRelease> = {}): GitHubRelease {
     html_url: 'https://github.com/jasonp2323/transformmynotes/releases/tag/v0.0.0',
     draft: false,
     prerelease: false,
+    assets: [],
     ...overrides,
   };
 }
@@ -175,5 +177,70 @@ describe('filterPublishedReleases', () => {
 
   it('returns empty array for empty input', () => {
     expect(filterPublishedReleases([])).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findLatestMobileApkUrl
+// ---------------------------------------------------------------------------
+
+describe('findLatestMobileApkUrl', () => {
+  it('returns the APK URL from the newest mobile-v* release', () => {
+    const older = makeRelease({
+      tag_name: 'mobile-v1.0.0',
+      published_at: '2026-01-01T00:00:00Z',
+      assets: [{ name: 'app-release.apk', browser_download_url: 'https://example.com/old.apk' }],
+    });
+    const newer = makeRelease({
+      tag_name: 'mobile-v2.0.0',
+      published_at: '2026-06-01T00:00:00Z',
+      assets: [{ name: 'app-release.apk', browser_download_url: 'https://example.com/new.apk' }],
+    });
+    expect(findLatestMobileApkUrl([older, newer])).toBe('https://example.com/new.apk');
+  });
+
+  it('ignores non-mobile-v releases even if newer', () => {
+    const webRelease = makeRelease({
+      tag_name: 'v3.0.0',
+      published_at: '2026-07-01T00:00:00Z',
+      assets: [{ name: 'app-release.apk', browser_download_url: 'https://example.com/web.apk' }],
+    });
+    const mobileRelease = makeRelease({
+      tag_name: 'mobile-v1.0.0',
+      published_at: '2026-01-01T00:00:00Z',
+      assets: [{ name: 'app-release.apk', browser_download_url: 'https://example.com/mobile.apk' }],
+    });
+    expect(findLatestMobileApkUrl([webRelease, mobileRelease])).toBe('https://example.com/mobile.apk');
+  });
+
+  it('returns null when there are no mobile-v releases', () => {
+    const webRelease = makeRelease({ tag_name: 'v1.0.0' });
+    expect(findLatestMobileApkUrl([webRelease])).toBeNull();
+  });
+
+  it('returns null when the mobile release has no app-release.apk asset', () => {
+    const mobileRelease = makeRelease({
+      tag_name: 'mobile-v1.0.0',
+      assets: [{ name: 'some-other-file.zip', browser_download_url: 'https://example.com/other.zip' }],
+    });
+    expect(findLatestMobileApkUrl([mobileRelease])).toBeNull();
+  });
+
+  it('returns null when the mobile release has empty assets', () => {
+    const mobileRelease = makeRelease({
+      tag_name: 'mobile-v1.0.0',
+      assets: [],
+    });
+    expect(findLatestMobileApkUrl([mobileRelease])).toBeNull();
+  });
+
+  it('returns null for empty input', () => {
+    expect(findLatestMobileApkUrl([])).toBeNull();
+  });
+
+  it('returns null when assets is undefined on the release (defensive)', () => {
+    const mobileRelease = makeRelease({ tag_name: 'mobile-v1.0.0' });
+    delete (mobileRelease as unknown as Record<string, unknown>).assets;
+    expect(findLatestMobileApkUrl([mobileRelease])).toBeNull();
   });
 });
