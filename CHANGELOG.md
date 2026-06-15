@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.53.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.52.0...transformmynotes-v1.53.0) (2026-06-15)
+
+
+### 🚀 Features
+
+* **mobile:** M12.3 — Android CI workflow + sideload distribution docs ([#519](https://github.com/jasonp2323/transformmynotes/issues/519)) ([0a0f1dd](https://github.com/jasonp2323/transformmynotes/commit/0a0f1dde6854d3da0e580373c8db686d47a72041))
+
 ## [1.52.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.51.0...transformmynotes-v1.52.0) (2026-06-15)
 
 
