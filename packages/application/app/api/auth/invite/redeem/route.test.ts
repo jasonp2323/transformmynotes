@@ -11,6 +11,7 @@ const evaluateInviteMock = vi.hoisted(() => vi.fn());
 const buildUserProfileItemMock = vi.hoisted(() => vi.fn());
 const ddbSendMock = vi.hoisted(() => vi.fn());
 const claimInviteMock = vi.hoisted(() => vi.fn());
+const verifyTurnstileMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@aws-sdk/client-cognito-identity-provider', async () => {
   class FakeCognitoClient {
@@ -60,12 +61,26 @@ vi.mock('@/lib/ratelimit', () => ({
   resetRateLimiter: vi.fn(),
 }));
 
+vi.mock('@/lib/turnstile', () => {
+  class TurnstileError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'TurnstileError';
+    }
+  }
+  return {
+    verifyTurnstile: verifyTurnstileMock,
+    TurnstileError,
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Import module under test (after mocks)
 // ---------------------------------------------------------------------------
 
 import { POST } from './route';
 import { AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { TurnstileError } from '@/lib/turnstile';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -90,6 +105,7 @@ const VALID_BODY = {
   email: 'user@example.com',
   name: 'Test User',
   password: 'securepass123',
+  turnstileToken: 'tok',
 };
 
 // ---------------------------------------------------------------------------
@@ -101,6 +117,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env['NEXT_PUBLIC_COGNITO_USER_POOL_ID'] = 'us-east-1_testpool';
 
+  verifyTurnstileMock.mockResolvedValue(undefined);
   getInviteByCodeMock.mockResolvedValue(VALID_INVITE);
   evaluateInviteMock.mockReturnValue({ valid: true });
   buildUserProfileItemMock.mockReturnValue({ pk: 'USER#sub-123', sk: 'PROFILE' });
@@ -268,6 +285,28 @@ describe('POST /api/auth/invite/redeem', () => {
     it('returns 400 when password is too short', async () => {
       const res = await POST(makeRequest({ ...VALID_BODY, password: 'short' }));
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('Turnstile', () => {
+    it('returns 400 "Bot check failed" and does NOT consume the invite when Turnstile fails', async () => {
+      verifyTurnstileMock.mockRejectedValue(new TurnstileError('fail'));
+
+      const res = await POST(makeRequest(VALID_BODY));
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.error).toBe('Bot check failed. Please try again.');
+      expect(getInviteByCodeMock).not.toHaveBeenCalled();
+      expect(claimInviteMock).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when turnstileToken is missing', async () => {
+      const { turnstileToken: _omit, ...bodyWithoutToken } = VALID_BODY;
+      const res = await POST(makeRequest(bodyWithoutToken));
+
+      expect(res.status).toBe(400);
+      expect(getInviteByCodeMock).not.toHaveBeenCalled();
     });
   });
 });

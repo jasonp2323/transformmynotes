@@ -11,9 +11,8 @@ import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { getInviteByCode, evaluateInvite, buildUserProfileItem, ddb, TableNames, claimInvite } from '@transformmynotes/core';
 import { rateLimit } from '@/lib/ratelimit';
 import { enforceRateLimit, clientIp } from '@/lib/rate-limit';
-
-/** Basic email regex — validates structure without being overly strict. */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { verifyTurnstile, TurnstileError } from '@/lib/turnstile';
+import { inviteRedeemBodySchema } from '@/lib/auth-schemas';
 
 const MEMBER_GROUP = 'member';
 
@@ -29,38 +28,19 @@ export async function POST(req: Request) {
     );
   }
 
-  const { code, email, name, password } = (body ?? {}) as Record<string, unknown>;
-
-  // Validate inputs — generic errors to avoid leaking invite existence.
-  const trimmedCode = typeof code === 'string' ? code.trim() : '';
-  const trimmedEmail = typeof email === 'string' ? email.trim() : '';
-  const trimmedName = typeof name === 'string' ? name.trim() : '';
-  const trimmedPassword = typeof password === 'string' ? password : '';
-
-  if (!trimmedCode) {
+  // Validate inputs with zod — generic error to avoid leaking invite existence.
+  const parsed = inviteRedeemBodySchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: 'Please provide valid invite details.' },
       { status: 400 },
     );
   }
-  if (!trimmedEmail || !EMAIL_RE.test(trimmedEmail)) {
-    return NextResponse.json(
-      { ok: false, error: 'Please enter a valid email address.' },
-      { status: 400 },
-    );
-  }
-  if (!trimmedName) {
-    return NextResponse.json(
-      { ok: false, error: 'Please enter your name.' },
-      { status: 400 },
-    );
-  }
-  if (trimmedPassword.length < 8) {
-    return NextResponse.json(
-      { ok: false, error: 'Password must be at least 8 characters.' },
-      { status: 400 },
-    );
-  }
+  const { code, email, name, password, turnstileToken } = parsed.data;
+  const trimmedCode = code;
+  const trimmedEmail = email;
+  const trimmedName = name;
+  const trimmedPassword = password;
 
   // Rate-limit by client IP (first hop of x-forwarded-for).
   const forwarded = (req.headers as Headers).get('x-forwarded-for') ?? 'unknown';
@@ -92,6 +72,23 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error('[invite/redeem] Rate-limit check failed', err);
+    return NextResponse.json(
+      { ok: false, error: 'Something went wrong. Please try again.' },
+      { status: 500 },
+    );
+  }
+
+  // Turnstile — bot check before any invite lookup or account creation.
+  try {
+    await verifyTurnstile(turnstileToken);
+  } catch (err) {
+    if (err instanceof TurnstileError) {
+      return NextResponse.json(
+        { ok: false, error: 'Bot check failed. Please try again.' },
+        { status: 400 },
+      );
+    }
+    console.error('[invite/redeem] Turnstile error', err);
     return NextResponse.json(
       { ok: false, error: 'Something went wrong. Please try again.' },
       { status: 500 },

@@ -53,6 +53,25 @@ export const resetPasswordBodySchema = z.object({
 
 export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;
 
+// ── Invite redeem ──────────────────────────────────────────────────────────────
+export const inviteRedeemBodySchema = z.object({
+  code: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1),
+  password: z.string().min(8),
+  turnstileToken: z.string().min(1),
+});
+export type InviteRedeemBody = z.infer<typeof inviteRedeemBodySchema>;
+
+// ── Request access ─────────────────────────────────────────────────────────────
+export const requestAccessBodySchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  note: z.string().trim().min(1).optional(),
+  turnstileToken: z.string().min(1),
+});
+export type RequestAccessBody = z.infer<typeof requestAccessBodySchema>;
+
 // ── Set session ───────────────────────────────────────────────────────────────
 
 export const setSessionBodySchema = z.object({

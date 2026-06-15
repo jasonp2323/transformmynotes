@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input, Button, Textarea } from '@/src/components/ui';
-import { AuthLink } from '@/src/components/auth';
+import { AuthLink, TurnstileWidget } from '@/src/components/auth';
 import { Brandmark } from '@/src/components/brand';
 
 export default function RequestAccessPage() {
@@ -12,6 +12,7 @@ export default function RequestAccessPage() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,7 +22,7 @@ export default function RequestAccessPage() {
       const res = await fetch('/api/auth/request-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, note: note || undefined }),
+        body: JSON.stringify({ name, email, note: note || undefined, turnstileToken }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (data.ok) {
@@ -120,12 +121,15 @@ export default function RequestAccessPage() {
           </p>
         )}
 
+        <TurnstileWidget onToken={setTurnstileToken} />
+
         <Button
           type="submit"
           variant="primary"
           size="lg"
           fullWidth
           loading={loading}
+          disabled={!turnstileToken}
         >
           Request access
         </Button>

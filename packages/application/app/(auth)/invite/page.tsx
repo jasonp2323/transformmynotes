@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { signIn, fetchAuthSession } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Input, Button, Icon, Avatar, Card, Badge } from '@/src/components/ui';
-import { PasswordField } from '@/src/components/auth';
+import { PasswordField, TurnstileWidget } from '@/src/components/auth';
 import { Brandmark } from '@/src/components/brand';
 
 /* ------------------------------------------------------------------ */
@@ -93,6 +93,7 @@ function InviteContent() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
 
   // Validate on mount
   useEffect(() => {
@@ -240,7 +241,7 @@ function InviteContent() {
       const res = await fetch('/api/auth/invite/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, email: redeemEmail, name, password }),
+        body: JSON.stringify({ code, email: redeemEmail, name, password, turnstileToken }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (data.ok) {
@@ -426,6 +427,8 @@ function InviteContent() {
           </p>
         )}
 
+        <TurnstileWidget onToken={setTurnstileToken} />
+
         {/* Submit */}
         <Button
           type="submit"
@@ -433,6 +436,7 @@ function InviteContent() {
           size="lg"
           fullWidth
           loading={submitting}
+          disabled={!turnstileToken}
           leftIcon={<Icon name="user-plus" size={18} />}
           style={{ marginTop: 7 }}
         >
