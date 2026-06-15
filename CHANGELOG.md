@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.51.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.50.1...transformmynotes-v1.51.0) (2026-06-15)
+
+
+### 🚀 Features
+
+* **application:** inline "Signing you in…" spinner on login button ([#520](https://github.com/jasonp2323/transformmynotes/issues/520)) ([6d6e9b1](https://github.com/jasonp2323/transformmynotes/commit/6d6e9b18373477ef43eea9754a7c2e01280f3c9d))
+
 ## [1.50.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.50.0...transformmynotes-v1.50.1) (2026-06-15)
 
 
