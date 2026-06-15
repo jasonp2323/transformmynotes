@@ -2,9 +2,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
-import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage } from '@/lib/capture';
+import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage, readCameraCapabilities, clampZoom, normalizeFocusPoint, buildFocusConstraints, buildZoomConstraints, buildZoomPresets } from '@/lib/capture';
+import type { ZoomRange } from '@/lib/capture';
 import { ProcessingScreen } from './ProcessingScreen';
-import { ErrorScreen } from './ErrorScreen';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,8 +96,19 @@ export function CaptureScreen() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<FacingMode>('environment');
-  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [zoomRange, setZoomRange] = useState<ZoomRange | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [focusIndicator, setFocusIndicator] = useState<{ x: number; y: number; key: number } | null>(null);
   const [cameraAvailable, setCameraAvailable] = useState<boolean | null>(null); // null = unknown
+
+  // Pinch-to-zoom refs
+  const pinchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(1);
+  const pinchingRef = useRef(false); // true while ≥2 pointers; briefly true after last pointer up to block click
+  const zoomLevelRef = useRef(1);   // mirror of zoomLevel state — avoids stale closure in pointer handlers
 
   // "Edges detected" badge (cosmetic, appears ~1.5 s after video starts)
   const [edgesVisible, setEdgesVisible] = useState(false);
@@ -167,6 +178,20 @@ export function CaptureScreen() {
         }
         setCameraAvailable(true);
 
+        // Reset torch on every new stream (capability may differ per camera)
+        setTorchOn(false);
+
+        // Read camera capabilities (zoom, torch, focus)
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          const caps = readCameraCapabilities(track);
+          setTorchSupported(caps.torch);
+          setZoomRange(caps.zoom);
+          setZoomLevel(caps.zoom ? caps.zoom.min : 1);
+          zoomLevelRef.current = caps.zoom ? caps.zoom.min : 1;
+        }
+        setFocusIndicator(null);
+
         // Cosmetic "Edges detected" badge — appears after 1.5 s
         const timer = setTimeout(() => setEdgesVisible(true), 1500);
         return () => clearTimeout(timer);
@@ -199,7 +224,7 @@ export function CaptureScreen() {
   }, [facingMode]);
 
   // ---------------------------------------------------------------------------
-  // Flash / torch
+  // Torch
   // ---------------------------------------------------------------------------
 
   const applyTorch = useCallback(
@@ -217,8 +242,8 @@ export function CaptureScreen() {
     [],
   );
 
-  const handleFlipToggle = useCallback(() => {
-    setFlashEnabled((prev) => {
+  const handleTorchToggle = useCallback(() => {
+    setTorchOn((prev) => {
       const next = !prev;
       applyTorch(next);
       return next;
@@ -226,13 +251,91 @@ export function CaptureScreen() {
   }, [applyTorch]);
 
   // ---------------------------------------------------------------------------
+  // Zoom
+  // ---------------------------------------------------------------------------
+
+  const applyZoom = useCallback((v: number) => {
+    setZoomLevel(v);
+    zoomLevelRef.current = v;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      track.applyConstraints(buildZoomConstraints(v) as MediaTrackConstraints).catch(() => {});
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Flip camera
   // ---------------------------------------------------------------------------
 
   const handleFlip = useCallback(() => {
-    setFlashEnabled(false);
+    setTorchOn(false);
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Pinch-to-zoom
+  // ---------------------------------------------------------------------------
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    pinchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinchPointersRef.current.size === 2) {
+      pinchingRef.current = true;
+      const pts = [...pinchPointersRef.current.values()];
+      const dx = pts[0].x - pts[1].x;
+      const dy = pts[0].y - pts[1].y;
+      pinchStartDistRef.current = Math.sqrt(dx * dx + dy * dy);
+      // Use the ref mirror to avoid a stale zoomLevel from the render closure
+      pinchStartZoomRef.current = zoomLevelRef.current;
+    }
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!pinchPointersRef.current.has(e.pointerId)) return;
+    pinchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinchPointersRef.current.size !== 2 || pinchStartDistRef.current === null || !zoomRange) return;
+    const pts = [...pinchPointersRef.current.values()];
+    const dx = pts[0].x - pts[1].x;
+    const dy = pts[0].y - pts[1].y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const scale = dist / pinchStartDistRef.current;
+    const newZoom = clampZoom(pinchStartZoomRef.current * scale, zoomRange);
+    applyZoom(newZoom);
+  }, [zoomRange, applyZoom]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    pinchPointersRef.current.delete(e.pointerId);
+    if (pinchPointersRef.current.size < 2) {
+      pinchStartDistRef.current = null;
+    }
+    if (pinchPointersRef.current.size === 0 && pinchingRef.current) {
+      // Brief delay so the click event that fires after the final pointerup
+      // is still suppressed (click fires synchronously before this timeout if
+      // delay is 0, so use a short but non-zero window).
+      setTimeout(() => { pinchingRef.current = false; }, 300);
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Tap-to-focus
+  // ---------------------------------------------------------------------------
+
+  const handleViewfinderClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cameraAvailable) return;
+    if (pinchingRef.current) return; // suppress focus tap immediately after a pinch
+    const rect = e.currentTarget.getBoundingClientRect();
+    const { x, y } = normalizeFocusPoint(e.clientX, e.clientY, rect, facingMode === 'user');
+
+    // Show focus ring at raw pixel position within the container
+    const pixelX = e.clientX - rect.left;
+    const pixelY = e.clientY - rect.top;
+    setFocusIndicator({ x: pixelX, y: pixelY, key: Date.now() });
+
+    // Apply focus constraint
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      track.applyConstraints(buildFocusConstraints({ x, y }) as MediaTrackConstraints).catch(() => {});
+    }
+  }, [cameraAvailable, facingMode]);
 
   // ---------------------------------------------------------------------------
   // Upload pipeline helper
@@ -374,6 +477,19 @@ export function CaptureScreen() {
     }
   }, [uploadStatus, capturedJobId, router]);
 
+  // Keep zoomLevelRef in sync with the zoomLevel state to avoid stale closure
+  // captures in pointer event handlers.
+  useEffect(() => {
+    zoomLevelRef.current = zoomLevel;
+  }, [zoomLevel]);
+
+  // Clear focus indicator when reduced motion (animation won't fire onAnimationEnd)
+  useEffect(() => {
+    if (!prefersReducedMotion || !focusIndicator) return;
+    const t = setTimeout(() => setFocusIndicator(null), 700);
+    return () => clearTimeout(t);
+  }, [focusIndicator, prefersReducedMotion]);
+
   // ---------------------------------------------------------------------------
   // Retake / capture another
   // ---------------------------------------------------------------------------
@@ -421,6 +537,13 @@ export function CaptureScreen() {
         overflow: 'hidden',
       }}
     >
+      <style>{`
+        @keyframes focusRingFade {
+          0% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 0; transform: scale(1); }
+        }
+      `}</style>
+
       {/* ----------------------------------------------------------------- Header */}
       <div
         style={{
@@ -448,12 +571,16 @@ export function CaptureScreen() {
         >
           Capture note
         </span>
-        <CircBtn
-          icon="zap"
-          label={flashEnabled ? 'Flash on' : 'Flash off'}
-          onClick={handleFlipToggle}
-          active={flashEnabled}
-        />
+        {torchSupported ? (
+          <CircBtn
+            icon={torchOn ? 'flashlight' : 'flashlight-off'}
+            label={torchOn ? 'Light on' : 'Light off'}
+            onClick={handleTorchToggle}
+            active={torchOn}
+          />
+        ) : (
+          <div style={{ width: 38 }} />
+        )}
       </div>
 
       {/* ------------------------------------------------------- Viewfinder / fallback */}
@@ -503,7 +630,14 @@ export function CaptureScreen() {
           </div>
         ) : (
           /* Live video viewfinder */
-          <div style={{ position: 'relative', width: '100%' }}>
+          <div
+            onClick={handleViewfinderClick}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ position: 'relative', width: '100%', cursor: cameraAvailable ? 'crosshair' : 'default' }}
+          >
             <video
               ref={videoRef}
               autoPlay
@@ -530,6 +664,29 @@ export function CaptureScreen() {
                 </Badge>
               </div>
             )}
+
+            {/* Tap-to-focus ring */}
+            {focusIndicator && (
+              <div
+                key={focusIndicator.key}
+                aria-hidden="true"
+                onAnimationEnd={() => setFocusIndicator(null)}
+                style={{
+                  position: 'absolute',
+                  left: focusIndicator.x,
+                  top: focusIndicator.y,
+                  width: 56,
+                  height: 56,
+                  marginLeft: -28,
+                  marginTop: -28,
+                  border: '2px solid var(--gold-400)',
+                  borderRadius: 4,
+                  pointerEvents: 'none',
+                  animation: prefersReducedMotion ? 'none' : 'focusRingFade 0.7s ease-out forwards',
+                }}
+              />
+            )}
+
           </div>
         )}
       </div>
@@ -547,6 +704,50 @@ export function CaptureScreen() {
           }}
         >
           Hold steady — keep the whole page in frame.
+        </div>
+      )}
+
+      {/* ------------------------------------------------------- Zoom preset pills */}
+      {cameraAvailable !== false && zoomRange && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 8,
+            paddingBottom: 8,
+            flexShrink: 0,
+          }}
+        >
+          {buildZoomPresets(zoomRange).map((preset) => {
+            const active = Math.abs(zoomLevel - preset.value) < 0.01;
+            return (
+              <button
+                key={preset.value}
+                type="button"
+                aria-label={`Zoom ${preset.label}`}
+                aria-pressed={active}
+                disabled={!preset.enabled}
+                onClick={preset.enabled ? () => applyZoom(clampZoom(preset.value, zoomRange)) : undefined}
+                style={{
+                  borderRadius: 999,
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                  minWidth: 44,
+                  border: active ? '1px solid var(--gold-400)' : '1px solid transparent',
+                  background: active ? 'rgba(255,215,0,0.28)' : 'rgba(255,255,255,0.14)',
+                  color: active ? 'var(--gold-400)' : '#fff',
+                  cursor: preset.enabled ? 'pointer' : 'default',
+                  opacity: preset.enabled ? 1 : 0.35,
+                }}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
       )}
 

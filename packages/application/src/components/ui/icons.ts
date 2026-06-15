@@ -12,6 +12,8 @@ import {
   Copy,
   Eye,
   EyeOff,
+  Flashlight,
+  FlashlightOff,
   Heading,
   Highlighter,
   Hourglass,
@@ -48,6 +50,8 @@ import {
   WifiOff,
   X,
   Zap,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -65,6 +69,8 @@ export const iconRegistry: Record<string, LucideIcon> = {
   'copy': Copy,
   'eye': Eye,
   'eye-off': EyeOff,
+  'flashlight': Flashlight,
+  'flashlight-off': FlashlightOff,
   'heading': Heading,
   'highlighter': Highlighter,
   'hourglass': Hourglass,
@@ -101,6 +107,8 @@ export const iconRegistry: Record<string, LucideIcon> = {
   'wifi-off': WifiOff,
   'x': X,
   'zap': Zap,
+  'zoom-in': ZoomIn,
+  'zoom-out': ZoomOut,
 };
 
 export type IconName = keyof typeof iconRegistry;

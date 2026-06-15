@@ -16,3 +16,14 @@ export type { UploadRetryOpts, PutS3Opts } from './upload-retry';
 export { formatBytes } from './format-bytes';
 export type { PickImageOpts } from './pick-image';
 export { pickImage } from './pick-image';
+
+export type { ZoomRange, CameraCapabilities, ZoomPreset } from './camera-controls';
+export {
+  readCameraCapabilities,
+  clampZoom,
+  normalizeFocusPoint,
+  buildZoomConstraints,
+  buildFocusConstraints,
+  buildZoomPresets,
+  ZOOM_PRESETS,
+} from './camera-controls';
