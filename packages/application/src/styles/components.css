@@ -320,7 +320,7 @@
 }
 .tmn-toast__close:hover { background: var(--surface-sunken); color: var(--text-strong); }
 @media (max-width: 767px) {
-  .tmn-toast { left: 16px; right: 16px; bottom: 80px; min-width: 0; max-width: none; }
+  .tmn-toast { right: 16px; bottom: 80px; max-width: calc(100vw - 32px); }
 }
 
 /* ---- Dialog ---- */
