@@ -96,6 +96,7 @@
 .tmn-btn--loading { position: relative; }
 .tmn-btn--loading .tmn-btn__spinner { color: var(--_fg); }
 @keyframes tmn-btn-spin { to { transform: rotate(360deg); } }
+.tmn-spin { animation: tmn-btn-spin 0.6s linear infinite; }
 
 /* ---- IconButton ---- */
 .tmn-iconbtn {

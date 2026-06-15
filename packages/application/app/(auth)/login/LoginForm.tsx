@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { Input, Button, Icon } from '@/src/components/ui';
-import { PasswordField, AuthLink, AuthCardSkeleton, TurnstileWidget } from '@/src/components/auth';
+import { PasswordField, AuthLink, TurnstileWidget } from '@/src/components/auth';
 import { passwordMatchError } from '@/lib/auth-next-step';
 
 type Step = 'signin' | 'new-password';
@@ -25,10 +25,6 @@ export function LoginForm() {
 
   // Session value returned from challenge response, forwarded to step 2
   const [challengeSession, setChallengeSession] = useState('');
-
-  if (redirecting) {
-    return <AuthCardSkeleton label="Signing you in…" />;
-  }
 
   async function onSignInSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,6 +104,11 @@ export function LoginForm() {
       setLoading(false);
     }
   }
+
+  // True from the moment the user submits until the redirect navigation
+  // completes — keeps the submit button in its "Signing you in…" state so the
+  // spinner never flickers back after the fetch resolves.
+  const busy = loading || redirecting;
 
   return (
     <div
@@ -243,11 +244,11 @@ export function LoginForm() {
                 variant="primary"
                 size="lg"
                 fullWidth
-                loading={loading}
-                disabled={!turnstileToken}
-                rightIcon={<Icon name="arrow-right" size={18} />}
+                disabled={busy || !turnstileToken}
+                leftIcon={busy ? <Icon name="loader-circle" size={18} className="tmn-spin" /> : undefined}
+                rightIcon={busy ? undefined : <Icon name="arrow-right" size={18} />}
               >
-                Sign in
+                {busy ? 'Signing you in…' : 'Sign in'}
               </Button>
 
               <div
@@ -329,10 +330,11 @@ export function LoginForm() {
                 variant="primary"
                 size="lg"
                 fullWidth
-                loading={loading}
-                rightIcon={<Icon name="arrow-right" size={18} />}
+                disabled={busy}
+                leftIcon={busy ? <Icon name="loader-circle" size={18} className="tmn-spin" /> : undefined}
+                rightIcon={busy ? undefined : <Icon name="arrow-right" size={18} />}
               >
-                Set password &amp; sign in
+                {busy ? 'Signing you in…' : 'Set password & sign in'}
               </Button>
             </form>
           </>
