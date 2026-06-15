@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.54.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.53.1...transformmynotes-v1.54.0) (2026-06-15)
+
+
+### 🚀 Features
+
+* **marketing:** host Android APK download on the site ([#528](https://github.com/jasonp2323/transformmynotes/issues/528)) ([#529](https://github.com/jasonp2323/transformmynotes/issues/529)) ([c03dbdb](https://github.com/jasonp2323/transformmynotes/commit/c03dbdb90c5676b3404b9a612b082d0b87be815c))
+
 ## [1.53.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.53.0...transformmynotes-v1.53.1) (2026-06-15)
 
 
