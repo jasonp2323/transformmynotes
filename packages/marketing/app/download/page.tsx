@@ -27,7 +27,7 @@ export default function DownloadPage() {
       <Header />
       <main id="main-content">
         <section className="section-pad section-pad--sm">
-          <div className="container" style={{ textAlign: 'center' }}>
+          <div className="container download-hero">
             <span className="eyebrow" data-reveal>Android app</span>
             <h1 className="section-heading changelog-h1" data-reveal data-delay="1">
               Get the Android app
@@ -46,10 +46,10 @@ export default function DownloadPage() {
 
         <section className="section-pad section-pad--sm">
           <div className="container">
-            <h2 className="section-heading" data-reveal>
+            <h2 className="section-heading download-install__heading" data-reveal>
               How to install
             </h2>
-            <div className="changelog-entry__body" data-reveal data-delay="1">
+            <div className="download-install__body" data-reveal data-delay="1">
               <ol>
                 <li>
                   <strong>Download the APK.</strong> Tap the button above on your
