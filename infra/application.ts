@@ -1,6 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey } from "./secrets";
+import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey, studySystemPrompt, studyFlashcardsPrompt, studyQuizPrompt, studyAssignmentPrompt, studySummaryPrompt } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups, notes } from "./db";
 import { notesBucket } from "./storage";
@@ -21,7 +21,7 @@ const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
-  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket],
+  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket, studySystemPrompt, studyFlashcardsPrompt, studyQuizPrompt, studyAssignmentPrompt, studySummaryPrompt],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: userPoolClient.id,
@@ -36,6 +36,11 @@ export const application = new sst.aws.Nextjs("Application", {
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
     TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
+    SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: studySystemPrompt.value,
+    SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: studyFlashcardsPrompt.value,
+    SST_RESOURCE_STUDY_QUIZ_PROMPT_value: studyQuizPrompt.value,
+    SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: studyAssignmentPrompt.value,
+    SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: studySummaryPrompt.value,
     ...(process.env.ANDROID_SIGNING_FINGERPRINT
       ? { ANDROID_SIGNING_FINGERPRINT: process.env.ANDROID_SIGNING_FINGERPRINT }
       : {}),

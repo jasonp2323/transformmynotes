@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { userDataKeys, accessRequestKeys, groupKeys } from '../../src/db/keys';
+import { userDataKeys, accessRequestKeys, groupKeys, studySetKeys, storageKeys } from '../../src/db/keys';
 import type { UserStatus, AccessRequestStatus } from '../../src/db/keys';
 
 describe('userDataKeys', () => {
@@ -257,6 +257,155 @@ describe('groupKeys', () => {
     it('sets :prefix to GROUP#', () => {
       const result = groupKeys.listUserGroups('any-user');
       expect(result.ExpressionAttributeValues[':prefix']).toBe('GROUP#');
+    });
+  });
+});
+
+describe('studySetKeys', () => {
+  describe('item', () => {
+    it('returns pk = USER#<sub> and sk = STUDYSET#<studySetId>', () => {
+      const result = studySetKeys.item('sub-abc', 'set-001');
+      expect(result).toEqual({ pk: 'USER#sub-abc', sk: 'STUDYSET#set-001' });
+    });
+
+    it('pk prefixes the sub with USER#', () => {
+      const result = studySetKeys.item('cognito-sub-xyz', 'id-1');
+      expect(result.pk).toBe('USER#cognito-sub-xyz');
+    });
+
+    it('sk prefixes the studySetId with STUDYSET#', () => {
+      const result = studySetKeys.item('s', 'ulid-abc');
+      expect(result.sk).toBe('STUDYSET#ulid-abc');
+    });
+  });
+
+  describe('gsi6pk', () => {
+    it('returns USER#<sub>', () => {
+      expect(studySetKeys.gsi6pk('my-sub')).toBe('USER#my-sub');
+    });
+  });
+
+  describe('gsi6sk', () => {
+    it('returns STUDYSET#<studySetId>', () => {
+      expect(studySetKeys.gsi6sk('01HZ0000001')).toBe('STUDYSET#01HZ0000001');
+    });
+  });
+
+  describe('gsi7pk', () => {
+    it('returns NOTE#<sourceNoteId>', () => {
+      expect(studySetKeys.gsi7pk('note-xyz')).toBe('NOTE#note-xyz');
+    });
+  });
+
+  describe('gsi7sk', () => {
+    it('returns USER#<sub>#STUDYSET#<studySetId>', () => {
+      expect(studySetKeys.gsi7sk('sub-abc', 'set-001')).toBe('USER#sub-abc#STUDYSET#set-001');
+    });
+
+    it('encodes sub and studySetId correctly for different values', () => {
+      const result = studySetKeys.gsi7sk('cognito-sub-xyz', 'ulid-001');
+      expect(result).toBe('USER#cognito-sub-xyz#STUDYSET#ulid-001');
+    });
+  });
+
+  describe('listByUser', () => {
+    it('sets IndexName to GSI6', () => {
+      const result = studySetKeys.listByUser('sub-abc');
+      expect(result.IndexName).toBe('GSI6');
+    });
+
+    it('sets KeyConditionExpression with begins_with on gsi6sk', () => {
+      const result = studySetKeys.listByUser('sub-abc');
+      expect(result.KeyConditionExpression).toBe(
+        'gsi6pk = :pk AND begins_with(gsi6sk, :prefix)',
+      );
+    });
+
+    it('sets :pk to USER#<sub>', () => {
+      const result = studySetKeys.listByUser('sub-xyz');
+      expect(result.ExpressionAttributeValues[':pk']).toBe('USER#sub-xyz');
+    });
+
+    it('sets :prefix to STUDYSET#', () => {
+      const result = studySetKeys.listByUser('any-user');
+      expect(result.ExpressionAttributeValues[':prefix']).toBe('STUDYSET#');
+    });
+
+    it('sets ScanIndexForward to false (newest-first)', () => {
+      const result = studySetKeys.listByUser('sub-abc');
+      expect(result.ScanIndexForward).toBe(false);
+    });
+
+    it('defaults Limit to 50', () => {
+      const result = studySetKeys.listByUser('sub-abc');
+      expect(result.Limit).toBe(50);
+    });
+
+    it('respects an explicit limit override', () => {
+      const result = studySetKeys.listByUser('sub-abc', 10);
+      expect(result.Limit).toBe(10);
+    });
+  });
+
+  describe('listByNote', () => {
+    it('sets IndexName to GSI7', () => {
+      const result = studySetKeys.listByNote('note-001', 'sub-abc');
+      expect(result.IndexName).toBe('GSI7');
+    });
+
+    it('sets KeyConditionExpression with begins_with on gsi7sk', () => {
+      const result = studySetKeys.listByNote('note-001', 'sub-abc');
+      expect(result.KeyConditionExpression).toBe(
+        'gsi7pk = :pk AND begins_with(gsi7sk, :prefix)',
+      );
+    });
+
+    it('sets :pk to NOTE#<sourceNoteId>', () => {
+      const result = studySetKeys.listByNote('note-xyz', 'sub-abc');
+      expect(result.ExpressionAttributeValues[':pk']).toBe('NOTE#note-xyz');
+    });
+
+    it('sets :prefix to USER#<sub>#STUDYSET# (user-scoped to prevent cross-user leakage)', () => {
+      const result = studySetKeys.listByNote('note-001', 'sub-abc');
+      expect(result.ExpressionAttributeValues[':prefix']).toBe('USER#sub-abc#STUDYSET#');
+    });
+  });
+
+  describe('parseStudySetSk', () => {
+    it('parses a well-formed STUDYSET# sort key', () => {
+      const result = studySetKeys.parseStudySetSk('STUDYSET#01HZ0001');
+      expect(result).toEqual({ studySetId: '01HZ0001' });
+    });
+
+    it('handles ULID-like ids with mixed characters', () => {
+      const result = studySetKeys.parseStudySetSk('STUDYSET#01HZ0ABCDEFGHJKM');
+      expect(result.studySetId).toBe('01HZ0ABCDEFGHJKM');
+    });
+
+    it('throws on a malformed key that lacks the STUDYSET# prefix', () => {
+      expect(() => studySetKeys.parseStudySetSk('NOTE#abc')).toThrow(
+        'studySetKeys.parseStudySetSk: malformed study-set sort key "NOTE#abc"',
+      );
+    });
+
+    it('throws on an empty string', () => {
+      expect(() => studySetKeys.parseStudySetSk('')).toThrow(
+        'studySetKeys.parseStudySetSk: malformed study-set sort key ""',
+      );
+    });
+  });
+});
+
+describe('storageKeys', () => {
+  describe('studySetBody', () => {
+    it('returns study/users/<sub>/<studySetId>.json', () => {
+      const result = storageKeys.studySetBody('sub-abc', 'set-001');
+      expect(result).toBe('study/users/sub-abc/set-001.json');
+    });
+
+    it('interpolates sub and studySetId correctly', () => {
+      const result = storageKeys.studySetBody('cognito-sub-xyz', '01HZ0000001');
+      expect(result).toBe('study/users/cognito-sub-xyz/01HZ0000001.json');
     });
   });
 });

@@ -195,12 +195,14 @@ export const jobKeys = {
 /**
  * S3 object key builders for note assets. User-scoped prefixes keep IAM
  * conditions simple and prevent cross-user reads.
- *   images/users/<sub>/<id>.jpg     — original photo (presigned PUT)
- *   markdown/users/<sub>/<id>.md    — transcription output (written server-side)
+ *   images/users/<sub>/<id>.jpg       — original photo (presigned PUT)
+ *   markdown/users/<sub>/<id>.md      — transcription output (written server-side)
+ *   study/users/<sub>/<id>.json       — generated study-set body (M13)
  */
 export const storageKeys = {
   originalImage: (sub: string, id: string) => `images/users/${sub}/${id}.jpg`,
   noteMarkdown: (sub: string, id: string) => `markdown/users/${sub}/${id}.md`,
+  studySetBody: (sub: string, studySetId: string) => `study/users/${sub}/${studySetId}.json`,
 };
 
 /** Possible note processing statuses. */
@@ -581,4 +583,129 @@ export const rateLimitKeys = {
     pk: `RATELIMIT#${route}`,
     sk: `IP#${ip}#WIN#${windowStart}`,
   }),
+};
+
+/**
+ * `Notes` table keys for STUDYSET items (AI-generated study material, M13).
+ *
+ * STUDYSET items live in the same Notes table alongside note metadata, tag-index
+ * items, token-index items, share items, and card items. They are distinguished
+ * by an SK prefix of `STUDYSET#`, which keeps them out of every other existing
+ * index query.
+ *
+ * Item shape:
+ *   PK  = `USER#<cognitoSub>`           — owner's partition (same as note items)
+ *   SK  = `STUDYSET#<studySetId>`       — studySetId is a ULID generated at request time
+ *   attrs:
+ *     studySetId      string            — ULID identifier
+ *     sourceNoteIds   string[]          — source note(s) (single-element in M13; multi-note M17)
+ *     type            StudyMaterialType — 'flashcards' | 'quiz' | 'assignment' | 'summary'
+ *     title           string            — display title (from caller)
+ *     status          StudySetStatus    — 'queued' | 'running' | 'ready' | 'failed'
+ *     language        StudyLanguage     — 'pt-BR' | 'bilingual'
+ *     model           string            — Bedrock model id snapshot at generation time
+ *     promptVersion   string            — prompt version; empty string at queue time
+ *     error?          string            — reason for failure; only when status='failed'
+ *     bodyS3Key?      string            — S3 key for generated payload; only when status='ready'
+ *     createdAt       string            — ISO-8601 UTC datetime
+ *     updatedAt       string            — ISO-8601 UTC datetime
+ *
+ * GSI6 (`StudySetsByUser`, projection ALL):
+ *   gsi6pk = `USER#<cognitoSub>`, gsi6sk = `STUDYSET#<studySetId>`
+ *   — list a user's study sets newest-first. ULID sort keys are
+ *     lexicographically sortable; `ScanIndexForward: false` gives newest first.
+ *     Projection ALL means full attributes are returned without a follow-up GetItem.
+ *
+ * GSI7 (`StudySetsByNote`, projection ALL):
+ *   gsi7pk = `NOTE#<sourceNoteId>`, gsi7sk = `USER#<sub>#STUDYSET#<studySetId>`
+ *   — find all study sets derived from a given note. The gsi7sk begins with
+ *     `USER#<sub>#STUDYSET#` so a per-user filter can be applied with
+ *     `begins_with(gsi7sk, 'USER#<sub>#STUDYSET#')`, preventing cross-user
+ *     leakage through the shared GSI7 partition.
+ *
+ * STUDYSET items carry ONLY the gsi6/gsi7 keys — they deliberately omit
+ * gsi1/gsi2/gsi3/gsi4/gsi5 keys so they stay out of the note-recency, tag,
+ * token, share, and due-date indexes (sparse index pattern).
+ */
+export const studySetKeys = {
+  /**
+   * Full primary key for a study-set item.
+   * PK = `USER#<cognitoSub>`, SK = `STUDYSET#<studySetId>`.
+   */
+  item: (sub: string, studySetId: string) => ({
+    pk: `USER#${sub}`,
+    sk: `STUDYSET#${studySetId}`,
+  }),
+
+  /**
+   * GSI6 partition key for a study-set item (`USER#<cognitoSub>`).
+   * Scopes the recency index to a single user's study sets.
+   */
+  gsi6pk: (sub: string) => `USER#${sub}`,
+
+  /**
+   * GSI6 sort key for a study-set item (`STUDYSET#<studySetId>`).
+   * ULID sort keys are lexicographically sortable so `ScanIndexForward: false`
+   * returns newest-first.
+   */
+  gsi6sk: (studySetId: string) => `STUDYSET#${studySetId}`,
+
+  /**
+   * GSI7 partition key for a study-set item (`NOTE#<sourceNoteId>`).
+   * Groups all study sets derived from the same source note regardless of owner.
+   */
+  gsi7pk: (sourceNoteId: string) => `NOTE#${sourceNoteId}`,
+
+  /**
+   * GSI7 sort key for a study-set item (`USER#<sub>#STUDYSET#<studySetId>`).
+   * Encodes the owner sub so a `begins_with(gsi7sk, 'USER#<sub>#STUDYSET#')`
+   * filter restricts results to the requesting user and prevents cross-user leakage.
+   */
+  gsi7sk: (sub: string, studySetId: string) => `USER#${sub}#STUDYSET#${studySetId}`,
+
+  /**
+   * Query parameters for listing all study sets for a user via GSI6
+   * (`StudySetsByUser`), newest-first (ScanIndexForward: false so descending
+   * ULID order = newest first), capped at `limit` (default 50).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listByUser: (sub: string, limit = 50) => ({
+    IndexName: 'GSI6',
+    KeyConditionExpression: 'gsi6pk = :pk AND begins_with(gsi6sk, :prefix)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':prefix': 'STUDYSET#',
+    },
+    ScanIndexForward: false,
+    Limit: limit,
+  }),
+
+  /**
+   * Query parameters for listing all study sets derived from a source note for
+   * a given user via GSI7 (`StudySetsByNote`). The begins_with on gsi7sk
+   * `USER#<sub>#STUDYSET#` scopes results to the requesting user only, preventing
+   * cross-user leakage through the shared GSI7 partition.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listByNote: (sourceNoteId: string, sub: string) => ({
+    IndexName: 'GSI7',
+    KeyConditionExpression: 'gsi7pk = :pk AND begins_with(gsi7sk, :prefix)',
+    ExpressionAttributeValues: {
+      ':pk': `NOTE#${sourceNoteId}`,
+      ':prefix': `USER#${sub}#STUDYSET#`,
+    },
+  }),
+
+  /**
+   * Parses a study-set sort key (`STUDYSET#<studySetId>`) back into its parts.
+   * Useful for downstream waves that recover the studySetId from a key-only
+   * projection. Throws on a malformed key.
+   */
+  parseStudySetSk: (sk: string): { studySetId: string } => {
+    const match = /^STUDYSET#(.+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`studySetKeys.parseStudySetSk: malformed study-set sort key "${sk}"`);
+    }
+    return { studySetId: match[1] };
+  },
 };
