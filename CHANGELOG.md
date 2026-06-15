@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.52.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.51.0...transformmynotes-v1.52.0) (2026-06-15)
+
+
+### 🚀 Features
+
+* **application:** security hardening — Turnstile on registration + ASVS checklist ([8586a61](https://github.com/jasonp2323/transformmynotes/commit/8586a61471f7f48b0cdd62dfe3a52bcce3e9ac31))
+
 ## [1.51.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.50.1...transformmynotes-v1.51.0) (2026-06-15)
 
 
