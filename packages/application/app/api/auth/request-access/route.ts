@@ -4,9 +4,8 @@ import { rateLimit } from '@/lib/ratelimit';
 import { originFromHeaders } from '@/lib/request-origin';
 import { listAdminEmails } from '@/lib/admin-emails';
 import { sendAdminAccessRequestNotification } from '@/lib/email';
-
-/** Basic email regex — validates structure without being overly strict. */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { verifyTurnstile, TurnstileError } from '@/lib/turnstile';
+import { requestAccessBodySchema } from '@/lib/auth-schemas';
 
 export async function POST(req: Request) {
   // Parse body.
@@ -20,19 +19,17 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, email, note } = (body ?? {}) as Record<string, unknown>;
-
-  // Validate.
-  const trimmedName = typeof name === 'string' ? name.trim() : '';
-  const trimmedEmail = typeof email === 'string' ? email.trim() : '';
-  const trimmedNote = typeof note === 'string' && note.trim() !== '' ? note.trim() : undefined;
-
-  if (!trimmedName || !trimmedEmail || !EMAIL_RE.test(trimmedEmail)) {
+  // Validate with zod.
+  const parsed = requestAccessBodySchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: 'Please enter a valid name and email.' },
       { status: 400 },
     );
   }
+  const { name, email, note: trimmedNote, turnstileToken } = parsed.data;
+  const trimmedName = name;
+  const trimmedEmail = email;
 
   // Rate-limit by client IP (first hop of x-forwarded-for).
   const forwarded = (req.headers as Headers).get('x-forwarded-for') ?? 'unknown';
@@ -42,6 +39,23 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: 'Too many requests. Please try again later.' },
       { status: 429 },
+    );
+  }
+
+  // Turnstile — bot check before any DB write.
+  try {
+    await verifyTurnstile(turnstileToken);
+  } catch (err) {
+    if (err instanceof TurnstileError) {
+      return NextResponse.json(
+        { ok: false, error: 'Bot check failed. Please try again.' },
+        { status: 400 },
+      );
+    }
+    console.error('[request-access] Turnstile error', err);
+    return NextResponse.json(
+      { ok: false, error: 'Something went wrong. Please try again.' },
+      { status: 500 },
     );
   }
 
