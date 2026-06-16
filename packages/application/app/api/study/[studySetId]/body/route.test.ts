@@ -72,6 +72,15 @@ describe('GET /api/study/[studySetId]/body', () => {
     expect(body.error).toBe('Not found.');
   });
 
+  it('returns 400 and does not call S3 when item type is quiz', async () => {
+    getStudySetMock.mockResolvedValueOnce({ ...READY_ITEM, type: 'quiz' });
+    const res = await GET(REQ, PARAMS);
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.error).toBe('Use /questions for quizzes.');
+    expect(s3SendMock).not.toHaveBeenCalled();
+  });
+
   it('returns 404 when status is not ready', async () => {
     getStudySetMock.mockResolvedValueOnce({ ...READY_ITEM, status: 'queued', bodyS3Key: undefined });
     const res = await GET(REQ, PARAMS);

@@ -560,6 +560,105 @@ export const cardKeys = {
 };
 
 /**
+ * `Notes` table keys for ATTEMPT items (auto-graded quiz attempts, M15).
+ *
+ * A quiz in M15 is an existing `STUDYSET` item of `type: "quiz"`, so the
+ * `quizId` is the `studySetId` and the quiz body already lives in S3 under
+ * `storageKeys.studySetBody(sub, studySetId)`. ATTEMPT items record a user's
+ * graded answers for a quiz and live in the same Notes table alongside note
+ * metadata, tag/token/share/card/studyset items. They are distinguished by an
+ * SK prefix of `ATTEMPT#`, which keeps them out of every other existing index
+ * query.
+ *
+ * Item shape:
+ *   PK  = `USER#<cognitoSub>`              — owner's partition (same as note items)
+ *   SK  = `ATTEMPT#<quizId>#<attemptId>`   — scoped to quiz + attempt (both ULIDs)
+ *   attrs:
+ *     attemptId   string                   — ULID identifier for the attempt
+ *     quizId      string                   — the source studySetId of type 'quiz'
+ *     answers     Record<string,string>    — questionId -> submitted answer
+ *     results     Record<string,AttemptResult> — per-question grading result
+ *     score       number                   — overall score in [0,1]
+ *     gradedAt    string                   — ISO-8601 UTC datetime grading completed
+ *     durationMs  number?                  — wall-clock time spent on the attempt
+ *
+ * GSI8 (`ByQuizAttempt`, projection ALL):
+ *   gsi8pk = `QUIZ#<quizId>`, gsi8sk = `GRADEDAT#<ISO-8601 gradedAt>`
+ *   — list ALL attempts for a quiz (across every user) newest-first. ISO-8601
+ *     UTC strings are lexicographically sortable, so `ScanIndexForward: false`
+ *     returns the most-recent attempts first. Projection ALL means full attempt
+ *     attributes are returned without a follow-up GetItem. Because the GSI8
+ *     partition is keyed by quiz (not user), the query returns every user's
+ *     attempts — callers MUST filter by ownership (`pk === USER#<sub>`).
+ *
+ * ATTEMPT items carry ONLY the gsi8 keys — they deliberately omit
+ * gsi1..gsi7 keys so they stay out of every other index (sparse index pattern).
+ * Because SK begins with `ATTEMPT#` (not `NOTE#`), they also never appear in
+ * `noteListRecentQuery`.
+ */
+export const attemptKeys = {
+  /**
+   * Full primary key for an attempt item.
+   * PK = `USER#<cognitoSub>`, SK = `ATTEMPT#<quizId>#<attemptId>`.
+   */
+  attemptItemKey: (
+    userSub: string,
+    quizId: string,
+    attemptId: string,
+  ): { pk: string; sk: string } => ({
+    pk: `USER#${userSub}`,
+    sk: `ATTEMPT#${quizId}#${attemptId}`,
+  }),
+
+  /**
+   * GSI8 partition key for an attempt item (`QUIZ#<quizId>`).
+   * Groups all attempts for a quiz regardless of owner — callers must filter
+   * by ownership after querying.
+   */
+  gsi8pk: (quizId: string): string => `QUIZ#${quizId}`,
+
+  /**
+   * GSI8 sort key for an attempt item (`GRADEDAT#<ISO-8601 gradedAt>`).
+   * ISO-8601 UTC strings are lexicographically sortable, so the GSI range key
+   * encodes the graded datetime with a `GRADEDAT#` prefix for namespace safety.
+   */
+  gsi8sk: (gradedAt: string): string => `GRADEDAT#${gradedAt}`,
+
+  /**
+   * Query parameters for listing all attempts for a quiz via GSI8
+   * (`ByQuizAttempt`), newest-first (ScanIndexForward: false so descending
+   * `GRADEDAT#<ISO>` order = most-recent first), capped at 20.
+   *
+   * NOTE: GSI8 is partitioned by quiz, so this returns EVERY user's attempts
+   * for the quiz — callers must filter by ownership (`pk === USER#<sub>`).
+   * GSI8 is projection ALL — full attributes are returned without a follow-up
+   * GetItem. Pass the returned object directly as additional params to QueryCommand.
+   */
+  listAttemptsByQuizQuery: (quizId: string) => ({
+    IndexName: 'GSI8',
+    KeyConditionExpression: 'gsi8pk = :pk',
+    ExpressionAttributeValues: { ':pk': `QUIZ#${quizId}` },
+    ScanIndexForward: false,
+    Limit: 20,
+  }),
+
+  /**
+   * Base-table query parameters for listing a single user's attempts for a
+   * given quiz. Queries the primary index: `pk = USER#<sub>` AND
+   * `begins_with(sk, 'ATTEMPT#<quizId>#')`, so only that user's attempts for
+   * the quiz are returned.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listAttemptsForUserQuizQuery: (userSub: string, quizId: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userSub}`,
+      ':sk': `ATTEMPT#${quizId}#`,
+    },
+  }),
+};
+
+/**
  * `UserData` table keys for upload session items (multipart upload tracker).
  * PK = `USER#<sub>`, SK = `UPLOAD#<uploadToken>`.
  * Stores S3 multipart UploadId + job metadata for resume/idempotency.
