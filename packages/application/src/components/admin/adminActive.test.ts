@@ -34,6 +34,14 @@ describe('adminActiveFromPath', () => {
     expect(adminActiveFromPath('/admin')).toBeUndefined();
   });
 
+  it('returns "ai-settings" for /admin/ai-settings', () => {
+    expect(adminActiveFromPath('/admin/ai-settings')).toBe('ai-settings');
+  });
+
+  it('returns "ai-settings" for sub-paths under /admin/ai-settings', () => {
+    expect(adminActiveFromPath('/admin/ai-settings/versions')).toBe('ai-settings');
+  });
+
   it('returns undefined for an unrelated path', () => {
     expect(adminActiveFromPath('/dashboard')).toBeUndefined();
     expect(adminActiveFromPath('/library')).toBeUndefined();
