@@ -24,6 +24,7 @@ import {
   listStudySetsByUser,
   listStudySetsByNote,
   getStudySet,
+  deleteStudySet,
 } from '../src/db/study.js';
 
 // ---------------------------------------------------------------------------
