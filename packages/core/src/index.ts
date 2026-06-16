@@ -35,3 +35,5 @@ export * from './study/config';
 export * from './study/generate';
 export * from './study/quiz';
 export * from './study/flashcards';
+export * from './study/judgeShortAnswer';
+export * from './study/grading';
