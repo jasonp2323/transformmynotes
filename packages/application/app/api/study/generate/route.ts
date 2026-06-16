@@ -66,10 +66,11 @@ export async function POST(req: Request) {
   }
   const materialType = type as StudyMaterialType;
 
-  // Resolve language.
+  // Resolve language. When omitted, default to 'auto' so output matches the
+  // source note's language (generateStudyMaterial maps 'auto' → AUTO_DIRECTIVE).
   let resolvedLanguage: StudyLanguage;
   if (language === undefined) {
-    resolvedLanguage = 'pt-BR';
+    resolvedLanguage = 'auto';
   } else if (typeof language !== 'string' || !VALID_LANGUAGES.includes(language as StudyLanguage)) {
     return NextResponse.json(
       { ok: false, error: 'Invalid language.' },
