@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.61.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.60.0...transformmynotes-v1.61.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **admin:** M19.1 — runtime AI config data model, resolver & admin API ([#546](https://github.com/jasonp2323/transformmynotes/issues/546)) ([8a13201](https://github.com/jasonp2323/transformmynotes/commit/8a13201788d2c58464177071a60121b1a337fe38))
+
 ## [1.60.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.59.0...transformmynotes-v1.60.0) (2026-06-16)
 
 
