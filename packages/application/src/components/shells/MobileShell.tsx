@@ -5,14 +5,14 @@ import { ReviewNavBadge } from '@/src/components/review/ReviewNavBadge';
 import { LogoutButton } from './LogoutButton';
 
 export interface MobileShellProps {
-  active?: 'library' | 'search' | 'review' | 'profile';
+  active?: 'library' | 'search' | 'review' | 'study' | 'profile';
   fab?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }
 
 interface BottomNavItem {
-  id: 'library' | 'search' | 'review' | 'profile';
+  id: 'library' | 'search' | 'review' | 'study' | 'profile';
   icon: string;
   label: string;
   href: string;
@@ -21,8 +21,9 @@ interface BottomNavItem {
 const NAV_ITEMS: BottomNavItem[] = [
   { id: 'library', icon: 'book-open', label: 'Library', href: '/dashboard' },
   { id: 'search',  icon: 'search',    label: 'Search',  href: '/search' },
-  { id: 'review',  icon: 'layers',    label: 'Review',  href: '/review' },
-  { id: 'profile', icon: 'user',      label: 'You',     href: '/account' },
+  { id: 'review',  icon: 'layers',         label: 'Review',  href: '/review' },
+  { id: 'study',   icon: 'graduation-cap', label: 'Study',   href: '/study' },
+  { id: 'profile', icon: 'user',           label: 'You',     href: '/account' },
 ];
 
 export function MobileShell({ active, fab, children, className }: MobileShellProps) {
