@@ -233,3 +233,58 @@
     animation: none !important;
   }
 }
+
+/* ================================================================
+   Glossary viewer — definition list (StudySetViewerScreen)
+   ================================================================ */
+
+.glossary-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.glossary-entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.glossary-term {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-md);
+  color: var(--text-strong);
+  line-height: var(--leading-snug);
+}
+
+.glossary-def {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border-strong);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+/* ================================================================
+   Print — study-set viewer
+   ================================================================ */
+
+@media print {
+  nav,
+  header,
+  footer,
+  .action-bar,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .study-set-viewer {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

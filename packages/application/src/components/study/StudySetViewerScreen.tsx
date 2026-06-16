@@ -9,6 +9,8 @@ import type {
   QuizPayload,
   AssignmentPayload,
   SummaryPayload,
+  GlossaryPayload,
+  StudyGuidePayload,
 } from '@/src/lib/study-ui';
 import { STUDY_TYPE_META } from '@/src/lib/study-ui';
 import { AppShell } from '@/src/components/shells';
@@ -17,6 +19,7 @@ import { Dialog } from '@/src/components/ui/Dialog';
 import { Icon } from '@/src/components/ui/Icon';
 import { Toast } from '@/src/components/ui/Toast';
 import { IconButton } from '@/src/components/ui/IconButton';
+import { Checkbox } from '@/src/components/ui/Checkbox';
 
 // --- Payload renderers -------------------------------------------------------
 
@@ -158,6 +161,45 @@ function SummaryView({ payload }: { payload: SummaryPayload }) {
   );
 }
 
+function GlossaryView({ payload }: { payload: GlossaryPayload }) {
+  return (
+    <dl className="glossary-list">
+      {payload.terms.map((entry, i) => (
+        <div key={i} className="glossary-entry">
+          <dt className="glossary-term">{entry.term}</dt>
+          <dd className="glossary-def">{entry.definition}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function StudyGuideView({ payload }: { payload: StudyGuidePayload }) {
+  return (
+    <div className="space-y-4">
+      {payload.title && <h2 className="text-base font-semibold">{payload.title}</h2>}
+      {payload.sections.map((section, i) => (
+        <div key={i} className="rounded-lg border border-border-default bg-surface-card p-4">
+          <h3 className="text-sm font-medium mb-2">{section.heading}</h3>
+          {section.keyPoints.length > 0 && (
+            <ul className="space-y-1.5 mb-2">
+              {section.keyPoints.map((point, pi) => (
+                <li key={pi} className="flex gap-2 text-sm text-text-muted">
+                  <Icon name="check" size={14} className="mt-0.5 shrink-0 text-success" />
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {section.body && (
+            <p className="text-sm text-text-muted whitespace-pre-wrap">{section.body}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // --- Future-entry-point stub label per type ----------------------------------
 function stubLabel(type: StudySetMeta['type']): string {
   switch (type) {
@@ -183,6 +225,8 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
 
   // Fetch metadata
   useEffect(() => {
@@ -209,6 +253,13 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
       .finally(() => setLoadingBody(false));
   }, [meta, studySetId]);
 
+  // Sync assignment completion state from loaded meta
+  useEffect(() => {
+    if (meta?.type === 'assignment') {
+      setCompleted(meta.completed === true);
+    }
+  }, [meta]);
+
   async function handleDelete() {
     setDeleting(true);
     setDeleteError(null);
@@ -223,6 +274,25 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
       setDeleteError('Failed to delete study set. Please try again.');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleComplete(next: boolean) {
+    setCompleted(next);
+    setCompleteError(null);
+    try {
+      const res = await fetch(`/api/study/${studySetId}/complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: next }),
+      });
+      if (!res.ok) {
+        setCompleted(!next);
+        setCompleteError('Failed to update completion. Please try again.');
+      }
+    } catch {
+      setCompleted(!next);
+      setCompleteError('Failed to update completion. Please try again.');
     }
   }
 
@@ -260,9 +330,9 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
   return (
     <>
       <AppShell active="study" title={meta.title}>
-        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+        <div className="study-set-viewer px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto">
           {/* Header row */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-6 print-hidden">
             <IconButton
               label="Back to study list"
               onClick={() => router.push('/study')}
@@ -315,11 +385,27 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
                   {body.type === 'summary' && (
                     <SummaryView payload={body.payload as SummaryPayload} />
                   )}
+                  {body.type === 'glossary' && (
+                    <GlossaryView payload={body.payload as GlossaryPayload} />
+                  )}
+                  {body.type === 'study_guide' && (
+                    <StudyGuideView payload={body.payload as StudyGuidePayload} />
+                  )}
                 </>
               )}
 
+              {meta.type === 'assignment' && (
+                <div className="print-hidden">
+                  <Checkbox
+                    checked={completed}
+                    onChange={(e) => void handleComplete(e.target.checked)}
+                    label="Mark complete"
+                  />
+                </div>
+              )}
+
               {/* Action row */}
-              <div className="flex gap-3 pt-2 flex-wrap">
+              <div className="flex gap-3 pt-2 flex-wrap print-hidden">
                 <Button
                   variant="secondary"
                   disabled
@@ -328,6 +414,14 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
                   leftIcon={<Icon name="sparkles" size={15} />}
                 >
                   {stubLabel(meta.type)}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => window.print()}
+                  aria-label="Print study material"
+                  leftIcon={<Icon name="printer" size={15} />}
+                >
+                  Print
                 </Button>
                 <Button
                   variant="danger"
@@ -389,6 +483,17 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
           onClose={() => setDeleteError(null)}
         >
           {deleteError}
+        </Toast>
+      )}
+
+      {/* Complete error toast — also outside AppShell for the same reason */}
+      {completeError && (
+        <Toast
+          tone="danger"
+          title="Error"
+          onClose={() => setCompleteError(null)}
+        >
+          {completeError}
         </Toast>
       )}
     </>
