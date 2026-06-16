@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.63.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.62.0...transformmynotes-v1.63.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M16.2 glossary/study-guide renderers, print & assignment self-check ([#556](https://github.com/jasonp2323/transformmynotes/issues/556)) ([2a6efb6](https://github.com/jasonp2323/transformmynotes/commit/2a6efb688e420e7b4a9aff45befd3331e0575c79))
+
+
+### 📝 Documentation
+
+* **m25:** add Study Progress & Insights milestone spec ([65e7e8c](https://github.com/jasonp2323/transformmynotes/commit/65e7e8ce1a6081a841b2e95a2c024444e298d1e1))
+
 ## [1.62.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.61.0...transformmynotes-v1.62.0) (2026-06-16)
 
 
