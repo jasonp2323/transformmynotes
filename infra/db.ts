@@ -57,6 +57,7 @@ export const notes = new sst.aws.Dynamo("Notes", {
     GSI6: { hashKey: "gsi6pk", rangeKey: "gsi6sk", projection: "all" },
     GSI7: { hashKey: "gsi7pk", rangeKey: "gsi7sk", projection: "all" },
   },
+  stream: "new-and-old-images",
 });
 
 export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes };

@@ -36,6 +36,8 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
+    // M13.2 per-user in-flight study-generation cap (route fails loud if unset/non-integer).
+    MAX_CONCURRENT_STUDY_JOBS: "3",
     SST_STAGE: $app.stage,
     RESEND_API_KEY: resendApiKey.value,
     INVITE_FROM_ADDRESS: inviteFromAddress.value,

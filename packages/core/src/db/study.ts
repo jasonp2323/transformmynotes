@@ -1,4 +1,4 @@
-import { QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { studySetKeys } from './keys.js';
 import type { StudyMaterialType, StudySetStatus, StudyLanguage } from '../study/types.js';
@@ -155,4 +155,114 @@ export async function getStudySet(
     }),
   );
   return result.Item as StudySetItem | undefined;
+}
+
+/** Writes a STUDYSET item to the Notes table (used by POST /api/study/generate). */
+export async function putStudySet(item: StudySetItem): Promise<void> {
+  await ddb.send(
+    new PutCommand({
+      TableName: TableNames.Notes,
+      Item: item,
+    }),
+  );
+}
+
+/**
+ * Atomically claims a queued study set for processing by flipping status
+ * 'queued' → 'running' under a ConditionExpression `#status = :queued`.
+ * Returns true if the claim succeeded; false if the condition failed (another
+ * invocation already claimed it, or it is no longer queued) — the idempotency
+ * guard for the stream consumer. Re-throws any non-conditional error.
+ */
+export async function claimStudySet(
+  sub: string,
+  studySetId: string,
+  updatedAt?: string,
+): Promise<boolean> {
+  try {
+    await ddb.send(
+      new UpdateCommand({
+        TableName: TableNames.Notes,
+        Key: studySetKeys.item(sub, studySetId),
+        UpdateExpression: 'SET #status = :running, updatedAt = :updatedAt',
+        ConditionExpression: '#status = :queued',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':running': 'running',
+          ':queued': 'queued',
+          ':updatedAt': updatedAt ?? new Date().toISOString(),
+        },
+      }),
+    );
+    return true;
+  } catch (err) {
+    if ((err as { name?: string }).name === 'ConditionalCheckFailedException') {
+      return false;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Marks a study set as successfully generated: status → 'ready', plus the S3
+ * body key and the prompt version used.
+ */
+export async function markStudySetReady(input: {
+  sub: string;
+  studySetId: string;
+  bodyS3Key: string;
+  promptVersion: string;
+  updatedAt?: string;
+}): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: studySetKeys.item(input.sub, input.studySetId),
+      UpdateExpression:
+        'SET #status = :status, bodyS3Key = :bodyS3Key, promptVersion = :promptVersion, updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':status': 'ready',
+        ':bodyS3Key': input.bodyS3Key,
+        ':promptVersion': input.promptVersion,
+        ':updatedAt': input.updatedAt ?? new Date().toISOString(),
+      },
+    }),
+  );
+}
+
+/** Marks a study set failed: status → 'failed' with a (sanitised) error message. */
+export async function markStudySetFailed(input: {
+  sub: string;
+  studySetId: string;
+  error: string;
+  updatedAt?: string;
+}): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: studySetKeys.item(input.sub, input.studySetId),
+      UpdateExpression: 'SET #status = :status, #error = :error, updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#status': 'status', '#error': 'error' },
+      ExpressionAttributeValues: {
+        ':status': 'failed',
+        ':error': input.error,
+        ':updatedAt': input.updatedAt ?? new Date().toISOString(),
+      },
+    }),
+  );
+}
+
+/**
+ * Counts a user's in-flight study sets (status 'queued' or 'running') via GSI6,
+ * used for the per-user concurrency rate limit in POST /api/study/generate.
+ */
+export async function countInFlightStudySets(sub: string): Promise<number> {
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TableNames.Notes,
+      ...studySetKeys.inFlightByUser(sub),
+    }),
+  );
+  return (Items ?? []).length;
 }
