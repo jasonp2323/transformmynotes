@@ -112,6 +112,14 @@
   line-height: 1.4;
 }
 
+.tmn-study-type-picker__count {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* ================================================================
    Per-note study sets list — StudySetsForNote
    ================================================================ */

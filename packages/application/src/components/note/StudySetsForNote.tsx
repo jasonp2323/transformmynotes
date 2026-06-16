@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge, Icon } from '@/src/components/ui';
 import { STUDY_TYPE_META, type StudySetMeta } from '@/src/lib/study-ui';
@@ -18,21 +18,50 @@ export function StudySetsForNote({ noteId, refreshNonce = 0 }: StudySetsForNoteP
   const router = useRouter();
   const [studySets, setStudySets] = useState<StudySetMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  const clearTimer = () => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
   const fetchSets = useCallback(async () => {
     try {
       const res = await fetch(`/api/study?noteId=${encodeURIComponent(noteId)}`);
       if (!res.ok) return;
       const data = (await res.json()) as { studySets: StudySetMeta[] };
-      setStudySets(data.studySets ?? []);
+      const sets = data.studySets ?? [];
+      if (mountedRef.current) {
+        setStudySets(sets);
+        // Schedule next poll if any sets are still in-flight
+        const hasPending = sets.some((s) => s.status === 'queued' || s.status === 'running');
+        if (hasPending) {
+          clearTimer();
+          timerRef.current = setTimeout(() => {
+            if (mountedRef.current) void fetchSets();
+          }, 2000);
+        }
+      }
     } catch {
       // Silently fail — the list is supplementary
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [noteId]);
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    clearTimer();
     setLoading(true);
     void fetchSets();
   }, [fetchSets, refreshNonce]);

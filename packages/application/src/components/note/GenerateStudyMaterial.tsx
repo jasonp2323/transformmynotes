@@ -48,7 +48,7 @@ export function GenerateStudyMaterial({
 
   // Picker dialog state
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<StudyMaterialType>('flashcards');
+  const [selected, setSelected] = useState<Set<StudyMaterialType>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
   // Generation / polling state
@@ -189,37 +189,78 @@ export function GenerateStudyMaterial({
     [noteId, schedulePoll],
   );
 
+  // ── Toggle type selection ─────────────────────────────────────────────────
+
+  const toggleType = useCallback((type: StudyMaterialType) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  }, []);
+
   // ── Generate handler (from picker) ────────────────────────────────────────
 
   const handleGenerate = useCallback(async () => {
     setSubmitting(true);
+    const types = Array.from(selected);
     try {
-      const res = await fetch('/api/study/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceNoteId: noteId, type: selectedType }),
-      });
+      const results = await Promise.all(
+        types.map((type) =>
+          fetch('/api/study/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceNoteId: noteId, type }),
+          }).then(async (res) => ({ type, status: res.status, data: await res.json() as { studySetId?: string; error?: string } }))
+        )
+      );
 
       if (!mountedRef.current) return;
 
-      if (res.status === 202) {
-        const data = (await res.json()) as { studySetId: string };
-        setPickerOpen(false);
-        setGeneration({ phase: 'generating', studySetId: data.studySetId, type: selectedType, polls: 0 });
-        schedulePoll(data.studySetId, selectedType, 0);
-      } else if (res.status === 429) {
-        const data = (await res.json()) as { error?: string };
-        setPickerOpen(false);
-        setToast({
-          tone: 'warning',
-          title:
-            data.error ?? 'Too many in-flight generations — wait for one to finish.',
-        });
-      } else if (res.status === 401) {
-        setPickerOpen(false);
-        setToast({ tone: 'danger', title: 'Please sign in again.' });
+      if (types.length === 1) {
+        // Single-type path — keep existing single-item flow
+        const result = results[0];
+        if (!result) return;
+        if (result.status === 202) {
+          setPickerOpen(false);
+          setSelected(new Set());
+          setGeneration({ phase: 'generating', studySetId: result.data.studySetId!, type: result.type, polls: 0 });
+          schedulePoll(result.data.studySetId!, result.type, 0);
+        } else if (result.status === 429) {
+          setPickerOpen(false);
+          setToast({ tone: 'warning', title: result.data.error ?? 'Too many in-flight generations — wait for one to finish.' });
+        } else if (result.status === 401) {
+          setPickerOpen(false);
+          setToast({ tone: 'danger', title: 'Please sign in again.' });
+        } else {
+          setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+        }
       } else {
-        setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+        // Multi-type path — close picker, bump refresh, show toast
+        setPickerOpen(false);
+        setSelected(new Set());
+        const succeeded = results.filter((r) => r.status === 202).length;
+        const rateLimited = results.filter((r) => r.status === 429).length;
+        const unauthorized = results.some((r) => r.status === 401);
+
+        onStudySetReady?.(); // bump the refresh nonce
+
+        if (unauthorized) {
+          setToast({ tone: 'danger', title: 'Please sign in again.' });
+        } else if (rateLimited > 0 && succeeded > 0) {
+          setToast({
+            tone: 'warning',
+            title: `Started ${succeeded} of ${types.length} — the rest hit the in-flight limit. Try the others shortly.`,
+          });
+        } else if (rateLimited > 0 && succeeded === 0) {
+          setToast({ tone: 'warning', title: 'All requests hit the in-flight limit — wait for a generation to finish.' });
+        } else {
+          setToast({ tone: 'success', title: `Generating ${succeeded} study ${succeeded === 1 ? 'set' : 'sets'}…` });
+        }
       }
     } catch {
       if (!mountedRef.current) return;
@@ -227,7 +268,7 @@ export function GenerateStudyMaterial({
     } finally {
       if (mountedRef.current) setSubmitting(false);
     }
-  }, [noteId, selectedType, schedulePoll]);
+  }, [noteId, selected, schedulePoll, onStudySetReady]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -303,7 +344,10 @@ export function GenerateStudyMaterial({
       <Dialog
         open={pickerOpen}
         onClose={() => {
-          if (!submitting) setPickerOpen(false);
+          if (!submitting) {
+            setPickerOpen(false);
+            setSelected(new Set());
+          }
         }}
         title="Generate study material"
         description="Choose a format to generate from this note."
@@ -312,6 +356,7 @@ export function GenerateStudyMaterial({
             variant="primary"
             fullWidth
             loading={submitting}
+            disabled={submitting || selected.size === 0}
             onClick={() => void handleGenerate()}
           >
             Generate
@@ -321,7 +366,7 @@ export function GenerateStudyMaterial({
         <div className="tmn-study-type-picker">
           {STUDY_TYPE_ORDER.map((type) => {
             const meta = STUDY_TYPE_META[type];
-            const isSelected = selectedType === type;
+            const isSelected = selected.has(type);
             return (
               <button
                 key={type}
@@ -330,7 +375,7 @@ export function GenerateStudyMaterial({
                   'tmn-study-type-option' +
                   (isSelected ? ' tmn-study-type-option--selected' : '')
                 }
-                onClick={() => setSelectedType(type)}
+                onClick={() => toggleType(type)}
                 aria-pressed={isSelected}
               >
                 <span className="tmn-study-type-option__icon">
@@ -343,6 +388,9 @@ export function GenerateStudyMaterial({
               </button>
             );
           })}
+          <p className="tmn-study-type-picker__count">
+            {selected.size} {selected.size === 1 ? 'option' : 'options'} selected
+          </p>
         </div>
       </Dialog>
 
