@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.60.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.59.0...transformmynotes-v1.60.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M15.1 quiz foundations — generation schema, attempts data model & anti-cheat routes ([#549](https://github.com/jasonp2323/transformmynotes/issues/549)) ([7132836](https://github.com/jasonp2323/transformmynotes/commit/7132836b1980e247587df0de4b8d9348b8ba0eb5))
+
 ## [1.59.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.58.0...transformmynotes-v1.59.0) (2026-06-16)
 
 
