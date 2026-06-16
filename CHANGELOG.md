@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.56.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.55.0...transformmynotes-v1.56.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M13.2 async generation job + guardrails ([#538](https://github.com/jasonp2323/transformmynotes/issues/538)) ([f0da6b2](https://github.com/jasonp2323/transformmynotes/commit/f0da6b2b50a3ed881ff9deae5e714c7596622748))
+
 ## [1.55.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.54.0...transformmynotes-v1.55.0) (2026-06-16)
 
 
