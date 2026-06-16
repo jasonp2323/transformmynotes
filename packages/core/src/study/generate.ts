@@ -35,11 +35,14 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
     properties: {
       cards: {
         type: 'array',
+        minItems: 1,
+        maxItems: 20,
         items: {
           type: 'object',
           properties: {
-            front: { type: 'string' },
-            back: { type: 'string' },
+            front: { type: 'string', maxLength: 300 },
+            back: { type: 'string', maxLength: 600 },
+            sourceSpan: { type: 'string', maxLength: 300 },
           },
           required: ['front', 'back'],
         },
