@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { withBedrockRetry } from '../ocr/retry.js';
 import { resolveAiConfig, MAX_TOKENS_BY_TYPE } from './config.js';
 import type { StudyMaterialType, StudyLanguage } from './types.js';
+import { QUIZ_TOOL_SCHEMA, assignQuestionIds } from './quiz.js';
 
 export { MAX_TOKENS_BY_TYPE };
 
@@ -47,30 +48,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
     },
     required: ['cards'],
   },
-  quiz: {
-    type: 'object',
-    properties: {
-      questions: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            stem: { type: 'string' },
-            choices: {
-              type: 'array',
-              items: { type: 'string' },
-              minItems: 4,
-              maxItems: 4,
-            },
-            answerIndex: { type: 'integer', minimum: 0, maximum: 3 },
-            explanation: { type: 'string' },
-          },
-          required: ['stem', 'choices', 'answerIndex', 'explanation'],
-        },
-      },
-    },
-    required: ['questions'],
-  },
+  quiz: QUIZ_TOOL_SCHEMA,
   assignment: {
     type: 'object',
     properties: {
@@ -182,6 +160,10 @@ export async function generateStudyMaterial(
       payload = (block as { toolUse: { name: string; input: unknown } }).toolUse.input;
       break;
     }
+  }
+
+  if (type === 'quiz') {
+    payload = assignQuestionIds(payload);
   }
 
   return {
