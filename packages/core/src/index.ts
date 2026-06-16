@@ -10,6 +10,7 @@ export * from './db/cards';
 export * from './db/study';
 export * from './db/transcription-jobs';
 export * from './db/uploads';
+export * from './db/ai-config';
 export * from './db/users';
 export * from './auth/invite';
 export * from './auth/profile';

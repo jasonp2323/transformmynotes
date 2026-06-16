@@ -1,5 +1,5 @@
 /// <reference path="../.sst/platform/config.d.ts" />
-import { notes } from "./db";
+import { notes, userData } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
@@ -28,10 +28,13 @@ const foundationModelId = bedrockInferenceProfileId.value.apply((id) =>
 // AWS Lambda 4 KB env-var limit — see infra/application.ts).
 export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationConsumer", {
   handler: "packages/application/jobs/study-generation.handler",
-  link: [notes, notesBucket],
+  // M19: resolveAiConfig() reads the CONFIG#AI item from the UserData table, so
+  // the consumer must bind UserData (link + name env) and be granted read on it.
+  link: [notes, notesBucket, userData],
   environment: {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
+    SST_RESOURCE_UserData_name: userData.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
     SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: studySystemPrompt.value,
     SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: studyFlashcardsPrompt.value,
@@ -43,6 +46,11 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
     {
       actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
       resources: [notes.arn],
+    },
+    // M19: read-only access to the CONFIG#AI item in UserData (resolveAiConfig).
+    {
+      actions: ["dynamodb:GetItem"],
+      resources: [userData.arn],
     },
     // Least privilege: read the source note Markdown under markdown/, write the
     // generated study artifacts under study/ — no bucket-wide access.

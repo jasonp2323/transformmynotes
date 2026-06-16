@@ -129,10 +129,12 @@ export async function generateStudyMaterial(
     : language === 'pt-BR' ? PT_BR_DIRECTIVE
     : AUTO_DIRECTIVE;
 
+  // Per-type prompt override (M19): absent → no extra block, so don't append an
+  // empty section (which would leave a stray double newline).
+  const typePrompt = config.promptOverrides[type] ?? '';
   const combinedPrompt =
     config.baseSystemPrompt +
-    '\n\n' +
-    config.typePrompts[type] +
+    (typePrompt ? '\n\n' + typePrompt : '') +
     '\n\n' +
     languageDirective;
 
@@ -141,8 +143,11 @@ export async function generateStudyMaterial(
     .digest('hex')
     .slice(0, 8);
 
+  // Per-type model override (M19) falls back to the default modelId.
+  const modelId = config.modelOverrides[type] ?? config.modelId;
+
   const command = new ConverseCommand({
-    modelId: config.modelId,
+    modelId,
     system: [{ text: combinedPrompt }],
     messages: [
       {
@@ -154,7 +159,7 @@ export async function generateStudyMaterial(
         ],
       },
     ],
-    inferenceConfig: { maxTokens: config.maxTokens[type] },
+    inferenceConfig: { maxTokens: MAX_TOKENS_BY_TYPE[type] },
     toolConfig: {
       tools: [
         {

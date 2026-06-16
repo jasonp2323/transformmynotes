@@ -728,3 +728,53 @@ export const studySetKeys = {
     return { studySetId: match[1] };
   },
 };
+
+/**
+ * `UserData` table keys for the admin-tunable AI generation config (M19).
+ *
+ * Two item shapes live under a single dedicated partition `CONFIG#AI`, which is
+ * outside the `USER#<sub>` namespace so there is no collision with user data:
+ *   - Active config:    PK = `CONFIG#AI`, SK = `CURRENT`
+ *   - History snapshot: PK = `CONFIG#AI`, SK = `VERSION#<zero-padded seq>`
+ *
+ * The `VERSION#` sort key is zero-padded to 12 digits so a lexicographic scan
+ * returns version snapshots in ascending integer order. No GSI is needed — all
+ * lookups use the known PK + SK (or SK prefix).
+ */
+export const aiConfigKeys = {
+  /** Active config item. PK = `CONFIG#AI`, SK = `CURRENT`. */
+  current: () => ({ pk: 'CONFIG#AI', sk: 'CURRENT' as const }),
+
+  /**
+   * Immutable history snapshot. SK is zero-padded to 12 digits so a
+   * lexicographic scan returns versions in ascending integer order.
+   *   SK = VERSION#000000000001, VERSION#000000000002, …
+   */
+  version: (seq: number) => ({
+    pk: 'CONFIG#AI',
+    sk: `VERSION#${String(seq).padStart(12, '0')}` as const,
+  }),
+
+  /**
+   * Query parameters for listing all history snapshots in ascending order.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listVersions: () => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: { ':pk': 'CONFIG#AI', ':prefix': 'VERSION#' },
+    ScanIndexForward: true,
+  }),
+
+  /**
+   * Parses a `VERSION#<padded>` sort key back to its integer seq. The padded
+   * digits are interpreted as a base-10 integer (leading zeros stripped).
+   * Throws on a malformed key.
+   */
+  parseVersionSk: (sk: string): { seq: number } => {
+    const match = /^VERSION#(\d+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`aiConfigKeys.parseVersionSk: malformed version sort key "${sk}"`);
+    }
+    return { seq: Number(match[1]) };
+  },
+};
