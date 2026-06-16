@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "stamp": "tsx src/stamp.ts"
+    "stamp": "tsx src/stamp.ts",
+    "eval-study-prompt": "sst shell tsx src/eval-study-prompt.ts"
   },
   "devDependencies": {
     "tsx": "^4.22.4"

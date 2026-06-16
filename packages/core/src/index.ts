@@ -7,6 +7,7 @@ export * from './db/notes';
 export * from './db/rate-limit';
 export * from './db/shares';
 export * from './db/cards';
+export * from './db/study';
 export * from './db/transcription-jobs';
 export * from './db/uploads';
 export * from './db/users';
@@ -25,3 +26,8 @@ export * from './search/tokenise';
 // Spaced-repetition (SRS) — pure logic
 export * from './srs/scheduler';
 export * from './srs/extract';
+
+// AI study-material generation (M13)
+export * from './study/types';
+export * from './study/config';
+export * from './study/generate';
