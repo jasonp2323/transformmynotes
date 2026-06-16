@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AppShell } from '@/src/components/shells';
-import { Button, Icon, IconButton, Toast } from '@/src/components/ui';
+import { ActionBar } from '@/src/components/review/ActionBar';
+import { Badge, Button, Icon, IconButton, Toast } from '@/src/components/ui';
 import type {
   StudySetMeta,
   FlashcardsPayload,
@@ -238,133 +238,147 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
 
   return (
     <>
-      <AppShell active="notes" title="AI Flashcards">
-        {/* Generating spinner */}
-        {phase.phase === 'generating' && (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <Icon name="loader-circle" size={40} className="animate-spin" />
-            <p className="text-text-muted text-sm">Generating flashcards…</p>
-          </div>
-        )}
+      <div className="tmn-note-screen">
+        {/* ── Header ── */}
+        <div className="tmn-note-header">
+          <IconButton
+            label="Back"
+            variant="plain"
+            onClick={() => router.push(`/notes/${noteId}`)}
+          >
+            <Icon name="chevron-left" size={24} />
+          </IconButton>
 
-        {/* Error state */}
-        {phase.phase === 'error' && (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 px-6">
-            <p className="text-text-muted text-sm text-center">{phase.message}</p>
-            <Button
-              variant="secondary"
-              onClick={() => void startGeneration()}
-            >
-              Try again
-            </Button>
-          </div>
-        )}
+          <Badge tone="brand" className="tmn-note-header-badge">
+            AI Flashcards
+          </Badge>
+        </div>
 
-        {/* Ready / Accepting state */}
-        {(phase.phase === 'ready' || phase.phase === 'accepting') && (
-          <div className="px-4 pb-32 pt-4">
-            {/* Counter */}
-            <p className="text-sm text-text-muted mb-4">
-              {remainingLabel(currentCards.length)}
-            </p>
+        {/* ── Scrollable body ── */}
+        <div className="tmn-note-body">
+          {/* Generating spinner */}
+          {phase.phase === 'generating' && (
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+              <Icon name="loader-circle" size={40} className="animate-spin" />
+              <p className="text-text-muted text-sm">Generating flashcards…</p>
+            </div>
+          )}
 
-            {/* Card list */}
-            {currentCards.map((card) => (
-              <div
-                key={card.id}
-                className="rounded-lg border border-border-default bg-surface-card p-4 mb-3 transition-all duration-200"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    {/* Front field */}
-                    {editing?.cardId === card.id && editing.field === 'front' ? (
-                      <textarea
-                        className="w-full font-serif font-semibold resize-none border-none outline-none bg-transparent"
-                        value={editingValue}
-                        onChange={(e) => setEditingValue(e.target.value)}
-                        onBlur={() => handleEditBlur(card.id, 'front')}
-                        autoFocus
-                        rows={2}
-                      />
-                    ) : (
-                      <p
-                        className="font-serif font-semibold cursor-pointer"
-                        onClick={() => {
-                          setEditing({ cardId: card.id, field: 'front' });
-                          setEditingValue(card.front);
-                        }}
-                      >
-                        {card.front}
-                      </p>
-                    )}
-
-                    {/* Back field */}
-                    {editing?.cardId === card.id && editing.field === 'back' ? (
-                      <textarea
-                        className="w-full text-sm text-text-muted mt-2 resize-none border-none outline-none bg-transparent"
-                        value={editingValue}
-                        onChange={(e) => setEditingValue(e.target.value)}
-                        onBlur={() => handleEditBlur(card.id, 'back')}
-                        autoFocus
-                        rows={2}
-                      />
-                    ) : (
-                      <p
-                        className="text-sm text-text-muted mt-2 cursor-pointer"
-                        onClick={() => {
-                          setEditing({ cardId: card.id, field: 'back' });
-                          setEditingValue(card.back);
-                        }}
-                      >
-                        {card.back}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Discard button */}
-                  <IconButton
-                    label="Discard card"
-                    variant="plain"
-                    size="sm"
-                    onClick={() => handleDiscard(card.id)}
-                  >
-                    <Icon name="trash-2" size={16} />
-                  </IconButton>
-                </div>
-              </div>
-            ))}
-
-            {/* CTAs */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-surface-page border-t border-border-default flex flex-col gap-2">
+          {/* Error state */}
+          {phase.phase === 'error' && (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 px-6">
+              <p className="text-text-muted text-sm text-center">{phase.message}</p>
               <Button
-                variant="primary"
-                fullWidth
-                onClick={() => void handleAccept()}
-                disabled={
-                  (phase.phase === 'ready' || phase.phase === 'accepting') &&
-                  currentCards.length === 0
-                }
-                loading={phase.phase === 'accepting'}
+                variant="secondary"
+                onClick={() => void startGeneration()}
               >
-                Accept{' '}
-                {phase.phase === 'ready' || phase.phase === 'accepting'
-                  ? phase.cards.length
-                  : 0}{' '}
-                cards
-              </Button>
-              <Button
-                variant="ghost"
-                fullWidth
-                onClick={() => router.push(`/notes/${noteId}`)}
-              >
-                Cancel
+                Try again
               </Button>
             </div>
-          </div>
-        )}
-      </AppShell>
+          )}
 
-      {/* Toast — outside AppShell */}
+          {/* Ready / Accepting state */}
+          {(phase.phase === 'ready' || phase.phase === 'accepting') && (
+            <>
+              {/* Counter */}
+              <p className="text-sm text-text-muted mb-4">
+                {remainingLabel(currentCards.length)}
+              </p>
+
+              {/* Card list */}
+              {currentCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="rounded-lg border border-border-default bg-surface-card p-4 mb-3 transition-all duration-200"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      {/* Front field */}
+                      {editing?.cardId === card.id && editing.field === 'front' ? (
+                        <textarea
+                          className="w-full font-serif font-semibold resize-none border-none outline-none bg-transparent"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onBlur={() => handleEditBlur(card.id, 'front')}
+                          autoFocus
+                          rows={2}
+                        />
+                      ) : (
+                        <p
+                          className="font-serif font-semibold cursor-pointer"
+                          onClick={() => {
+                            setEditing({ cardId: card.id, field: 'front' });
+                            setEditingValue(card.front);
+                          }}
+                        >
+                          {card.front}
+                        </p>
+                      )}
+
+                      {/* Back field */}
+                      {editing?.cardId === card.id && editing.field === 'back' ? (
+                        <textarea
+                          className="w-full text-sm text-text-muted mt-2 resize-none border-none outline-none bg-transparent"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onBlur={() => handleEditBlur(card.id, 'back')}
+                          autoFocus
+                          rows={2}
+                        />
+                      ) : (
+                        <p
+                          className="text-sm text-text-muted mt-2 cursor-pointer"
+                          onClick={() => {
+                            setEditing({ cardId: card.id, field: 'back' });
+                            setEditingValue(card.back);
+                          }}
+                        >
+                          {card.back}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Discard button */}
+                    <IconButton
+                      label="Discard card"
+                      variant="plain"
+                      size="sm"
+                      onClick={() => handleDiscard(card.id)}
+                    >
+                      <Icon name="trash-2" size={16} />
+                    </IconButton>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* ── ActionBar — only when ready or accepting ── */}
+        {(phase.phase === 'ready' || phase.phase === 'accepting') && (
+          <ActionBar>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => void handleAccept()}
+              disabled={currentCards.length === 0}
+              loading={phase.phase === 'accepting'}
+            >
+              Accept {currentCards.length}{' '}
+              {currentCards.length === 1 ? 'card' : 'cards'}
+            </Button>
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={() => router.push(`/notes/${noteId}`)}
+            >
+              Cancel
+            </Button>
+          </ActionBar>
+        )}
+      </div>
+
+      {/* Toast — outside tmn-note-screen */}
       {toast && (
         <Toast
           tone={toast.tone}

@@ -104,7 +104,7 @@ export interface StudyTypeMeta {
 export const STUDY_TYPE_META: Record<StudyMaterialType, StudyTypeMeta> = {
   flashcards: {
     label: 'Flashcards',
-    description: 'Question-and-answer cards covering the key facts.',
+    description: 'Q&A cards you review and add to your spaced-repetition deck.',
     icon: 'layers',
     tone: 'brand',
   },
