@@ -8,8 +8,8 @@
  * study-material type union.
  */
 
-/** The four kinds of study material the generation engine can produce. */
-export type StudyMaterialType = 'flashcards' | 'quiz' | 'assignment' | 'summary';
+/** The six kinds of study material the generation engine can produce. */
+export type StudyMaterialType = 'flashcards' | 'quiz' | 'assignment' | 'summary' | 'glossary' | 'study_guide';
 
 /** All material types, in display order. Iterate this rather than re-listing. */
 export const MATERIAL_TYPES: readonly StudyMaterialType[] = [
@@ -17,6 +17,8 @@ export const MATERIAL_TYPES: readonly StudyMaterialType[] = [
   'quiz',
   'assignment',
   'summary',
+  'glossary',
+  'study_guide',
 ] as const;
 
 /**

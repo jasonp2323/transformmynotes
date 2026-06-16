@@ -45,7 +45,7 @@ export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 // ─── M13 study-generation system prompts ─────────────────────────────────────
 //
 // Seed these in BOTH SST Console environments (production + the fallback
-// environment that covers pr-<N> stages). All five must be set — a missing
+// environment that covers pr-<N> stages). All seven must be set — a missing
 // value causes a hard startup error (fail-loud pattern, same as BEDROCK_MODEL_ID).
 //
 // IMPORTANT: BEDROCK_MODEL_ID must be a tool-use-capable model (Claude 3+ Sonnet
@@ -117,3 +117,25 @@ export const studyFlashcardsPrompt = new sst.Secret('STUDY_FLASHCARDS_PROMPT');
 export const studyQuizPrompt       = new sst.Secret('STUDY_QUIZ_PROMPT');
 export const studyAssignmentPrompt = new sst.Secret('STUDY_ASSIGNMENT_PROMPT');
 export const studySummaryPrompt    = new sst.Secret('STUDY_SUMMARY_PROMPT');
+//
+// STUDY_GLOSSARY_PROMPT:
+//   Given the Markdown notes below, extract a glossary of key terms and their
+//   precise definitions. Include all domain-specific vocabulary, proper nouns,
+//   and technical concepts the student must understand. For each term, provide
+//   a clear, concise definition in accessible language — do NOT reproduce
+//   large blocks of the original text verbatim. Produce at least 5 terms and
+//   up to 30 depending on content density.
+//   Call the submit_study_material tool with your output.
+//
+// STUDY_GUIDE_PROMPT:
+//   Given the Markdown notes below, produce a structured, multi-section study
+//   guide. Provide a descriptive title and divide the content into logical
+//   sections, each with a clear heading, a list of key points the student must
+//   master, and optionally a short explanatory body. Sections should follow the
+//   natural structure of the notes. Produce between 3 and 10 sections depending
+//   on content density. Do NOT reproduce large blocks of the original text
+//   verbatim — restate concepts in clear, pedagogically sound language.
+//   Call the submit_study_material tool with your output.
+//
+export const studyGlossaryPrompt = new sst.Secret('STUDY_GLOSSARY_PROMPT');
+export const studyGuidePrompt    = new sst.Secret('STUDY_GUIDE_PROMPT');

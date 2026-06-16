@@ -15,6 +15,8 @@ export const MAX_TOKENS_BY_TYPE: Record<StudyMaterialType, number> = {
   quiz: 4096,
   assignment: 2048,
   summary: 1024,
+  glossary: 2048,
+  study_guide: 4096,
 };
 
 function requireEnv(name: string): string {
@@ -35,6 +37,8 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
   const quizPrompt = requireEnv('SST_RESOURCE_STUDY_QUIZ_PROMPT_value');
   const assignmentPrompt = requireEnv('SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value');
   const summaryPrompt = requireEnv('SST_RESOURCE_STUDY_SUMMARY_PROMPT_value');
+  const glossaryPrompt = requireEnv('SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value');
+  const studyGuidePrompt = requireEnv('SST_RESOURCE_STUDY_GUIDE_PROMPT_value');
 
   return {
     modelId,
@@ -44,6 +48,8 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
       quiz: quizPrompt,
       assignment: assignmentPrompt,
       summary: summaryPrompt,
+      glossary: glossaryPrompt,
+      study_guide: studyGuidePrompt,
     },
     maxTokens: MAX_TOKENS_BY_TYPE,
     languageDefault: 'auto',

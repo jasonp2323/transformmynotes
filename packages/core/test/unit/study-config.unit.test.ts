@@ -8,6 +8,8 @@ const ENV_VARS = {
   SST_RESOURCE_STUDY_QUIZ_PROMPT_value: 'Quiz prompt text',
   SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: 'Assignment prompt text',
   SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: 'Summary prompt text',
+  SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value: 'Glossary prompt text',
+  SST_RESOURCE_STUDY_GUIDE_PROMPT_value: 'Study guide prompt text',
 };
 
 describe('MAX_TOKENS_BY_TYPE', () => {
@@ -15,6 +17,8 @@ describe('MAX_TOKENS_BY_TYPE', () => {
   it('has quiz=4096', () => expect(MAX_TOKENS_BY_TYPE.quiz).toBe(4096));
   it('has assignment=2048', () => expect(MAX_TOKENS_BY_TYPE.assignment).toBe(2048));
   it('has summary=1024', () => expect(MAX_TOKENS_BY_TYPE.summary).toBe(1024));
+  it('has glossary=2048', () => expect(MAX_TOKENS_BY_TYPE.glossary).toBe(2048));
+  it('has study_guide=4096', () => expect(MAX_TOKENS_BY_TYPE.study_guide).toBe(4096));
 });
 
 describe('resolveAiConfig', () => {
@@ -46,6 +50,8 @@ describe('resolveAiConfig', () => {
     expect(config.typePrompts.quiz).toBe('Quiz prompt text');
     expect(config.typePrompts.assignment).toBe('Assignment prompt text');
     expect(config.typePrompts.summary).toBe('Summary prompt text');
+    expect(config.typePrompts.glossary).toBe('Glossary prompt text');
+    expect(config.typePrompts.study_guide).toBe('Study guide prompt text');
   });
 
   it('returns maxTokens matching MAX_TOKENS_BY_TYPE', async () => {
@@ -86,5 +92,15 @@ describe('resolveAiConfig', () => {
   it('throws naming SST_RESOURCE_STUDY_SUMMARY_PROMPT_value when missing', async () => {
     delete process.env.SST_RESOURCE_STUDY_SUMMARY_PROMPT_value;
     await expect(resolveAiConfig()).rejects.toThrow(/SST_RESOURCE_STUDY_SUMMARY_PROMPT_value/);
+  });
+
+  it('throws naming SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value when missing', async () => {
+    delete process.env.SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value;
+    await expect(resolveAiConfig()).rejects.toThrow(/SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value/);
+  });
+
+  it('throws naming SST_RESOURCE_STUDY_GUIDE_PROMPT_value when missing', async () => {
+    delete process.env.SST_RESOURCE_STUDY_GUIDE_PROMPT_value;
+    await expect(resolveAiConfig()).rejects.toThrow(/SST_RESOURCE_STUDY_GUIDE_PROMPT_value/);
   });
 });

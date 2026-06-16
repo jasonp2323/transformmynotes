@@ -27,7 +27,7 @@ vi.mock('@transformmynotes/core', () => ({
   putStudySet: putStudySetMock,
   countInFlightStudySets: countInFlightMock,
   buildStudySetItem: buildStudySetItemMock,
-  MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary'],
+  MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'],
 }));
 
 // ---------------------------------------------------------------------------

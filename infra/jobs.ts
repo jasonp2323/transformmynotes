@@ -8,6 +8,8 @@ import {
   studyQuizPrompt,
   studyAssignmentPrompt,
   studySummaryPrompt,
+  studyGlossaryPrompt,
+  studyGuidePrompt,
 } from "./secrets";
 
 const accountId = aws.getCallerIdentityOutput({}).accountId;
@@ -24,7 +26,7 @@ const foundationModelId = bedrockInferenceProfileId.value.apply((id) =>
 // M13.2 study-generation stream consumer. The web server only enqueues a
 // STUDYSET item on the Notes table; this Lambda runs the actual Bedrock
 // generation off the DynamoDB stream. It is the only runtime bound to the
-// five STUDY_*_PROMPT secrets (the web server omits them to stay under the
+// seven STUDY_*_PROMPT secrets (the web server omits them to stay under the
 // AWS Lambda 4 KB env-var limit — see infra/application.ts).
 export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationConsumer", {
   handler: "packages/application/jobs/study-generation.handler",
@@ -38,6 +40,8 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
     SST_RESOURCE_STUDY_QUIZ_PROMPT_value: studyQuizPrompt.value,
     SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: studyAssignmentPrompt.value,
     SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: studySummaryPrompt.value,
+    SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value: studyGlossaryPrompt.value,
+    SST_RESOURCE_STUDY_GUIDE_PROMPT_value: studyGuidePrompt.value,
   },
   permissions: [
     {
