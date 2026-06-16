@@ -30,7 +30,8 @@ export type StudySetStatus = 'queued' | 'running' | 'ready' | 'failed';
 
 /**
  * Resolved output-language mode for a generation request.
- *   'pt-BR'     → all generated content in Brazilian Portuguese (default)
- *   'bilingual' → pt-BR ↔ en artifacts for language-learning notes
+ *   'auto'      → match the source note's own language (default)
+ *   'pt-BR'     → all generated content in Brazilian Portuguese (explicit opt-in)
+ *   'bilingual' → pt-BR ↔ en artifacts for language-learning notes (explicit opt-in)
  */
-export type StudyLanguage = 'pt-BR' | 'bilingual';
+export type StudyLanguage = 'auto' | 'pt-BR' | 'bilingual';

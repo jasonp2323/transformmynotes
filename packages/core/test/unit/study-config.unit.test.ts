@@ -53,9 +53,9 @@ describe('resolveAiConfig', () => {
     expect(config.maxTokens).toEqual(MAX_TOKENS_BY_TYPE);
   });
 
-  it('languageDefault is pt-BR', async () => {
+  it('languageDefault is auto', async () => {
     const config = await resolveAiConfig();
-    expect(config.languageDefault).toBe('pt-BR');
+    expect(config.languageDefault).toBe('auto');
   });
 
   it('throws naming SST_RESOURCE_BEDROCK_MODEL_ID_value when missing', async () => {

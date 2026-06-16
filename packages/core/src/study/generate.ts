@@ -20,6 +20,9 @@ export interface GenerateStudyMaterialResult {
   usage?: { inputTokens?: number; outputTokens?: number };
 }
 
+export const AUTO_DIRECTIVE =
+  "Write all generated study material in the same language as the source note, matching its language and regional conventions. Do not translate the note into another language unless explicitly instructed.";
+
 export const PT_BR_DIRECTIVE =
   'Escreva todo o conteúdo gerado em Português Brasileiro (pt-BR). Use vocabulário, ortografia e convenções gramaticais do Português do Brasil — não do Português Europeu.';
 
@@ -120,8 +123,11 @@ export async function generateStudyMaterial(
   const config = await resolveAiConfig();
 
   const { type } = input;
-  const language = input.language ?? config.languageDefault;
-  const languageDirective = language === 'bilingual' ? BILINGUAL_DIRECTIVE : PT_BR_DIRECTIVE;
+  const language = input.language ?? config.languageDefault; // 'auto' by default
+  const languageDirective =
+    language === 'bilingual' ? BILINGUAL_DIRECTIVE
+    : language === 'pt-BR' ? PT_BR_DIRECTIVE
+    : AUTO_DIRECTIVE;
 
   const combinedPrompt =
     config.baseSystemPrompt +

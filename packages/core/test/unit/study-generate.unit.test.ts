@@ -27,6 +27,7 @@ vi.mock('@aws-sdk/client-bedrock-runtime', () => {
 // ── Import AFTER mocks ────────────────────────────────────────────────────────
 import {
   generateStudyMaterial,
+  AUTO_DIRECTIVE,
   PT_BR_DIRECTIVE,
   BILINGUAL_DIRECTIVE,
   TOOL_SCHEMAS,
@@ -132,7 +133,7 @@ describe('generateStudyMaterial', () => {
     expect(inferenceConfig.maxTokens).toBe(1024);
   });
 
-  it('system[0].text contains base prompt and type prompt and pt-BR directive (default)', async () => {
+  it('system[0].text contains base prompt and type prompt and auto directive (default)', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
     await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note' });
 
@@ -141,7 +142,32 @@ describe('generateStudyMaterial', () => {
     const systemText = system[0].text;
     expect(systemText).toContain('BASE_SYSTEM_PROMPT');
     expect(systemText).toContain('FLASHCARDS_TYPE_PROMPT');
+    expect(systemText).toContain(AUTO_DIRECTIVE);
+    expect(systemText).not.toContain(PT_BR_DIRECTIVE);
+    expect(systemText).not.toContain(BILINGUAL_DIRECTIVE);
+  });
+
+  it('system[0].text contains auto directive when language=auto', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
+    await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note', language: 'auto' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const system = cmd.input.system as Array<{ text: string }>;
+    const systemText = system[0].text;
+    expect(systemText).toContain(AUTO_DIRECTIVE);
+    expect(systemText).not.toContain(PT_BR_DIRECTIVE);
+    expect(systemText).not.toContain(BILINGUAL_DIRECTIVE);
+  });
+
+  it('system[0].text contains pt-BR directive when language=pt-BR', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
+    await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note', language: 'pt-BR' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const system = cmd.input.system as Array<{ text: string }>;
+    const systemText = system[0].text;
     expect(systemText).toContain(PT_BR_DIRECTIVE);
+    expect(systemText).not.toContain(AUTO_DIRECTIVE);
     expect(systemText).not.toContain(BILINGUAL_DIRECTIVE);
   });
 
@@ -153,6 +179,7 @@ describe('generateStudyMaterial', () => {
     const system = cmd.input.system as Array<{ text: string }>;
     const systemText = system[0].text;
     expect(systemText).toContain(BILINGUAL_DIRECTIVE);
+    expect(systemText).not.toContain(AUTO_DIRECTIVE);
     expect(systemText).not.toContain(PT_BR_DIRECTIVE);
   });
 

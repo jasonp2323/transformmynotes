@@ -46,6 +46,6 @@ export async function resolveAiConfig(): Promise<ResolvedAiConfig> {
       summary: summaryPrompt,
     },
     maxTokens: MAX_TOKENS_BY_TYPE,
-    languageDefault: 'pt-BR',
+    languageDefault: 'auto',
   };
 }
