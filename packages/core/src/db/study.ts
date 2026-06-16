@@ -19,6 +19,8 @@ export interface StudySet {
   promptVersion: string;
   error?: string;
   bodyS3Key?: string;
+  /** Whole-assignment completion toggle (M16.2.2). Absent until first set. */
+  completed?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -265,6 +267,31 @@ export async function countInFlightStudySets(sub: string): Promise<number> {
     }),
   );
   return (Items ?? []).length;
+}
+
+/**
+ * Sets the whole-assignment `completed` toggle on a STUDYSET item (M16.2.2).
+ * Uses a `ConditionExpression: attribute_exists(pk)` so it throws
+ * `ConditionalCheckFailedException` when no item exists for that (sub, studySetId)
+ * — the PK is user-scoped, so this also guards against non-owners.
+ */
+export async function setStudySetCompleted(
+  sub: string,
+  studySetId: string,
+  completed: boolean,
+): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: studySetKeys.item(sub, studySetId),
+      UpdateExpression: 'SET completed = :completed, updatedAt = :updatedAt',
+      ConditionExpression: 'attribute_exists(pk)',
+      ExpressionAttributeValues: {
+        ':completed': completed,
+        ':updatedAt': new Date().toISOString(),
+      },
+    }),
+  );
 }
 
 /**

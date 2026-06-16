@@ -30,6 +30,7 @@ function toStudySetMeta(s: StudySetItem) {
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
     ...(s.error ? { error: s.error } : {}),
+    ...(s.completed !== undefined ? { completed: s.completed } : {}),
   };
 }
 

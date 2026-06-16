@@ -30,6 +30,8 @@ export interface StudySetMeta {
   promptVersion: string;
   /** Present only when `status === 'failed'`. */
   error?: string;
+  /** Whole-assignment completion toggle (M16.2.2). */
+  completed?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -144,13 +146,12 @@ export const STUDY_TYPE_META: Record<StudyMaterialType, StudyTypeMeta> = {
 
 /**
  * Material types in display order (mirrors core `MATERIAL_TYPES`).
- * NOTE: `glossary` and `study_guide` are intentionally omitted here — they are
- * deferred to M16.2 which ships their viewer renderers. Add them once the
- * viewer components exist.
  */
 export const STUDY_TYPE_ORDER: StudyMaterialType[] = [
   'flashcards',
   'quiz',
   'assignment',
   'summary',
+  'glossary',
+  'study_guide',
 ];
