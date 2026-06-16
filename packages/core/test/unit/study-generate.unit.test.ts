@@ -24,6 +24,13 @@ vi.mock('@aws-sdk/client-bedrock-runtime', () => {
   };
 });
 
+// ── Mock the DynamoDB client so resolveAiConfig() resolves from env defaults
+// (no CURRENT item) without touching real/dynalite DynamoDB. ──────────────────
+vi.mock('../../src/db/client', () => ({
+  ddb: { send: vi.fn().mockResolvedValue({ Item: undefined }) },
+  TableNames: { UserData: 'UserData-test' },
+}));
+
 // ── Import AFTER mocks ────────────────────────────────────────────────────────
 import {
   generateStudyMaterial,
@@ -32,6 +39,7 @@ import {
   BILINGUAL_DIRECTIVE,
   TOOL_SCHEMAS,
 } from '../../src/study/generate';
+import { bustAiConfigCache } from '../../src/study/config';
 import type { GeneratedQuiz } from '../../src/study/quiz';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -81,6 +89,9 @@ describe('generateStudyMaterial', () => {
       process.env[k] = v;
     }
     mockSend.mockReset();
+    // The resolveAiConfig cache is module-level; clear it so each case
+    // re-resolves against the current env (the missing-env cases depend on this).
+    bustAiConfigCache();
   });
 
   afterEach(() => {
