@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.59.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.58.0...transformmynotes-v1.59.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M16.1 add glossary & study_guide generation types ([#545](https://github.com/jasonp2323/transformmynotes/issues/545)) ([dc14322](https://github.com/jasonp2323/transformmynotes/commit/dc1432245de3ee3ed7ec8385181ed733a346eedf))
+
+## [1.58.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.57.0...transformmynotes-v1.58.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M14.1 flashcard foundation — typed payload accessor + tuned tool schema ([#543](https://github.com/jasonp2323/transformmynotes/issues/543)) ([edbc164](https://github.com/jasonp2323/transformmynotes/commit/edbc16485c412923edb74b53d77b26fc7399919d))
+
 ## [1.57.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.56.0...transformmynotes-v1.57.0) (2026-06-16)
 
 

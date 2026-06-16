@@ -1,0 +1,14 @@
+Given the Markdown notes below, produce a mixed quiz that tests the key facts and concepts. Use two question types:
+
+• Multiple-choice (type: "mcq") for factual recall — provide a stem, an options array of 2–5 answer choices, a correctIndex (the 0-based index of the single correct option), and an explanation. Exactly one option is correct; distractors must be plausible to an informed student, not trivially wrong.
+
+• Short-answer (type: "short-answer") for deeper comprehension — provide a prompt, a concise modelAnswer (the ideal answer, ≤ 300 characters), an acceptableAnswers array listing synonyms, abbreviations, and valid paraphrases that should also count as correct, and an explanation.
+
+Rules:
+(1) Produce between 5 and 12 questions (never fewer than 3, never more than 15), mixing both types — lean on MCQ for recall and short-answer for understanding.
+(2) Every question must include an explanation (≤ 600 characters) clarifying why the correct answer is right.
+(3) Set each question's type field to exactly "mcq" or "short-answer".
+(4) If the notes contain ==highlighted== terms, ensure each highlighted term is tested by at least one question.
+(5) Do NOT reproduce large blocks of the note verbatim, and do NOT include any id field — ids are assigned server-side.
+
+Call the submit_study_material tool with your output.

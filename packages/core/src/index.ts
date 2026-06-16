@@ -33,3 +33,4 @@ export * from './study/types';
 export * from './study/config';
 export * from './study/generate';
 export * from './study/quiz';
+export * from './study/flashcards';

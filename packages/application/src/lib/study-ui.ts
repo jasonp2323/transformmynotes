@@ -62,10 +62,19 @@ export interface SummaryPayload {
   terms: Array<{ term: string; definition: string }>;
 }
 
+export interface GlossaryPayload {
+  terms: Array<{ term: string; definition: string }>;
+}
+
+export interface StudyGuidePayload {
+  title: string;
+  sections: Array<{ heading: string; keyPoints: string[]; body?: string }>;
+}
+
 /** Body returned by `GET /api/study/[studySetId]/body`. */
 export interface StudyBodyResponse {
   type: StudyMaterialType;
-  payload: FlashcardsPayload | QuizPayload | AssignmentPayload | SummaryPayload;
+  payload: FlashcardsPayload | QuizPayload | AssignmentPayload | SummaryPayload | GlossaryPayload | StudyGuidePayload;
 }
 
 // --- Presentation metadata --------------------------------------------------
@@ -117,9 +126,28 @@ export const STUDY_TYPE_META: Record<StudyMaterialType, StudyTypeMeta> = {
     icon: 'book-open',
     tone: 'success',
   },
+  // NOTE: `book-a` is not in the icon registry; using `list` instead (registered).
+  // `graduation-cap` is already registered and used here for study_guide.
+  glossary: {
+    label: 'Glossary',
+    description: 'Key terms and their definitions, extracted from the note.',
+    icon: 'list',
+    tone: 'neutral',
+  },
+  study_guide: {
+    label: 'Study Guide',
+    description: 'A structured, multi-section guide with key points.',
+    icon: 'graduation-cap',
+    tone: 'brand',
+  },
 };
 
-/** Material types in display order (mirrors core `MATERIAL_TYPES`). */
+/**
+ * Material types in display order (mirrors core `MATERIAL_TYPES`).
+ * NOTE: `glossary` and `study_guide` are intentionally omitted here — they are
+ * deferred to M16.2 which ships their viewer renderers. Add them once the
+ * viewer components exist.
+ */
 export const STUDY_TYPE_ORDER: StudyMaterialType[] = [
   'flashcards',
   'quiz',

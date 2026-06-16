@@ -71,6 +71,8 @@ const ENV_VARS = {
   SST_RESOURCE_STUDY_QUIZ_PROMPT_value: 'QUIZ_TYPE_PROMPT',
   SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: 'ASSIGNMENT_TYPE_PROMPT',
   SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: 'SUMMARY_TYPE_PROMPT',
+  SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value: 'GLOSSARY_TYPE_PROMPT',
+  SST_RESOURCE_STUDY_GUIDE_PROMPT_value: 'STUDY_GUIDE_TYPE_PROMPT',
 };
 
 describe('generateStudyMaterial', () => {
@@ -282,5 +284,78 @@ describe('generateStudyMaterial', () => {
       expect(typeof q.id).toBe('string');
       expect(q.id.length).toBeGreaterThan(0);
     }
+  });
+
+  it('passes the correct inputSchema for glossary type', async () => {
+    const payload = { terms: [{ term: 'Foo', definition: 'Bar' }] };
+    mockSend.mockResolvedValue(makeToolUseResponse(payload));
+    await generateStudyMaterial({ type: 'glossary', noteMarkdown: '# Test', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const toolConfig = cmd.input.toolConfig as { tools: Array<{ toolSpec: { inputSchema: { json: object } } }> };
+    expect(toolConfig.tools[0].toolSpec.inputSchema.json).toEqual(TOOL_SCHEMAS['glossary']);
+  });
+
+  it('extracts payload for glossary type from toolUse block', async () => {
+    const payload = { terms: [{ term: 'Substantivo', definition: 'Classe gramatical que nomeia seres.' }] };
+    mockSend.mockResolvedValue(makeToolUseResponse(payload));
+    const result = await generateStudyMaterial({ type: 'glossary', noteMarkdown: '# Note', noteTitle: 'Note' });
+    expect(result.payload).toEqual(payload);
+  });
+
+  it('sets inferenceConfig.maxTokens to 2048 for glossary', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ terms: [] }));
+    await generateStudyMaterial({ type: 'glossary', noteMarkdown: '# Test', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
+    expect(inferenceConfig.maxTokens).toBe(2048);
+  });
+
+  it('system[0].text contains glossary prompt when type=glossary', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ terms: [] }));
+    await generateStudyMaterial({ type: 'glossary', noteMarkdown: '# Note', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const system = cmd.input.system as Array<{ text: string }>;
+    expect(system[0].text).toContain('GLOSSARY_TYPE_PROMPT');
+  });
+
+  it('passes the correct inputSchema for study_guide type', async () => {
+    const payload = { title: 'T', sections: [{ heading: 'H', keyPoints: ['P'] }] };
+    mockSend.mockResolvedValue(makeToolUseResponse(payload));
+    await generateStudyMaterial({ type: 'study_guide', noteMarkdown: '# Test', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const toolConfig = cmd.input.toolConfig as { tools: Array<{ toolSpec: { inputSchema: { json: object } } }> };
+    expect(toolConfig.tools[0].toolSpec.inputSchema.json).toEqual(TOOL_SCHEMAS['study_guide']);
+  });
+
+  it('extracts payload for study_guide type from toolUse block', async () => {
+    const payload = {
+      title: 'Guia de Estudo',
+      sections: [{ heading: 'Introdução', keyPoints: ['Conceito A', 'Conceito B'], body: 'Texto explicativo.' }],
+    };
+    mockSend.mockResolvedValue(makeToolUseResponse(payload));
+    const result = await generateStudyMaterial({ type: 'study_guide', noteMarkdown: '# Note', noteTitle: 'Note' });
+    expect(result.payload).toEqual(payload);
+  });
+
+  it('sets inferenceConfig.maxTokens to 4096 for study_guide', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ title: 'T', sections: [] }));
+    await generateStudyMaterial({ type: 'study_guide', noteMarkdown: '# Test', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
+    expect(inferenceConfig.maxTokens).toBe(4096);
+  });
+
+  it('system[0].text contains study_guide prompt when type=study_guide', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ title: 'T', sections: [] }));
+    await generateStudyMaterial({ type: 'study_guide', noteMarkdown: '# Note', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const system = cmd.input.system as Array<{ text: string }>;
+    expect(system[0].text).toContain('STUDY_GUIDE_TYPE_PROMPT');
   });
 });
