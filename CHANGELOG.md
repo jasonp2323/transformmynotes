@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.57.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.56.0...transformmynotes-v1.57.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M13.3 study-material UI — note-view entry point, list, viewer & delete ([#540](https://github.com/jasonp2323/transformmynotes/issues/540)) ([75bf4c3](https://github.com/jasonp2323/transformmynotes/commit/75bf4c31465fbc36bea6c55a309cdb806b061ed5))
+
+
+### ✅ Tests
+
+* **e2e:** seed access requests for admin pending-queue tests ([2818a9b](https://github.com/jasonp2323/transformmynotes/commit/2818a9bedcec83c21262311d90db930a3b29dde2))
+
 ## [1.56.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.55.0...transformmynotes-v1.56.0) (2026-06-16)
 
 
