@@ -102,6 +102,8 @@ export const MAX_TOKENS_BY_TYPE: Record<StudyMaterialType, number> = {
   quiz: 4096,
   assignment: 2048,
   summary: 1024,
+  glossary: 2048,
+  study_guide: 4096,
 };
 
 /**
@@ -126,10 +128,14 @@ export function buildSecretDefaults(): AiConfig {
   const quiz = optionalEnv('SST_RESOURCE_STUDY_QUIZ_PROMPT_value');
   const assignment = optionalEnv('SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value');
   const summary = optionalEnv('SST_RESOURCE_STUDY_SUMMARY_PROMPT_value');
+  const glossary = optionalEnv('SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value');
+  const study_guide = optionalEnv('SST_RESOURCE_STUDY_GUIDE_PROMPT_value');
   if (flashcards !== undefined) promptOverrides.flashcards = flashcards;
   if (quiz !== undefined) promptOverrides.quiz = quiz;
   if (assignment !== undefined) promptOverrides.assignment = assignment;
   if (summary !== undefined) promptOverrides.summary = summary;
+  if (glossary !== undefined) promptOverrides.glossary = glossary;
+  if (study_guide !== undefined) promptOverrides.study_guide = study_guide;
 
   return {
     baseSystemPrompt: process.env.SST_RESOURCE_STUDY_SYSTEM_PROMPT_value ?? '',
@@ -151,6 +157,8 @@ export function buildSecretDefaults(): AiConfig {
       quiz: true,
       assignment: true,
       summary: true,
+      glossary: true,
+      study_guide: true,
     },
     generationEnabled: true,
     // Audit fields — overwritten by DB values when a CURRENT item is present.
@@ -361,7 +369,7 @@ export function validateAiConfigInput(
     ) {
       return { ok: false, error: 'enabledMaterialTypes must be an object of booleans.' };
     }
-    const validMaterialTypes: MaterialType[] = ['flashcards', 'quiz', 'assignment', 'summary'];
+    const validMaterialTypes: MaterialType[] = ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'];
     for (const [k, v] of Object.entries(obj.enabledMaterialTypes as Record<string, unknown>)) {
       if (!validMaterialTypes.includes(k as MaterialType) || typeof v !== 'boolean') {
         return { ok: false, error: 'enabledMaterialTypes must be an object of booleans.' };

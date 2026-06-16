@@ -25,6 +25,8 @@ const ENV_VARS = {
   SST_RESOURCE_STUDY_QUIZ_PROMPT_value: 'Quiz prompt text',
   SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: 'Assignment prompt text',
   SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: 'Summary prompt text',
+  SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value: 'Glossary prompt text',
+  SST_RESOURCE_STUDY_GUIDE_PROMPT_value: 'Study guide prompt text',
 };
 
 function setEnv() {
@@ -39,6 +41,8 @@ describe('MAX_TOKENS_BY_TYPE', () => {
   it('has quiz=4096', () => expect(MAX_TOKENS_BY_TYPE.quiz).toBe(4096));
   it('has assignment=2048', () => expect(MAX_TOKENS_BY_TYPE.assignment).toBe(2048));
   it('has summary=1024', () => expect(MAX_TOKENS_BY_TYPE.summary).toBe(1024));
+  it('has glossary=2048', () => expect(MAX_TOKENS_BY_TYPE.glossary).toBe(2048));
+  it('has study_guide=4096', () => expect(MAX_TOKENS_BY_TYPE.study_guide).toBe(4096));
 });
 
 describe('AI_MODEL_ALLOWLIST', () => {
@@ -63,12 +67,14 @@ describe('buildSecretDefaults', () => {
     expect(c.baseSystemPrompt).toBe('Base system prompt text');
   });
 
-  it('populates all four prompt overrides from env', () => {
+  it('populates all six prompt overrides from env', () => {
     const c = buildSecretDefaults();
     expect(c.promptOverrides.flashcards).toBe('Flashcards prompt text');
     expect(c.promptOverrides.quiz).toBe('Quiz prompt text');
     expect(c.promptOverrides.assignment).toBe('Assignment prompt text');
     expect(c.promptOverrides.summary).toBe('Summary prompt text');
+    expect(c.promptOverrides.glossary).toBe('Glossary prompt text');
+    expect(c.promptOverrides.study_guide).toBe('Study guide prompt text');
   });
 
   it('omits a prompt-override key when its env var is unset (no empty string)', () => {
@@ -95,6 +101,8 @@ describe('buildSecretDefaults', () => {
       quiz: true,
       assignment: true,
       summary: true,
+      glossary: true,
+      study_guide: true,
     });
     expect(c.generationEnabled).toBe(true);
     expect(c.version).toBe(0);
@@ -220,4 +228,5 @@ describe('resolveAiConfig — caching', () => {
     sendMock.mockResolvedValue({ Item: undefined });
     await expect(resolveAiConfig()).rejects.toThrow(/baseSystemPrompt|modelId/);
   });
+
 });

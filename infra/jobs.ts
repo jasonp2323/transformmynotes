@@ -3,11 +3,6 @@ import { notes, userData } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
-  studySystemPrompt,
-  studyFlashcardsPrompt,
-  studyQuizPrompt,
-  studyAssignmentPrompt,
-  studySummaryPrompt,
 } from "./secrets";
 
 const accountId = aws.getCallerIdentityOutput({}).accountId;
@@ -23,24 +18,22 @@ const foundationModelId = bedrockInferenceProfileId.value.apply((id) =>
 
 // M13.2 study-generation stream consumer. The web server only enqueues a
 // STUDYSET item on the Notes table; this Lambda runs the actual Bedrock
-// generation off the DynamoDB stream. It is the only runtime bound to the
-// five STUDY_*_PROMPT secrets (the web server omits them to stay under the
-// AWS Lambda 4 KB env-var limit — see infra/application.ts).
+// generation off the DynamoDB stream. Study prompts are loaded at Lambda
+// startup from bundled `prompts/` text files (via study-prompts.ts), which
+// avoids the AWS Lambda 4 KB env-var limit — they are no longer SST secrets.
 export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationConsumer", {
   handler: "packages/application/jobs/study-generation.handler",
   // M19: resolveAiConfig() reads the CONFIG#AI item from the UserData table, so
   // the consumer must bind UserData (link + name env) and be granted read on it.
+  // This fits the 4 KB env limit now that the study prompts are bundled as
+  // `prompts/` files (copyFiles) rather than configured Lambda env vars.
   link: [notes, notesBucket, userData],
+  copyFiles: [{ from: 'prompts', to: 'prompts' }],
   environment: {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_RESOURCE_UserData_name: userData.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
-    SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: studySystemPrompt.value,
-    SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: studyFlashcardsPrompt.value,
-    SST_RESOURCE_STUDY_QUIZ_PROMPT_value: studyQuizPrompt.value,
-    SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: studyAssignmentPrompt.value,
-    SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: studySummaryPrompt.value,
   },
   permissions: [
     {

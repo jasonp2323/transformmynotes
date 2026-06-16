@@ -35,11 +35,14 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
     properties: {
       cards: {
         type: 'array',
+        minItems: 1,
+        maxItems: 20,
         items: {
           type: 'object',
           properties: {
-            front: { type: 'string' },
-            back: { type: 'string' },
+            front: { type: 'string', maxLength: 300 },
+            back: { type: 'string', maxLength: 600 },
+            sourceSpan: { type: 'string', maxLength: 300 },
           },
           required: ['front', 'back'],
         },
@@ -112,6 +115,43 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
       },
     },
     required: ['title', 'tldr', 'keyPoints', 'terms'],
+  },
+  glossary: {
+    type: 'object',
+    properties: {
+      terms: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            term: { type: 'string' },
+            definition: { type: 'string' },
+          },
+          required: ['term', 'definition'],
+        },
+        minItems: 1,
+      },
+    },
+    required: ['terms'],
+  },
+  study_guide: {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            heading: { type: 'string' },
+            keyPoints: { type: 'array', items: { type: 'string' } },
+            body: { type: 'string' },
+          },
+          required: ['heading', 'keyPoints'],
+        },
+      },
+    },
+    required: ['title', 'sections'],
   },
 };
 

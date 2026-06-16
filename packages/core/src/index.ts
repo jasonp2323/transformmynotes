@@ -32,3 +32,4 @@ export * from './srs/extract';
 export * from './study/types';
 export * from './study/config';
 export * from './study/generate';
+export * from './study/flashcards';
