@@ -320,15 +320,25 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
 
               {/* Action row */}
               <div className="flex gap-3 pt-2 flex-wrap">
-                <Button
-                  variant="secondary"
-                  disabled
-                  title="Coming soon"
-                  aria-label={`${stubLabel(meta.type)} — coming soon`}
-                  leftIcon={<Icon name="sparkles" size={15} />}
-                >
-                  {stubLabel(meta.type)}
-                </Button>
+                {meta.type === 'quiz' ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/study/${studySetId}/take`)}
+                    leftIcon={<Icon name="sparkles" size={15} />}
+                  >
+                    {stubLabel(meta.type)}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    disabled
+                    title="Coming soon"
+                    aria-label={`${stubLabel(meta.type)} — coming soon`}
+                    leftIcon={<Icon name="sparkles" size={15} />}
+                  >
+                    {stubLabel(meta.type)}
+                  </Button>
+                )}
                 <Button
                   variant="danger"
                   onClick={() => setDeleteOpen(true)}
