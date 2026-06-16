@@ -322,6 +322,17 @@ export function NoteViewScreen({
           )}
 
           {isOwner && (
+            <Button
+              variant="secondary"
+              fullWidth
+              leftIcon={<Icon name="sparkles" size={18} />}
+              onClick={() => router.push(`/notes/${noteId}/generate-cards`)}
+            >
+              AI flashcards
+            </Button>
+          )}
+
+          {isOwner && (
             <GenerateStudyMaterial
               noteId={noteId}
               onStudySetReady={() => setStudyRefreshNonce((n) => n + 1)}
