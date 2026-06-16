@@ -258,76 +258,91 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
   const typeMeta = STUDY_TYPE_META[meta.type];
 
   return (
-    <AppShell active="study" title={meta.title}>
-      <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-        {/* Header row */}
-        <div className="flex items-center gap-3 mb-6">
-          <IconButton
-            label="Back to study list"
-            onClick={() => router.push('/study')}
-            size="sm"
-            variant="plain"
-          >
-            <Icon name="chevron-left" size={18} />
-          </IconButton>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-text-muted font-medium uppercase tracking-wide">{typeMeta.label}</p>
-            <h1 className="text-base font-semibold truncate">{meta.title}</h1>
+    <>
+      <AppShell active="study" title={meta.title}>
+        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+          {/* Header row */}
+          <div className="flex items-center gap-3 mb-6">
+            <IconButton
+              label="Back to study list"
+              onClick={() => router.push('/study')}
+              size="sm"
+              variant="plain"
+            >
+              <Icon name="chevron-left" size={18} />
+            </IconButton>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-text-muted font-medium uppercase tracking-wide">{typeMeta.label}</p>
+              <h1 className="text-base font-semibold truncate">{meta.title}</h1>
+            </div>
           </div>
-        </div>
 
-        {/* Non-ready states */}
-        {(meta.status === 'queued' || meta.status === 'running') && (
-          <div className="flex flex-col items-center gap-4 py-16 text-center text-text-muted">
-            <Icon name="loader-circle" size={40} className="animate-spin" />
-            <p className="text-sm">Generating your study set&hellip;</p>
-          </div>
-        )}
+          {/* Non-ready states */}
+          {(meta.status === 'queued' || meta.status === 'running') && (
+            <div className="flex flex-col items-center gap-4 py-16 text-center text-text-muted">
+              <Icon name="loader-circle" size={40} className="animate-spin" />
+              <p className="text-sm">Generating your study set&hellip;</p>
+            </div>
+          )}
 
-        {meta.status === 'failed' && (
-          <div className="rounded-lg border border-danger bg-surface-sunken px-4 py-4 text-sm text-danger">
-            <p className="font-medium">Generation failed</p>
-            {meta.error && <p className="mt-1">{meta.error}</p>}
-          </div>
-        )}
+          {meta.status === 'failed' && (
+            <div className="rounded-lg border border-danger bg-surface-sunken px-4 py-4 text-sm text-danger">
+              <p className="font-medium">Generation failed</p>
+              {meta.error && <p className="mt-1">{meta.error}</p>}
+            </div>
+          )}
 
-        {/* Body content */}
-        {meta.status === 'ready' && (
-          <div className="space-y-6">
-            {loadingBody && (
-              <div className="flex justify-center py-8">
-                <Icon name="loader-circle" size={28} className="animate-spin text-text-muted" />
+          {/* Body content */}
+          {meta.status === 'ready' && (
+            <div className="space-y-6">
+              {loadingBody && (
+                <div className="flex justify-center py-8">
+                  <Icon name="loader-circle" size={28} className="animate-spin text-text-muted" />
+                </div>
+              )}
+
+              {!loadingBody && body && (
+                <>
+                  {body.type === 'flashcards' && (
+                    <FlashcardsView payload={body.payload as FlashcardsPayload} />
+                  )}
+                  {body.type === 'quiz' && (
+                    <QuizView payload={body.payload as QuizPayload} />
+                  )}
+                  {body.type === 'assignment' && (
+                    <AssignmentView payload={body.payload as AssignmentPayload} />
+                  )}
+                  {body.type === 'summary' && (
+                    <SummaryView payload={body.payload as SummaryPayload} />
+                  )}
+                </>
+              )}
+
+              {/* Action row */}
+              <div className="flex gap-3 pt-2 flex-wrap">
+                <Button
+                  variant="secondary"
+                  disabled
+                  title="Coming soon"
+                  aria-label={`${stubLabel(meta.type)} — coming soon`}
+                  leftIcon={<Icon name="sparkles" size={15} />}
+                >
+                  {stubLabel(meta.type)}
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => setDeleteOpen(true)}
+                  leftIcon={<Icon name="trash-2" size={15} />}
+                >
+                  Delete
+                </Button>
               </div>
-            )}
+            </div>
+          )}
 
-            {!loadingBody && body && (
-              <>
-                {body.type === 'flashcards' && (
-                  <FlashcardsView payload={body.payload as FlashcardsPayload} />
-                )}
-                {body.type === 'quiz' && (
-                  <QuizView payload={body.payload as QuizPayload} />
-                )}
-                {body.type === 'assignment' && (
-                  <AssignmentView payload={body.payload as AssignmentPayload} />
-                )}
-                {body.type === 'summary' && (
-                  <SummaryView payload={body.payload as SummaryPayload} />
-                )}
-              </>
-            )}
-
-            {/* Action row */}
-            <div className="flex gap-3 pt-2 flex-wrap">
-              <Button
-                variant="secondary"
-                disabled
-                title="Coming soon"
-                aria-label={`${stubLabel(meta.type)} — coming soon`}
-                leftIcon={<Icon name="sparkles" size={15} />}
-              >
-                {stubLabel(meta.type)}
-              </Button>
+          {/* Also show delete button for failed sets */}
+          {meta.status === 'failed' && (
+            <div className="mt-4">
               <Button
                 variant="danger"
                 onClick={() => setDeleteOpen(true)}
@@ -336,24 +351,14 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
                 Delete
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </AppShell>
 
-        {/* Also show delete button for failed sets */}
-        {meta.status === 'failed' && (
-          <div className="mt-4">
-            <Button
-              variant="danger"
-              onClick={() => setDeleteOpen(true)}
-              leftIcon={<Icon name="trash-2" size={15} />}
-            >
-              Delete
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Delete confirmation dialog */}
+      {/* Delete confirmation dialog — outside AppShell to avoid double-mounting
+          (AppShell renders children twice: once in mobile shell, once in desktop shell).
+          A dialog inside AppShell would call showModal() twice, stacking two modal
+          dialogs in the browser top-layer and blocking all pointer events on the buttons. */}
       <Dialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
@@ -376,7 +381,7 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
         }
       />
 
-      {/* Delete error toast */}
+      {/* Delete error toast — also outside AppShell for the same reason */}
       {deleteError && (
         <Toast
           tone="danger"
@@ -386,7 +391,7 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
           {deleteError}
         </Toast>
       )}
-    </AppShell>
+    </>
   );
 }
 
