@@ -34,6 +34,7 @@ import {
   buildInviteItem,
   hashInviteCode,
   buildUserProfileItem,
+  buildAccessRequestItem,
   buildGroupMetaItem,
   buildGroupMemberItem,
 } from '@transformmynotes/core';
@@ -78,9 +79,12 @@ const SHARE_GROUP_ID = 'e2e-share-group';
 // Pending users (for admin pending-queue tests)
 const PENDING_USER1_EMAIL = 'e2e-pending1@example.com';
 const PENDING_USER1_PASSWORD = 'Pending1234!Password';
+// Deterministic access-request IDs so the seeded items are stable across runs
+const PENDING_USER1_REQUEST_ID = 'e2e-access-req-pending1';
 
 const PENDING_USER2_EMAIL = 'e2e-pending2@example.com';
 const PENDING_USER2_PASSWORD = 'Pending5678!Password';
+const PENDING_USER2_REQUEST_ID = 'e2e-access-req-pending2';
 
 // Revokable invite (seeded code invite for revoke test)
 const REVOKABLE_INVITE_LABEL = 'E2E-REVOKE-ME';
@@ -801,6 +805,36 @@ async function seedPendingUserProfiles(
   dynamoClient.destroy();
 }
 
+async function seedAccessRequests(
+  dynalitePort: number,
+  users: Array<{ id: string; email: string; name: string }>,
+) {
+  const dynamoClient = new DynamoDBClient({
+    endpoint: `http://127.0.0.1:${dynalitePort}`,
+    region: 'us-east-1',
+    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+  });
+  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+  for (const user of users) {
+    const item = buildAccessRequestItem({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      status: 'new',
+    });
+    await docClient.send(
+      new PutCommand({
+        TableName: 'UserData',
+        Item: item,
+      }),
+    );
+  }
+
+  docClient.destroy();
+  dynamoClient.destroy();
+}
+
 async function seedShareGroup(
   dynalitePort: number,
   groupId: string,
@@ -922,12 +956,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   // 3c. Seed admin profile (role:'admin', status:'active')
   await seedAdminProfile(DYNALITE_PORT, adminUserSub, ADMIN_USERNAME);
 
-  // 3d. Seed pending user profiles (status:'pending', role:'member')
-  // pendingUser1 has groupIds=['e2e-group'] → shows 'Invited' badge
-  // pendingUser2 has groupIds=[]            → shows 'No invite code' badge
-  await seedPendingUserProfiles(DYNALITE_PORT, [
-    { sub: pendingUser1Sub, email: PENDING_USER1_EMAIL, groupIds: ['e2e-group'] },
-    { sub: pendingUser2Sub, email: PENDING_USER2_EMAIL, groupIds: [] },
+  // 3d. Seed access requests (status:'new') for the pending-queue admin tests.
+  // The /admin/pending page fetches /api/admin/access-requests?status=new, which
+  // queries UserData GSI1 for gsi1pk = 'ACCESSREQ_STATUS#new'. The old harness
+  // was seeding user profiles (status:'pending') which the page never shows.
+  await seedAccessRequests(DYNALITE_PORT, [
+    { id: PENDING_USER1_REQUEST_ID, email: PENDING_USER1_EMAIL, name: PENDING_USER1_EMAIL },
+    { id: PENDING_USER2_REQUEST_ID, email: PENDING_USER2_EMAIL, name: PENDING_USER2_EMAIL },
   ]);
 
   // 3e. Seed the share group (owner + recipient as admin/member)
