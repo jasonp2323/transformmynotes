@@ -116,6 +116,43 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
     },
     required: ['title', 'tldr', 'keyPoints', 'terms'],
   },
+  glossary: {
+    type: 'object',
+    properties: {
+      terms: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            term: { type: 'string' },
+            definition: { type: 'string' },
+          },
+          required: ['term', 'definition'],
+        },
+        minItems: 1,
+      },
+    },
+    required: ['terms'],
+  },
+  study_guide: {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      sections: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            heading: { type: 'string' },
+            keyPoints: { type: 'array', items: { type: 'string' } },
+            body: { type: 'string' },
+          },
+          required: ['heading', 'keyPoints'],
+        },
+      },
+    },
+    required: ['title', 'sections'],
+  },
 };
 
 const client = new BedrockRuntimeClient({});

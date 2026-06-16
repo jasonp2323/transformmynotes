@@ -15,6 +15,7 @@ const MAX_CONCURRENT_STUDY_JOBS = parseMaxConcurrentStudyJobs(process.env.MAX_CO
 
 const TYPE_LABELS: Record<StudyMaterialType, string> = {
   flashcards: 'Flashcards', quiz: 'Quiz', assignment: 'Assignment', summary: 'Summary',
+  glossary: 'Glossary', study_guide: 'Study Guide',
 };
 const VALID_LANGUAGES: StudyLanguage[] = ['auto', 'pt-BR', 'bilingual'];
 
