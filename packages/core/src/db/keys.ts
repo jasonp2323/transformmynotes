@@ -697,6 +697,25 @@ export const studySetKeys = {
   }),
 
   /**
+   * Query parameters for counting/listing a user's in-flight study sets (status
+   * 'queued' or 'running') via GSI6. Uses a FilterExpression on the (non-key)
+   * status attribute; '#status' aliases the DynamoDB reserved word.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  inFlightByUser: (sub: string) => ({
+    IndexName: 'GSI6',
+    KeyConditionExpression: 'gsi6pk = :pk AND begins_with(gsi6sk, :prefix)',
+    FilterExpression: '#status = :queued OR #status = :running',
+    ExpressionAttributeNames: { '#status': 'status' },
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':prefix': 'STUDYSET#',
+      ':queued': 'queued',
+      ':running': 'running',
+    },
+  }),
+
+  /**
    * Parses a study-set sort key (`STUDYSET#<studySetId>`) back into its parts.
    * Useful for downstream waves that recover the studySetId from a key-only
    * projection. Throws on a malformed key.
