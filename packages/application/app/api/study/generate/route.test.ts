@@ -9,7 +9,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // a plain top-level `process.env.X = ...` would run after it.
 vi.hoisted(() => {
   process.env.MAX_CONCURRENT_STUDY_JOBS = '3';
-  process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value = 'us.anthropic.test-model';
 });
 
 const getAuthenticatedSubMock = vi.hoisted(() => vi.fn());
@@ -17,6 +16,7 @@ const getNoteMock = vi.hoisted(() => vi.fn());
 const putStudySetMock = vi.hoisted(() => vi.fn());
 const countInFlightMock = vi.hoisted(() => vi.fn());
 const buildStudySetItemMock = vi.hoisted(() => vi.fn((input: unknown) => ({ ...(input as object) })));
+const resolveAiConfigMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -27,6 +27,7 @@ vi.mock('@transformmynotes/core', () => ({
   putStudySet: putStudySetMock,
   countInFlightStudySets: countInFlightMock,
   buildStudySetItem: buildStudySetItemMock,
+  resolveAiConfig: resolveAiConfigMock,
   MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'],
 }));
 
@@ -51,12 +52,42 @@ function makeRequest(body: unknown): Request {
 // Setup
 // ---------------------------------------------------------------------------
 
+const DEFAULT_AI_CONFIG = {
+  generationEnabled: true,
+  enabledMaterialTypes: {
+    flashcards: true,
+    quiz: true,
+    assignment: true,
+    summary: true,
+    glossary: true,
+    study_guide: true,
+  },
+  modelId: 'us.anthropic.test-model',
+  modelOverrides: {},
+  baseSystemPrompt: 'You are a study assistant.',
+  promptOverrides: {},
+  maxTokens: 4096,
+  temperature: 0.5,
+  topP: 0.9,
+  languageDefault: 'auto' as const,
+  perUserDailyGenerationCap: 100,
+  maxNotesPerRun: 25,
+  tokenBudget: 8192,
+  pollyVoiceId: 'Camila',
+  pollyEngine: 'neural' as const,
+  speedRate: 'medium',
+  version: 1,
+  updatedBy: 'system',
+  updatedAt: '2024-01-01T00:00:00.000Z',
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   getAuthenticatedSubMock.mockResolvedValue('user-sub-1');
   getNoteMock.mockResolvedValue({ title: 'My Note' });
   countInFlightMock.mockResolvedValue(0);
   putStudySetMock.mockResolvedValue(undefined);
+  resolveAiConfigMock.mockResolvedValue({ ...DEFAULT_AI_CONFIG });
 });
 
 // ---------------------------------------------------------------------------
@@ -149,5 +180,32 @@ describe('POST /api/study/generate', () => {
     expect(buildStudySetItemMock).toHaveBeenCalledWith(
       expect.objectContaining({ language: 'bilingual' }),
     );
+  });
+
+  it('returns 403 when generationEnabled is false (global kill switch)', async () => {
+    resolveAiConfigMock.mockResolvedValueOnce({ ...DEFAULT_AI_CONFIG, generationEnabled: false });
+
+    const res = await POST(makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(403);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('AI generation is currently disabled.');
+    expect(putStudySetMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when enabledMaterialTypes[type] is false (per-type toggle)', async () => {
+    resolveAiConfigMock.mockResolvedValueOnce({
+      ...DEFAULT_AI_CONFIG,
+      enabledMaterialTypes: { ...DEFAULT_AI_CONFIG.enabledMaterialTypes, flashcards: false },
+    });
+
+    const res = await POST(makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(403);
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe('Flashcards generation is currently disabled.');
+    expect(putStudySetMock).not.toHaveBeenCalled();
   });
 });

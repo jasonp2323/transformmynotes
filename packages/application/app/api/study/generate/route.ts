@@ -3,6 +3,7 @@ import { ulid } from 'ulid';
 import {
   getNote, putStudySet, countInFlightStudySets, buildStudySetItem,
   MATERIAL_TYPES, type StudyMaterialType, type StudyLanguage,
+  resolveAiConfig,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 import { parseMaxConcurrentStudyJobs } from '@/lib/study/guardrails';
@@ -18,17 +19,6 @@ const TYPE_LABELS: Record<StudyMaterialType, string> = {
   glossary: 'Glossary', study_guide: 'Study Guide',
 };
 const VALID_LANGUAGES: StudyLanguage[] = ['auto', 'pt-BR', 'bilingual'];
-
-function requireModelId(): string {
-  const value = process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value;
-  if (!value) {
-    throw new Error(
-      'Missing required env var SST_RESOURCE_BEDROCK_MODEL_ID_value: the Bedrock model id is not bound. ' +
-        'Expected it from the SST resource link (production) or the test harness.',
-    );
-  }
-  return value;
-}
 
 export async function POST(req: Request) {
   // Auth: verify the Cognito ID token and extract the sub.
@@ -82,8 +72,27 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Resolve required env var — fail loudly if unset.
-    const model = requireModelId();
+    // Resolve runtime AI config — fails loudly if modelId / baseSystemPrompt unset.
+    const config = await resolveAiConfig();
+
+    // Enforce global kill switch.
+    if (!config.generationEnabled) {
+      return NextResponse.json(
+        { ok: false, error: 'AI generation is currently disabled.' },
+        { status: 403 },
+      );
+    }
+
+    // Enforce per-type toggle.
+    if (config.enabledMaterialTypes[materialType] === false) {
+      return NextResponse.json(
+        { ok: false, error: `${TYPE_LABELS[materialType]} generation is currently disabled.` },
+        { status: 403 },
+      );
+    }
+
+    // Derive model id: per-type override falls back to the default.
+    const model = config.modelOverrides[materialType] ?? config.modelId;
 
     // Look up the source note — a sub mismatch yields undefined → 404.
     const note = await getNote(sub, sourceNoteId);

@@ -177,7 +177,7 @@ export async function generateStudyMaterial(
         ],
       },
     ],
-    inferenceConfig: { maxTokens: MAX_TOKENS_BY_TYPE[type] },
+    inferenceConfig: { maxTokens: config.maxTokens, temperature: config.temperature, topP: config.topP },
     toolConfig: {
       tools: [
         {

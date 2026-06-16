@@ -93,9 +93,9 @@ export const AI_MODEL_ALLOWLIST: readonly string[] = [
 ] as const;
 
 /**
- * Per-material-type output token caps applied at inference time. Still consumed
- * by `generate.ts` (M13 behaviour); broader wiring to the single
- * `AiConfig.maxTokens` is deferred to M19.2.2.
+ * Per-material-type output token cap defaults (M13). No longer used by
+ * `generate.ts` as of M19.2.2 — the single `AiConfig.maxTokens` runtime value
+ * from `resolveAiConfig()` is used instead. Exported for backward-compatibility.
  */
 export const MAX_TOKENS_BY_TYPE: Record<StudyMaterialType, number> = {
   flashcards: 4096,
