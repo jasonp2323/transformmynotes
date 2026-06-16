@@ -16,6 +16,8 @@ import {
   Toast,
 } from '@/src/components/ui';
 import { ShareSheet } from './ShareSheet';
+import { GenerateStudyMaterial } from './GenerateStudyMaterial';
+import { StudySetsForNote } from './StudySetsForNote';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@ export function NoteViewScreen({
   const [shareOpen, setShareOpen] = useState(false);
   const [cardSyncing, setCardSyncing] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [studyRefreshNonce, setStudyRefreshNonce] = useState(0);
 
   // ── Save handler ──────────────────────────────────────────────────────────
 
@@ -317,7 +320,19 @@ export function NoteViewScreen({
               Add to review deck
             </Button>
           )}
+
+          {isOwner && (
+            <GenerateStudyMaterial
+              noteId={noteId}
+              onStudySetReady={() => setStudyRefreshNonce((n) => n + 1)}
+            />
+          )}
         </ActionBar>
+      )}
+
+      {/* ── Study sets for this note — owner only ── */}
+      {isOwner && (
+        <StudySetsForNote noteId={noteId} refreshNonce={studyRefreshNonce} />
       )}
 
       {/* ── Share Sheet — owner only ── */}

@@ -136,7 +136,7 @@ describe('POST /api/study/generate', () => {
     expect(buildStudySetItemMock).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'queued',
-        language: 'pt-BR',
+        language: 'auto',
         sourceNoteIds: ['note-1'],
         model: 'us.anthropic.test-model',
       }),

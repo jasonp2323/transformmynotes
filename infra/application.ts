@@ -37,7 +37,9 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
     // M13.2 per-user in-flight study-generation cap (route fails loud if unset/non-integer).
-    MAX_CONCURRENT_STUDY_JOBS: "3",
+    // Set to 4 to allow all four study-material types (flashcards, quiz, assignment, summary)
+    // to be generated concurrently for the same note.
+    MAX_CONCURRENT_STUDY_JOBS: "4",
     SST_STAGE: $app.stage,
     RESEND_API_KEY: resendApiKey.value,
     INVITE_FROM_ADDRESS: inviteFromAddress.value,

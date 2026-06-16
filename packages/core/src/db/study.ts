@@ -1,4 +1,4 @@
-import { QueryCommand, GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, GetCommand, UpdateCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { studySetKeys } from './keys.js';
 import type { StudyMaterialType, StudySetStatus, StudyLanguage } from '../study/types.js';
@@ -265,4 +265,12 @@ export async function countInFlightStudySets(sub: string): Promise<number> {
     }),
   );
   return (Items ?? []).length;
+}
+
+/**
+ * Deletes a STUDYSET item from the Notes table by (sub, studySetId).
+ * Used by DELETE /api/study/[studySetId] after the S3 body has been removed.
+ */
+export async function deleteStudySet(sub: string, studySetId: string): Promise<void> {
+  await ddb.send(new DeleteCommand({ TableName: TableNames.Notes, Key: studySetKeys.item(sub, studySetId) }));
 }

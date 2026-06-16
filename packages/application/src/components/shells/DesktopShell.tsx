@@ -40,7 +40,8 @@ const NOTEBOOK_GROUP: NavGroup = {
   items: [
     { id: 'library', icon: 'book-open', label: 'Library',    href: '/dashboard' },
     { id: 'search',  icon: 'search',    label: 'Search',     href: '/search' },
-    { id: 'review',  icon: 'layers',    label: 'Review deck', liveBadge: true, href: '/review' },
+    { id: 'review',  icon: 'layers',         label: 'Review deck', liveBadge: true, href: '/review' },
+    { id: 'study',   icon: 'graduation-cap', label: 'Study',       href: '/study' },
   ],
 };
 

@@ -20,7 +20,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
   z-index: 6;
+}
+
+.tmn-action-bar .tmn-btn--full {
+  flex: 1 0 100%;
 }
 
 /* ---- ReviewScreen shell ---- */

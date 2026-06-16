@@ -24,6 +24,7 @@ import {
   listStudySetsByUser,
   listStudySetsByNote,
   getStudySet,
+  deleteStudySet,
 } from '../src/db/study.js';
 
 // ---------------------------------------------------------------------------
@@ -344,6 +345,50 @@ describe('getStudySet — write / status update / GetItem round-trip', () => {
 
   it('getStudySet returns undefined for a non-existent study set', async () => {
     const item = await getStudySet(SUB, 'does-not-exist');
+    expect(item).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration: deleteStudySet — write / delete / verify-gone round-trip
+// ---------------------------------------------------------------------------
+
+describe('deleteStudySet — write / delete / verify-gone round-trip', () => {
+  const SUB = 'sub-study-delete-001';
+
+  const SET = {
+    studySetId: 'zzz-delete-001',
+    sourceNoteIds: ['note-delete-001'],
+    type: 'flashcards' as const,
+    title: 'Delete round-trip set',
+    status: 'queued' as const,
+    language: 'pt-BR' as const,
+    model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    promptVersion: '',
+    createdAt: '2024-07-01T00:00:00.000Z',
+  };
+
+  it('setup: writes a study set', async () => {
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.Notes,
+        Item: buildStudySetItem({ sub: SUB, ...SET }),
+      }),
+    );
+  });
+
+  it('getStudySet returns the item before deletion', async () => {
+    const item = await getStudySet(SUB, SET.studySetId);
+    expect(item).toBeDefined();
+    expect(item!.studySetId).toBe(SET.studySetId);
+  });
+
+  it('deleteStudySet resolves without error', async () => {
+    await expect(deleteStudySet(SUB, SET.studySetId)).resolves.toBeUndefined();
+  });
+
+  it('getStudySet returns undefined after deletion', async () => {
+    const item = await getStudySet(SUB, SET.studySetId);
     expect(item).toBeUndefined();
   });
 });

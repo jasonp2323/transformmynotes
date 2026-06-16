@@ -170,8 +170,8 @@ async function createDynaliteTables(port: number) {
     }),
   );
 
-  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag + GSI3 ByToken + GSI4 ByRecipient + GSI5 ByDue,
-  // to match infra/db.ts)
+  // Notes table (with GSI1 UserNotesByTime + GSI2 NotesByTag + GSI3 ByToken + GSI4 ByRecipient + GSI5 ByDue +
+  // GSI6 StudySetsByUser + GSI7 StudySetsByNote, to match infra/db.ts)
   await client.send(
     new CreateTableCommand({
       TableName: 'Notes',
@@ -188,6 +188,10 @@ async function createDynaliteTables(port: number) {
         { AttributeName: 'gsi4sk', AttributeType: 'S' },
         { AttributeName: 'gsi5pk', AttributeType: 'S' },
         { AttributeName: 'gsi5sk', AttributeType: 'S' },
+        { AttributeName: 'gsi6pk', AttributeType: 'S' },
+        { AttributeName: 'gsi6sk', AttributeType: 'S' },
+        { AttributeName: 'gsi7pk', AttributeType: 'S' },
+        { AttributeName: 'gsi7sk', AttributeType: 'S' },
       ],
       KeySchema: [
         { AttributeName: 'pk', KeyType: 'HASH' },
@@ -231,6 +235,22 @@ async function createDynaliteTables(port: number) {
           KeySchema: [
             { AttributeName: 'gsi5pk', KeyType: 'HASH' },
             { AttributeName: 'gsi5sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'GSI6',
+          KeySchema: [
+            { AttributeName: 'gsi6pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi6sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'GSI7',
+          KeySchema: [
+            { AttributeName: 'gsi7pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi7sk', KeyType: 'RANGE' },
           ],
           Projection: { ProjectionType: 'ALL' },
         },
