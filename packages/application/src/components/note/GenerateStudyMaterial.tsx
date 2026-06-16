@@ -208,9 +208,56 @@ export function GenerateStudyMaterial({
   const handleGenerate = useCallback(async () => {
     setSubmitting(true);
     const types = Array.from(selected);
+    const hasFlashcards = types.includes('flashcards');
+    const otherTypes = types.filter((t) => t !== 'flashcards');
+
     try {
+      // ── Flashcards branch: route to the deck review flow ─────────────────
+      // The generate-cards screen fires its own POST on mount, so we must NOT
+      // fire a generate request for flashcards here — doing so would double-generate.
+      if (hasFlashcards) {
+        // Fire generate requests for any other selected types (fire-and-forget).
+        if (otherTypes.length > 0) {
+          const otherResults = await Promise.all(
+            otherTypes.map((type) =>
+              fetch('/api/study/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sourceNoteId: noteId, type }),
+              }).then(async (res) => ({ type, status: res.status, data: await res.json() as { studySetId?: string; error?: string } }))
+            )
+          );
+
+          if (!mountedRef.current) return;
+
+          const unauthorized = otherResults.some((r) => r.status === 401);
+          const rateLimited = otherResults.filter((r) => r.status === 429).length;
+          const succeeded = otherResults.filter((r) => r.status === 202).length;
+
+          if (unauthorized) {
+            setToast({ tone: 'danger', title: 'Please sign in again.' });
+          } else if (rateLimited > 0 && succeeded === 0) {
+            setToast({ tone: 'warning', title: 'All requests hit the in-flight limit — wait for a generation to finish.' });
+          } else if (rateLimited > 0) {
+            setToast({
+              tone: 'warning',
+              title: `Started ${succeeded} of ${otherTypes.length} — the rest hit the in-flight limit. Try the others shortly.`,
+            });
+          }
+        }
+
+        // Navigate to the deck review flow regardless of other-type outcomes.
+        setPickerOpen(false);
+        setSelected(new Set());
+        onStudySetReady?.();
+        router.push(`/notes/${noteId}/generate-cards`);
+        return;
+      }
+
+      // ── Non-flashcard branch: existing behavior, operating on otherTypes ──
+      // (In this branch hasFlashcards is false, so otherTypes === types.)
       const results = await Promise.all(
-        types.map((type) =>
+        otherTypes.map((type) =>
           fetch('/api/study/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -221,7 +268,7 @@ export function GenerateStudyMaterial({
 
       if (!mountedRef.current) return;
 
-      if (types.length === 1) {
+      if (otherTypes.length === 1) {
         // Single-type path — keep existing single-item flow
         const result = results[0];
         if (!result) return;
@@ -254,7 +301,7 @@ export function GenerateStudyMaterial({
         } else if (rateLimited > 0 && succeeded > 0) {
           setToast({
             tone: 'warning',
-            title: `Started ${succeeded} of ${types.length} — the rest hit the in-flight limit. Try the others shortly.`,
+            title: `Started ${succeeded} of ${otherTypes.length} — the rest hit the in-flight limit. Try the others shortly.`,
           });
         } else if (rateLimited > 0 && succeeded === 0) {
           setToast({ tone: 'warning', title: 'All requests hit the in-flight limit — wait for a generation to finish.' });
@@ -268,7 +315,7 @@ export function GenerateStudyMaterial({
     } finally {
       if (mountedRef.current) setSubmitting(false);
     }
-  }, [noteId, selected, schedulePoll, onStudySetReady]);
+  }, [noteId, selected, schedulePoll, onStudySetReady, router]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
