@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.62.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.61.0...transformmynotes-v1.62.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M15.2 quiz-taking wizard + auto-grading route ([#555](https://github.com/jasonp2323/transformmynotes/issues/555)) ([bf76e94](https://github.com/jasonp2323/transformmynotes/commit/bf76e940d9b847c06f25c5adfda55afa946a6ed1))
+
 ## [1.61.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.60.0...transformmynotes-v1.61.0) (2026-06-16)
 
 
