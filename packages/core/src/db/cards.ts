@@ -26,6 +26,8 @@ export interface Card {
   lastReviewedAt?: string;
   createdAt: string;
   updatedAt: string;
+  origin?: 'highlight' | 'ai';
+  studySetId?: string;
 }
 
 /** Full DynamoDB item shape for a CARD (includes PK/SK and GSI5 keys). */
@@ -53,6 +55,8 @@ export interface BuildCardItemInput {
   interval?: number;
   lastReviewedAt?: string;
   updatedAt?: string;
+  origin?: 'highlight' | 'ai';
+  studySetId?: string;
 }
 
 /**
@@ -87,6 +91,12 @@ export function buildCardItem(input: BuildCardItemInput): CardItem {
 
   if (input.lastReviewedAt !== undefined) {
     item.lastReviewedAt = input.lastReviewedAt;
+  }
+  if (input.origin !== undefined) {
+    item.origin = input.origin;
+  }
+  if (input.studySetId !== undefined) {
+    item.studySetId = input.studySetId;
   }
 
   return item;
@@ -188,6 +198,11 @@ export function diffCards(extracted: RawCard[], existing: Card[]): CardDiff {
   const unchanged: Card[] = [];
 
   for (const card of existing) {
+    // AI cards are never auto-pruned — they have no highlight to track.
+    if (card.origin === 'ai') {
+      unchanged.push(card);
+      continue;
+    }
     if (dedupedFronts.has(card.front)) {
       // Front still present → keep.
       unchanged.push(card);
@@ -304,6 +319,58 @@ export async function syncCardsForNote(input: {
   }
 
   return { created: toCreate.length, deleted: toDelete.length, unchanged: unchanged.length };
+}
+
+/**
+ * Creates AI-generated flashcard items in DynamoDB for the given user.
+ *
+ * Each accepted card is written with `origin: "ai"` and the source `studySetId`
+ * so it can be identified and filtered separately from highlight-origin cards.
+ * Cards are due immediately (`dueAt = now`) so they appear in the next review
+ * session straight away.
+ *
+ * The 20-card cap on `accepted` is a known limit: it is within the DynamoDB
+ * BatchWriteItem 25-item cap, but cards are still chunked by 25 for safety.
+ *
+ * @param input.sub          Cognito sub of the card owner.
+ * @param input.studySetId   ULID of the M13 StudySet that produced these cards.
+ * @param input.sourceNoteId ULID of the source note the study set was generated from.
+ * @param input.accepted     Card candidates (front + back) accepted by the user.
+ * @param input.now          Optional fixed timestamp (defaults to `new Date()`).
+ */
+export async function createAiCards(input: {
+  sub: string;
+  studySetId: string;
+  sourceNoteId: string;
+  accepted: { front: string; back: string }[];
+  now?: Date;
+}): Promise<{ created: number }> {
+  const now = input.now ?? new Date();
+  const nowIso = now.toISOString();
+
+  const requests: Record<string, unknown>[] = input.accepted.map((card) => ({
+    PutRequest: {
+      Item: buildCardItem({
+        sub: input.sub,
+        cardId: randomUUID(),
+        sourceNoteId: input.sourceNoteId,
+        front: card.front,
+        back: card.back,
+        dueAt: nowIso,
+        createdAt: nowIso,
+        origin: 'ai',
+        studySetId: input.studySetId,
+      }),
+    },
+  }));
+
+  if (requests.length > 0) {
+    for (const batch of chunk(requests, 25)) {
+      await batchWriteWithRetry(TableNames.Notes, batch);
+    }
+  }
+
+  return { created: input.accepted.length };
 }
 
 /**

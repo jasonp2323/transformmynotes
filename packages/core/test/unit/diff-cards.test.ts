@@ -212,3 +212,39 @@ describe('diffCards', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// AI cards are never auto-pruned (M14)
+// ---------------------------------------------------------------------------
+
+describe('AI card preservation', () => {
+  it('an origin:"ai" card with no lastReviewedAt is preserved in unchanged, not toDelete', () => {
+    const existing = [
+      makeCard({ cardId: 'ai-card', front: 'AI question', back: 'AI answer', origin: 'ai' }),
+    ];
+    const extracted: RawCard[] = []; // no highlights at all
+
+    const { toCreate, toDelete, unchanged } = diffCards(extracted, existing);
+    expect(toDelete).toHaveLength(0);
+    expect(unchanged).toHaveLength(1);
+    expect(unchanged[0].cardId).toBe('ai-card');
+    expect(toCreate).toHaveLength(0);
+  });
+
+  it('an origin:"ai" card is preserved even when a highlight card with the same front would be deleted', () => {
+    const existing = [
+      // highlight card with no lastReviewedAt — would normally be deleted
+      makeCard({ cardId: 'highlight-card', front: 'shared-front', back: 'h-back' }),
+      // AI card with the same front and no lastReviewedAt — must be preserved
+      makeCard({ cardId: 'ai-card', front: 'ai-only-front', back: 'a-back', origin: 'ai' }),
+    ];
+    const extracted: RawCard[] = []; // everything removed
+
+    const { toDelete, unchanged } = diffCards(extracted, existing);
+    // highlight card has no lastReviewedAt and no ai origin → toDelete
+    expect(toDelete.map((c) => c.cardId)).toContain('highlight-card');
+    // ai card → unchanged regardless
+    expect(unchanged.map((c) => c.cardId)).toContain('ai-card');
+    expect(toDelete.map((c) => c.cardId)).not.toContain('ai-card');
+  });
+});
