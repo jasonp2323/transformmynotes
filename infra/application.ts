@@ -1,6 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey, studySystemPrompt, studyFlashcardsPrompt, studyQuizPrompt, studyAssignmentPrompt, studySummaryPrompt } from "./secrets";
+import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups, notes } from "./db";
 import { notesBucket } from "./storage";
@@ -21,7 +21,12 @@ const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
-  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket, studySystemPrompt, studyFlashcardsPrompt, studyQuizPrompt, studyAssignmentPrompt, studySummaryPrompt],
+  // NOTE: the five STUDY_*_PROMPT secrets are intentionally NOT linked/bound here.
+  // The web server only enqueues a STUDYSET; generation runs in the M13.2 stream
+  // consumer (infra/jobs.ts), which is where the prompts are bound. Binding the
+  // ~3 KB of prompt text into this server Lambda's env blew past AWS Lambda's hard
+  // 4 KB environment-variable limit, so they live on the consumer instead.
+  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: userPoolClient.id,
@@ -36,11 +41,9 @@ export const application = new sst.aws.Nextjs("Application", {
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
     TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
-    SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: studySystemPrompt.value,
-    SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: studyFlashcardsPrompt.value,
-    SST_RESOURCE_STUDY_QUIZ_PROMPT_value: studyQuizPrompt.value,
-    SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: studyAssignmentPrompt.value,
-    SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: studySummaryPrompt.value,
+    // STUDY_*_PROMPT values are deliberately omitted from this env block — see the
+    // note on `link` above (AWS Lambda 4 KB env limit). They bind to the M13.2
+    // stream consumer (infra/jobs.ts), the only runtime that calls generateStudyMaterial.
     ...(process.env.ANDROID_SIGNING_FINGERPRINT
       ? { ANDROID_SIGNING_FINGERPRINT: process.env.ANDROID_SIGNING_FINGERPRINT }
       : {}),
