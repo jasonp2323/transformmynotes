@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getStudySet } from '@transformmynotes/core';
+import { getStudySet, toClientQuestions, type GeneratedQuiz } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// ANTI-CHEAT: never return correctIndex / modelAnswer / acceptableAnswers / explanation here —
+// toClientQuestions strips them server-side; the raw quiz body in S3 holds the answer key.
 
 function requireBucketName(): string {
   const value = process.env.SST_RESOURCE_NotesBucket_name;
@@ -39,11 +42,8 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Not found.' }, { status: 404 });
     }
 
-    // ANTI-CHEAT: a quiz body in S3 holds the answer key (correctIndex, modelAnswer,
-    // acceptableAnswers, explanation). The generic body route returns the FULL payload,
-    // so quizzes must be served only via /questions, which strips the answer key.
-    if (item.type === 'quiz') {
-      return NextResponse.json({ ok: false, error: 'Use /questions for quizzes.' }, { status: 400 });
+    if (item.type !== 'quiz') {
+      return NextResponse.json({ ok: false, error: 'Not a quiz.' }, { status: 400 });
     }
 
     if (item.status !== 'ready' || !item.bodyS3Key) {
@@ -53,11 +53,13 @@ export async function GET(
     const s3 = new S3Client({});
     const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: item.bodyS3Key }));
     const text = await (res.Body as { transformToString(): Promise<string> }).transformToString();
-    const payload = JSON.parse(text) as unknown;
+    const quiz = JSON.parse(text) as GeneratedQuiz;
 
-    return NextResponse.json({ type: item.type, payload });
+    const questions = toClientQuestions(quiz);
+
+    return NextResponse.json({ studySetId, type: 'quiz', questions });
   } catch (err) {
-    console.error('[study/body]', err);
-    return NextResponse.json({ ok: false, error: 'Could not load body.' }, { status: 500 });
+    console.error('[study/questions]', err);
+    return NextResponse.json({ ok: false, error: 'Could not load questions.' }, { status: 500 });
   }
 }
