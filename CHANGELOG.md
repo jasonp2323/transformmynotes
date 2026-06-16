@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.55.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.54.0...transformmynotes-v1.55.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M13.1 foundations — generation wrapper, STUDYSET model & pt-BR prompts ([#532](https://github.com/jasonp2323/transformmynotes/issues/532)) ([c130017](https://github.com/jasonp2323/transformmynotes/commit/c130017c9693a0704697a2231ceb99b8ad9919a9))
+
 ## [1.54.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.53.1...transformmynotes-v1.54.0) (2026-06-15)
 
 
