@@ -21,11 +21,11 @@ const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
-  // NOTE: the five STUDY_*_PROMPT secrets are intentionally NOT linked/bound here.
+  // NOTE: STUDY_*_PROMPT values are intentionally NOT linked/bound here.
   // The web server only enqueues a STUDYSET; generation runs in the M13.2 stream
-  // consumer (infra/jobs.ts), which is where the prompts are bound. Binding the
-  // ~3 KB of prompt text into this server Lambda's env blew past AWS Lambda's hard
-  // 4 KB environment-variable limit, so they live on the consumer instead.
+  // consumer (infra/jobs.ts). Prompts are loaded at consumer startup from bundled
+  // `prompts/` text files (via study-prompts.ts), bypassing the AWS Lambda 4 KB
+  // env-var limit — they are no longer SST secrets or env vars on either runtime.
   link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
@@ -46,8 +46,8 @@ export const application = new sst.aws.Nextjs("Application", {
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
     TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
     // STUDY_*_PROMPT values are deliberately omitted from this env block — see the
-    // note on `link` above (AWS Lambda 4 KB env limit). They bind to the M13.2
-    // stream consumer (infra/jobs.ts), the only runtime that calls generateStudyMaterial.
+    // note on `link` above. They load from bundled `prompts/` text files in the
+    // M13.2 stream consumer (infra/jobs.ts), the only runtime that calls generateStudyMaterial.
     ...(process.env.ANDROID_SIGNING_FINGERPRINT
       ? { ANDROID_SIGNING_FINGERPRINT: process.env.ANDROID_SIGNING_FINGERPRINT }
       : {}),

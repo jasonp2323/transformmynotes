@@ -3,13 +3,6 @@ import { notes } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
-  studySystemPrompt,
-  studyFlashcardsPrompt,
-  studyQuizPrompt,
-  studyAssignmentPrompt,
-  studySummaryPrompt,
-  studyGlossaryPrompt,
-  studyGuidePrompt,
 } from "./secrets";
 
 const accountId = aws.getCallerIdentityOutput({}).accountId;
@@ -25,23 +18,17 @@ const foundationModelId = bedrockInferenceProfileId.value.apply((id) =>
 
 // M13.2 study-generation stream consumer. The web server only enqueues a
 // STUDYSET item on the Notes table; this Lambda runs the actual Bedrock
-// generation off the DynamoDB stream. It is the only runtime bound to the
-// seven STUDY_*_PROMPT secrets (the web server omits them to stay under the
-// AWS Lambda 4 KB env-var limit — see infra/application.ts).
+// generation off the DynamoDB stream. Study prompts are loaded at Lambda
+// startup from bundled `prompts/` text files (via study-prompts.ts), which
+// avoids the AWS Lambda 4 KB env-var limit — they are no longer SST secrets.
 export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationConsumer", {
   handler: "packages/application/jobs/study-generation.handler",
   link: [notes, notesBucket],
+  copyFiles: [{ from: 'prompts', to: 'prompts' }],
   environment: {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
-    SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: studySystemPrompt.value,
-    SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: studyFlashcardsPrompt.value,
-    SST_RESOURCE_STUDY_QUIZ_PROMPT_value: studyQuizPrompt.value,
-    SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value: studyAssignmentPrompt.value,
-    SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: studySummaryPrompt.value,
-    SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value: studyGlossaryPrompt.value,
-    SST_RESOURCE_STUDY_GUIDE_PROMPT_value: studyGuidePrompt.value,
   },
   permissions: [
     {

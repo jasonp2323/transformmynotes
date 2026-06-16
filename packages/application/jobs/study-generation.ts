@@ -24,6 +24,7 @@ import {
   type StudyLanguage,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { loadStudyPromptsIntoEnv } from './study-prompts.js';
 
 const MAX_NOTE_MARKDOWN_CHARS = 40000; // ~10k tokens; truncate oversized note bodies (log a warning)
 
@@ -211,6 +212,7 @@ interface StudyStreamRecord {
 }
 
 export async function handler(event: { Records?: StudyStreamRecord[] }): Promise<void> {
+  loadStudyPromptsIntoEnv();
   for (const record of event.Records ?? []) {
     if (record.eventName !== 'INSERT') continue;
     const pk = record.dynamodb?.Keys?.pk?.S;
