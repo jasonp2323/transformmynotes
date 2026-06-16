@@ -24,6 +24,13 @@ vi.mock('@aws-sdk/client-bedrock-runtime', () => {
   };
 });
 
+// ── Mock the DynamoDB client so resolveAiConfig() resolves from env defaults
+// (no CURRENT item) without touching real/dynalite DynamoDB. ──────────────────
+vi.mock('../../src/db/client', () => ({
+  ddb: { send: vi.fn().mockResolvedValue({ Item: undefined }) },
+  TableNames: { UserData: 'UserData-test' },
+}));
+
 // ── Import AFTER mocks ────────────────────────────────────────────────────────
 import {
   generateStudyMaterial,
@@ -32,6 +39,8 @@ import {
   BILINGUAL_DIRECTIVE,
   TOOL_SCHEMAS,
 } from '../../src/study/generate';
+import { bustAiConfigCache } from '../../src/study/config';
+import type { GeneratedQuiz } from '../../src/study/quiz';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,6 +62,16 @@ function makeToolUseResponse(payload: unknown) {
   };
 }
 
+// Valid 3-question quiz payload (no ids) — used wherever quiz type is mocked
+// to satisfy the assignQuestionIds(payload) call that now runs post-generation.
+const VALID_QUIZ_PAYLOAD = {
+  questions: [
+    { type: 'mcq', stem: 'Q1', options: ['a', 'b'], correctIndex: 0, explanation: 'e1' },
+    { type: 'mcq', stem: 'Q2', options: ['a', 'b'], correctIndex: 1, explanation: 'e2' },
+    { type: 'short-answer', prompt: 'Q3', modelAnswer: 'm', acceptableAnswers: ['m'], explanation: 'e3' },
+  ],
+};
+
 const ENV_VARS = {
   SST_RESOURCE_BEDROCK_MODEL_ID_value: 'us.anthropic.test-model',
   SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: 'BASE_SYSTEM_PROMPT',
@@ -70,6 +89,9 @@ describe('generateStudyMaterial', () => {
       process.env[k] = v;
     }
     mockSend.mockReset();
+    // The resolveAiConfig cache is module-level; clear it so each case
+    // re-resolves against the current env (the missing-env cases depend on this).
+    bustAiConfigCache();
   });
 
   afterEach(() => {
@@ -109,7 +131,7 @@ describe('generateStudyMaterial', () => {
   });
 
   it('sets inferenceConfig.maxTokens to 4096 for quiz', async () => {
-    mockSend.mockResolvedValue(makeToolUseResponse({ questions: [] }));
+    mockSend.mockResolvedValue(makeToolUseResponse(VALID_QUIZ_PAYLOAD));
     await generateStudyMaterial({ type: 'quiz', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
@@ -219,7 +241,7 @@ describe('generateStudyMaterial', () => {
   it('promptVersion differs when type changes (different type prompt)', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
     const r1 = await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note' });
-    mockSend.mockResolvedValue(makeToolUseResponse({ questions: [] }));
+    mockSend.mockResolvedValue(makeToolUseResponse(VALID_QUIZ_PAYLOAD));
     const r2 = await generateStudyMaterial({ type: 'quiz', noteMarkdown: '# Note', noteTitle: 'Note' });
     expect(r1.promptVersion).not.toBe(r2.promptVersion);
   });
@@ -254,12 +276,25 @@ describe('generateStudyMaterial', () => {
   });
 
   it('passes the correct inputSchema for quiz type', async () => {
-    mockSend.mockResolvedValue(makeToolUseResponse({ questions: [] }));
+    mockSend.mockResolvedValue(makeToolUseResponse(VALID_QUIZ_PAYLOAD));
     await generateStudyMaterial({ type: 'quiz', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
     const toolConfig = cmd.input.toolConfig as { tools: Array<{ toolSpec: { inputSchema: { json: object } } }> };
     expect(toolConfig.tools[0].toolSpec.inputSchema.json).toEqual(TOOL_SCHEMAS['quiz']);
+  });
+
+  it('quiz post-process: result.payload.questions all have a non-empty id after generateStudyMaterial', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse(VALID_QUIZ_PAYLOAD));
+    const result = await generateStudyMaterial({ type: 'quiz', noteMarkdown: '# Test', noteTitle: 'Note' });
+
+    const quiz = result.payload as GeneratedQuiz;
+    expect(Array.isArray(quiz.questions)).toBe(true);
+    expect(quiz.questions).toHaveLength(3);
+    for (const q of quiz.questions) {
+      expect(typeof q.id).toBe('string');
+      expect(q.id.length).toBeGreaterThan(0);
+    }
   });
 
   it('passes the correct inputSchema for glossary type', async () => {

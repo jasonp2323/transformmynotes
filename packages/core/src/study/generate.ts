@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { withBedrockRetry } from '../ocr/retry.js';
 import { resolveAiConfig, MAX_TOKENS_BY_TYPE } from './config.js';
 import type { StudyMaterialType, StudyLanguage } from './types.js';
+import { QUIZ_TOOL_SCHEMA, assignQuestionIds } from './quiz.js';
 
 export { MAX_TOKENS_BY_TYPE };
 
@@ -50,30 +51,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
     },
     required: ['cards'],
   },
-  quiz: {
-    type: 'object',
-    properties: {
-      questions: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            stem: { type: 'string' },
-            choices: {
-              type: 'array',
-              items: { type: 'string' },
-              minItems: 4,
-              maxItems: 4,
-            },
-            answerIndex: { type: 'integer', minimum: 0, maximum: 3 },
-            explanation: { type: 'string' },
-          },
-          required: ['stem', 'choices', 'answerIndex', 'explanation'],
-        },
-      },
-    },
-    required: ['questions'],
-  },
+  quiz: QUIZ_TOOL_SCHEMA,
   assignment: {
     type: 'object',
     properties: {
@@ -169,10 +147,12 @@ export async function generateStudyMaterial(
     : language === 'pt-BR' ? PT_BR_DIRECTIVE
     : AUTO_DIRECTIVE;
 
+  // Per-type prompt override (M19): absent → no extra block, so don't append an
+  // empty section (which would leave a stray double newline).
+  const typePrompt = config.promptOverrides[type] ?? '';
   const combinedPrompt =
     config.baseSystemPrompt +
-    '\n\n' +
-    config.typePrompts[type] +
+    (typePrompt ? '\n\n' + typePrompt : '') +
     '\n\n' +
     languageDirective;
 
@@ -181,8 +161,11 @@ export async function generateStudyMaterial(
     .digest('hex')
     .slice(0, 8);
 
+  // Per-type model override (M19) falls back to the default modelId.
+  const modelId = config.modelOverrides[type] ?? config.modelId;
+
   const command = new ConverseCommand({
-    modelId: config.modelId,
+    modelId,
     system: [{ text: combinedPrompt }],
     messages: [
       {
@@ -194,7 +177,7 @@ export async function generateStudyMaterial(
         ],
       },
     ],
-    inferenceConfig: { maxTokens: config.maxTokens[type] },
+    inferenceConfig: { maxTokens: MAX_TOKENS_BY_TYPE[type] },
     toolConfig: {
       tools: [
         {
@@ -222,6 +205,10 @@ export async function generateStudyMaterial(
       payload = (block as { toolUse: { name: string; input: unknown } }).toolUse.input;
       break;
     }
+  }
+
+  if (type === 'quiz') {
+    payload = assignQuestionIds(payload);
   }
 
   return {

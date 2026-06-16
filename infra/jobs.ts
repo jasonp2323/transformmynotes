@@ -1,5 +1,5 @@
 /// <reference path="../.sst/platform/config.d.ts" />
-import { notes } from "./db";
+import { notes, userData } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
@@ -23,17 +23,27 @@ const foundationModelId = bedrockInferenceProfileId.value.apply((id) =>
 // avoids the AWS Lambda 4 KB env-var limit — they are no longer SST secrets.
 export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationConsumer", {
   handler: "packages/application/jobs/study-generation.handler",
-  link: [notes, notesBucket],
+  // M19: resolveAiConfig() reads the CONFIG#AI item from the UserData table, so
+  // the consumer must bind UserData (link + name env) and be granted read on it.
+  // This fits the 4 KB env limit now that the study prompts are bundled as
+  // `prompts/` files (copyFiles) rather than configured Lambda env vars.
+  link: [notes, notesBucket, userData],
   copyFiles: [{ from: 'prompts', to: 'prompts' }],
   environment: {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
+    SST_RESOURCE_UserData_name: userData.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
   },
   permissions: [
     {
       actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
       resources: [notes.arn],
+    },
+    // M19: read-only access to the CONFIG#AI item in UserData (resolveAiConfig).
+    {
+      actions: ["dynamodb:GetItem"],
+      resources: [userData.arn],
     },
     // Least privilege: read the source note Markdown under markdown/, write the
     // generated study artifacts under study/ — no bucket-wide access.

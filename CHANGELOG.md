@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.62.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.61.0...transformmynotes-v1.62.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M15.2 quiz-taking wizard + auto-grading route ([#555](https://github.com/jasonp2323/transformmynotes/issues/555)) ([bf76e94](https://github.com/jasonp2323/transformmynotes/commit/bf76e940d9b847c06f25c5adfda55afa946a6ed1))
+
+## [1.61.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.60.0...transformmynotes-v1.61.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **admin:** M19.1 — runtime AI config data model, resolver & admin API ([#546](https://github.com/jasonp2323/transformmynotes/issues/546)) ([8a13201](https://github.com/jasonp2323/transformmynotes/commit/8a13201788d2c58464177071a60121b1a337fe38))
+
+## [1.60.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.59.0...transformmynotes-v1.60.0) (2026-06-16)
+
+
+### 🚀 Features
+
+* **study:** M15.1 quiz foundations — generation schema, attempts data model & anti-cheat routes ([#549](https://github.com/jasonp2323/transformmynotes/issues/549)) ([7132836](https://github.com/jasonp2323/transformmynotes/commit/7132836b1980e247587df0de4b8d9348b8ba0eb5))
+
 ## [1.59.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.58.0...transformmynotes-v1.59.0) (2026-06-16)
 
 
