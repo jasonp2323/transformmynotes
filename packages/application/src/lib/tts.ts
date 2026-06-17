@@ -1,6 +1,8 @@
+import { PT_BR_VOICES, isPtBrVoiceId, type PtBrVoiceId } from '@transformmynotes/core';
+
 export const TTS_VOICE_STORAGE_KEY = 'tts.voiceId';
 
-export type TtsVoiceId = 'Camila' | 'Vitoria' | 'Thiago';
+export type TtsVoiceId = PtBrVoiceId;
 
 export interface TtsVoice {
   id: TtsVoiceId;
@@ -9,16 +11,12 @@ export interface TtsVoice {
 
 // `id` is the unaccented value the synthesize API accepts (note `Vitoria` has
 // no accent); `label` is the accented display string shown in the UI.
-export const TTS_VOICES: ReadonlyArray<TtsVoice> = [
-  { id: 'Camila', label: 'Camila' },
-  { id: 'Vitoria', label: 'Vitória' },
-  { id: 'Thiago', label: 'Thiago' },
-] as const;
+export const TTS_VOICES: ReadonlyArray<TtsVoice> = PT_BR_VOICES.map((v) => ({ id: v.id, label: v.label }));
 
 export const DEFAULT_VOICE_ID: TtsVoiceId = 'Camila';
 
 export function isValidVoiceId(v: string): v is TtsVoiceId {
-  return TTS_VOICES.some((voice) => voice.id === v);
+  return isPtBrVoiceId(v);
 }
 
 export function getStoredVoiceId(): TtsVoiceId | undefined {

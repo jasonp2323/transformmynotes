@@ -10,10 +10,11 @@ import {
 } from '../tts';
 
 describe('isValidVoiceId', () => {
-  it('is true for the three known voice ids', () => {
+  it('is true for the four known voice ids', () => {
     expect(isValidVoiceId('Camila')).toBe(true);
     expect(isValidVoiceId('Vitoria')).toBe(true);
     expect(isValidVoiceId('Thiago')).toBe(true);
+    expect(isValidVoiceId('Ricardo')).toBe(true);
   });
 
   it('is false for accented/unknown/empty values', () => {
@@ -42,8 +43,8 @@ describe('audioErrorMessage', () => {
 });
 
 describe('TTS_VOICES', () => {
-  it('has three entries', () => {
-    expect(TTS_VOICES).toHaveLength(3);
+  it('has four entries', () => {
+    expect(TTS_VOICES).toHaveLength(4);
   });
 
   it("displays Vitória's accent while keeping the id unaccented", () => {
