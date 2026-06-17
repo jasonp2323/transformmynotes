@@ -73,24 +73,15 @@ export interface AiConfig {
 
 /**
  * Allowlist of Bedrock model ids accepted by the admin AI-config form/API.
- *
- * NOTE on inference-profile prefixes: the live `BEDROCK_MODEL_ID` secret is a
- * cross-region inference profile id (e.g.
- * `us.anthropic.claude-3-5-sonnet-20241022-v2:0`) — the bare foundation-model
- * id is `anthropic.claude-3-5-sonnet-20241022-v2:0`. A config can legitimately
- * carry either form, so BOTH the bare and the `us.`-prefixed variants are
- * allowlisted for the models actually deployed.
  */
 export const AI_MODEL_ALLOWLIST: readonly string[] = [
-  // Claude 3.5 Sonnet v2 — bare foundation-model id + us. inference profile.
-  'anthropic.claude-3-5-sonnet-20241022-v2:0',
+  // LOCKED to a single known-good model for now — we are not letting admins
+  // switch models yet. Newer Claude models (e.g. Haiku 4.5) and the bare
+  // foundation-model id forms have caused generation failures; this is the
+  // us. cross-region inference profile that production runs and that the
+  // StudyGenerationConsumer IAM (infra/jobs.ts) is scoped to. Re-expand only
+  // after each candidate model is validated end-to-end.
   'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
-  // Claude 3 Haiku — bare + us. inference profile.
-  'anthropic.claude-3-haiku-20240307-v1:0',
-  'us.anthropic.claude-3-haiku-20240307-v1:0',
-  // Claude 3 Sonnet (legacy).
-  'anthropic.claude-3-sonnet-20240229-v1:0',
-  // add as new models are vetted
 ] as const;
 
 /**

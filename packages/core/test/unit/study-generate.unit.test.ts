@@ -126,18 +126,20 @@ describe('generateStudyMaterial', () => {
     await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number };
     expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default
   });
 
-  it('sets inferenceConfig.temperature and topP from AiConfig (defaults 0.5, 0.9)', async () => {
+  it('sets inferenceConfig.temperature from AiConfig (default 0.5) and does NOT send topP', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
     await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP?: number };
     expect(inferenceConfig.temperature).toBe(0.5); // AiConfig default
-    expect(inferenceConfig.topP).toBe(0.9);        // AiConfig default
+    // topP must NOT be sent — current Bedrock Claude models reject requests that
+    // specify both temperature and top_p ("use only one").
+    expect(inferenceConfig.topP).toBeUndefined();
   });
 
   it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for quiz', async () => {
@@ -145,7 +147,7 @@ describe('generateStudyMaterial', () => {
     await generateStudyMaterial({ type: 'quiz', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number };
     expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default
   });
 
@@ -154,7 +156,7 @@ describe('generateStudyMaterial', () => {
     await generateStudyMaterial({ type: 'assignment', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number };
     expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default (was per-type 2048 before M19.2.2)
   });
 
@@ -163,7 +165,7 @@ describe('generateStudyMaterial', () => {
     await generateStudyMaterial({ type: 'summary', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number };
     expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default (was per-type 1024 before M19.2.2)
   });
 
@@ -337,7 +339,7 @@ describe('generateStudyMaterial', () => {
     await generateStudyMaterial({ type: 'glossary', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number };
     expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default (was per-type 2048 before M19.2.2)
   });
 
@@ -375,7 +377,7 @@ describe('generateStudyMaterial', () => {
     await generateStudyMaterial({ type: 'study_guide', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number };
     expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default
   });
 

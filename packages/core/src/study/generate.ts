@@ -177,7 +177,9 @@ export async function generateStudyMaterial(
         ],
       },
     ],
-    inferenceConfig: { maxTokens: config.maxTokens, temperature: config.temperature, topP: config.topP },
+    // Send only `temperature` — current Bedrock Claude models reject a request
+    // that specifies both `temperature` and `top_p` ("use only one").
+    inferenceConfig: { maxTokens: config.maxTokens, temperature: config.temperature },
     toolConfig: {
       tools: [
         {
