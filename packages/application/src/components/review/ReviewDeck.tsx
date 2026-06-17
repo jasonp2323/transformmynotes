@@ -128,6 +128,7 @@ export function ReviewDeck() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [grading, setGrading] = useState(false);
+  const [rate, setRate] = useState<'1x' | '0.8x'>('1x');
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -318,6 +319,7 @@ export function ReviewDeck() {
   const currentCard = sessionCards[currentIndex];
   const total = sessionCards.length;
   const position = currentIndex + 1;
+  const ssmlRate = rate === '0.8x' ? 'slow' : undefined;
 
   if (!currentCard) {
     // Defensive — shouldn't happen, but avoid a crash
@@ -356,13 +358,35 @@ export function ReviewDeck() {
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <PlayButton text={currentCard.front} />
-            <PlayButton
-              text={currentCard.front}
-              ssmlRate="slow"
-              label="0.8×"
-              ariaLabel="Play pronunciation slowly"
-            />
+            <PlayButton text={currentCard.front} ssmlRate={ssmlRate} />
+            <div
+              className="tmn-deck-speed-toggle"
+              role="group"
+              aria-label="Playback speed"
+            >
+              <button
+                type="button"
+                className={
+                  'tmn-deck-speed-toggle__option' +
+                  (rate === '1x' ? ' tmn-deck-speed-toggle__option--active' : '')
+                }
+                aria-pressed={rate === '1x'}
+                onClick={() => setRate('1x')}
+              >
+                1×
+              </button>
+              <button
+                type="button"
+                className={
+                  'tmn-deck-speed-toggle__option' +
+                  (rate === '0.8x' ? ' tmn-deck-speed-toggle__option--active' : '')
+                }
+                aria-pressed={rate === '0.8x'}
+                onClick={() => setRate('0.8x')}
+              >
+                0.8×
+              </button>
+            </div>
           </div>
           <div className="tmn-deck-card__inner">
             <p className="tmn-deck-card__front">{currentCard.front}</p>
@@ -382,7 +406,7 @@ export function ReviewDeck() {
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <PlayButton text={currentCard.back} />
+                  <PlayButton text={currentCard.back} ssmlRate={ssmlRate} />
                 </div>
                 <p className="tmn-deck-card__back">{currentCard.back}</p>
               </>

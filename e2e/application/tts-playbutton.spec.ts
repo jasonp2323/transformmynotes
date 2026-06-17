@@ -107,18 +107,32 @@ test.describe('M18.3 TTS play button', () => {
       page.getByRole('button', { name: 'Tap to reveal the answer' }),
     ).toBeVisible({ timeout: 10_000 });
 
-    // ── Front play buttons ──
+    // ── Front play button + speed toggle ──
     const frontPlay = page.getByRole('button', { name: 'Play pronunciation', exact: true });
-    const slowPlay = page.getByRole('button', { name: 'Play pronunciation slowly' });
+    const speedToggle = page.getByRole('group', { name: 'Playback speed' });
+    const speedSlow = speedToggle.getByRole('button', { name: '0.8×' });
+    const speedFast = speedToggle.getByRole('button', { name: '1×' });
     await expect(frontPlay).toBeVisible();
-    await expect(slowPlay).toBeVisible();
+    await expect(speedToggle).toBeVisible();
+    await expect(speedSlow).toBeVisible();
+    await expect(speedFast).toBeVisible();
 
-    // Screenshot of the front with play buttons (evidence)
+    // Screenshot of the front with the play button + speed toggle (evidence)
     await page.screenshot({ path: 'docs/verification/m18-3-review-playbutton.png' });
 
-    // Click front play; assert synthesize called
+    // Select 0.8× then play; assert synthesize called with ssmlRate "slow"
+    await speedSlow.click();
     await frontPlay.click();
     await expect.poll(() => synthesizeCalls, { timeout: 5_000 }).toBeGreaterThanOrEqual(1);
+    expect(synthesizeBodies.some((b) => b.includes('"ssmlRate":"slow"'))).toBe(true);
+
+    // Switch back to 1× then play; assert that play sends NO ssmlRate key
+    const callsBeforeFast = synthesizeCalls;
+    await speedFast.click();
+    await frontPlay.click();
+    await expect.poll(() => synthesizeCalls, { timeout: 5_000 }).toBeGreaterThan(callsBeforeFast);
+    expect(synthesizeBodies.slice(callsBeforeFast).some((b) => !b.includes('ssmlRate'))).toBe(true);
+
     const callsAfterFront = synthesizeCalls;
     expect(synthesizeBodies.some((b) => b.includes('hablar'))).toBe(true);
 
@@ -126,7 +140,7 @@ test.describe('M18.3 TTS play button', () => {
     await page.getByRole('button', { name: 'Tap to reveal the answer' }).click();
     await expect(page.getByRole('button', { name: 'Card revealed' })).toBeVisible({ timeout: 5_000 });
 
-    // Back play button appears (front buttons now: 2 on front + 1 on back = 3 "Play pronunciation").
+    // Back play button appears (1 on front + 1 on back = 2 "Play pronunciation").
     const backPlay = page
       .locator('.tmn-deck-card__back-audio')
       .getByRole('button', { name: 'Play pronunciation', exact: true });

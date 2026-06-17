@@ -400,6 +400,45 @@
   color: var(--text-subtle);
 }
 
+/* Compact segmented speed toggle — sits beside the front speaker */
+.tmn-deck-speed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.tmn-deck-speed-toggle__option {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-deck-speed-toggle__option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tmn-deck-speed-toggle__option--active {
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-xs);
+}
+
 /* TTS audio control above the card back text */
 .tmn-deck-card__back-audio {
   display: flex;
