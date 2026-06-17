@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.72.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.71.0...transformmynotes-v1.72.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **study:** M17.3 — note-set picker UI + cost controls for multi-note generation ([#600](https://github.com/jasonp2323/transformmynotes/issues/600)) ([b6f308b](https://github.com/jasonp2323/transformmynotes/commit/b6f308bf7a924e81bdf0a0541c0b27870ed722a6))
+
 ## [1.71.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.70.0...transformmynotes-v1.71.0) (2026-06-17)
 
 
