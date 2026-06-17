@@ -9,6 +9,7 @@ import type {
   FlashcardsPayload,
   StudyBodyResponse,
 } from '@/src/lib/study-ui';
+import { formatProvenance } from '@/src/lib/study-ui';
 import {
   editCardField,
   discardCard,
@@ -22,8 +23,8 @@ import {
 type Phase =
   | { phase: 'generating' }
   | { phase: 'error'; message: string }
-  | { phase: 'ready'; studySetId: string; cards: EditableCard[] }
-  | { phase: 'accepting'; studySetId: string; cards: EditableCard[] }
+  | { phase: 'ready'; studySetId: string; cards: EditableCard[]; noteTitles: Record<string, string>; totalSourceCount: number }
+  | { phase: 'accepting'; studySetId: string; cards: EditableCard[]; noteTitles: Record<string, string>; totalSourceCount: number }
   | { phase: 'done' };
 
 const POLL_INTERVAL_MS = 2000;
@@ -112,9 +113,12 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
               id: String(i),
               front: c.front,
               back: c.back,
+              sourceNoteIds: c.sourceNoteIds,
             }));
+            const noteTitles = meta.noteTitles ?? {};
+            const totalSourceCount = meta.sourceNoteIds.length;
 
-            setPhase({ phase: 'ready', studySetId, cards });
+            setPhase({ phase: 'ready', studySetId, cards, noteTitles, totalSourceCount });
             return;
           }
 
@@ -175,9 +179,9 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
 
   const handleAccept = useCallback(async () => {
     if (phase.phase !== 'ready') return;
-    const { studySetId, cards } = phase;
+    const { studySetId, cards, noteTitles, totalSourceCount } = phase;
 
-    setPhase({ phase: 'accepting', studySetId, cards });
+    setPhase({ phase: 'accepting', studySetId, cards, noteTitles, totalSourceCount });
 
     try {
       const res = await fetch(`/api/study/${studySetId}/accept-cards`, {
@@ -200,7 +204,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
     } catch {
       if (!mountedRef.current) return;
       setToast({ tone: 'danger', title: "Couldn't save cards — try again" });
-      setPhase({ phase: 'ready', studySetId, cards });
+      setPhase({ phase: 'ready', studySetId, cards, noteTitles, totalSourceCount });
     }
   }, [phase, noteId, router]);
 
@@ -233,6 +237,10 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
 
   const currentCards =
     phase.phase === 'ready' || phase.phase === 'accepting' ? phase.cards : [];
+
+  const provenanceMeta = (phase.phase === 'ready' || phase.phase === 'accepting')
+    ? { noteTitles: phase.noteTitles, totalSourceCount: phase.totalSourceCount }
+    : { noteTitles: {}, totalSourceCount: 0 };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -336,6 +344,14 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
                           {card.back}
                         </p>
                       )}
+
+                      {/* Provenance label */}
+                      {(() => {
+                        const label = formatProvenance(card.sourceNoteIds, provenanceMeta.noteTitles, provenanceMeta.totalSourceCount);
+                        return label ? (
+                          <p className="mt-1.5 text-xs font-mono text-text-muted">{label}</p>
+                        ) : null;
+                      })()}
                     </div>
 
                     {/* Discard button */}

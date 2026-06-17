@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getStudySet, deleteStudySet, type StudySetItem } from '@transformmynotes/core';
+import { getStudySet, deleteStudySet, batchGetNotes, type StudySetItem } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
 export const runtime = 'nodejs';
@@ -53,7 +53,14 @@ export async function GET(
     if (!item) {
       return NextResponse.json({ ok: false, error: 'Not found.' }, { status: 404 });
     }
-    return NextResponse.json(toStudySetMeta(item));
+    let noteTitles: Record<string, string> = {};
+    if (item.sourceNoteIds.length > 0) {
+      const notes = await batchGetNotes(sub, item.sourceNoteIds);
+      for (const note of notes) {
+        noteTitles[note.noteId] = note.title;
+      }
+    }
+    return NextResponse.json({ ...toStudySetMeta(item), noteTitles });
   } catch (err) {
     console.error('[study/get]', err);
     return NextResponse.json({ ok: false, error: 'Could not fetch study set.' }, { status: 500 });

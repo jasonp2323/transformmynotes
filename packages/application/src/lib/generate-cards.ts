@@ -2,6 +2,7 @@ export interface EditableCard {
   id: string;
   front: string;
   back: string;
+  sourceNoteIds?: string[];
 }
 
 export function editCardField(

@@ -34,12 +34,14 @@ export interface StudySetMeta {
   completed?: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Map of noteId → title for all source notes; populated by `GET /api/study/[studySetId]`. */
+  noteTitles?: Record<string, string>;
 }
 
 // --- Generated-payload shapes (the viewer's rendering contract) -------------
 
 export interface FlashcardsPayload {
-  cards: Array<{ front: string; back: string }>;
+  cards: Array<{ front: string; back: string; sourceNoteIds?: string[] }>;
 }
 
 export interface QuizPayload {
@@ -48,6 +50,7 @@ export interface QuizPayload {
     choices: string[];
     answerIndex: number;
     explanation: string;
+    sourceNoteIds?: string[];
   }>;
 }
 
@@ -55,6 +58,7 @@ export interface AssignmentPayload {
   title: string;
   instructions: string;
   rubric: Array<{ criterion: string; points: number }>;
+  sourceNoteIds?: string[];
 }
 
 export interface SummaryPayload {
@@ -62,15 +66,17 @@ export interface SummaryPayload {
   tldr: string;
   keyPoints: string[];
   terms: Array<{ term: string; definition: string }>;
+  sourceNoteIds?: string[];
 }
 
 export interface GlossaryPayload {
   terms: Array<{ term: string; definition: string }>;
+  sourceNoteIds?: string[];
 }
 
 export interface StudyGuidePayload {
   title: string;
-  sections: Array<{ heading: string; keyPoints: string[]; body?: string }>;
+  sections: Array<{ heading: string; keyPoints: string[]; body?: string; sourceNoteIds?: string[] }>;
 }
 
 /** Body returned by `GET /api/study/[studySetId]/body`. */
@@ -155,3 +161,30 @@ export const STUDY_TYPE_ORDER: StudyMaterialType[] = [
   'glossary',
   'study_guide',
 ];
+
+/**
+ * Build the "From: …" provenance label for one artifact, or null when it should
+ * be hidden. Hidden when the whole run is single-source (totalSourceCount <= 1)
+ * or no titles resolve.
+ */
+export function formatProvenance(
+  artifactSourceNoteIds: string[] | undefined,
+  noteTitles: Record<string, string> | undefined,
+  totalSourceCount: number,
+  prefix = 'From',
+): string | null {
+  if (totalSourceCount <= 1) return null;
+  if (!artifactSourceNoteIds || artifactSourceNoteIds.length === 0) return null;
+  if (!noteTitles) return null;
+  const seen = new Set<string>();
+  const titles: string[] = [];
+  for (const id of artifactSourceNoteIds) {
+    const t = noteTitles[id];
+    if (t && !seen.has(t)) {
+      seen.add(t);
+      titles.push(t);
+    }
+  }
+  if (titles.length === 0) return null;
+  return `${prefix}: ${titles.join(', ')}`;
+}
