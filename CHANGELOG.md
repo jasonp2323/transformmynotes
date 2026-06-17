@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.69.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.68.0...transformmynotes-v1.69.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **core:** M18.1 — TTS foundations (Polly wrapper, retry, hash, audio cache model) ([#588](https://github.com/jasonp2323/transformmynotes/issues/588)) ([1d93993](https://github.com/jasonp2323/transformmynotes/commit/1d93993436bea5213bf38d8c49a5f6c564ba4e09))
+
 ## [1.68.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.67.1...transformmynotes-v1.68.0) (2026-06-17)
 
 
