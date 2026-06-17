@@ -216,11 +216,23 @@ export const storageKeys = {
  *
  * This and `storageKeys.audioMp3` are the ONLY places the `AUDIO#` prefix and
  * the `audio/users/` S3 path are ever constructed — never inline them elsewhere.
+ *
+ * `userAudioQuery` lists a user's audio pointer items (base-table query) so the
+ * synthesize route can sum today's synthesized character count for the per-user
+ * daily cap without inlining the `AUDIO#` prefix.
  */
 export const audioKeys = {
   pointer: (sub: string, hash: string) => ({
     pk: `USER#${sub}`,
     sk: `AUDIO#${hash}`,
+  }),
+  /**
+   * KeyCondition for listing a user's audio pointer items (daily-cap char sum).
+   * Base-table query: pk = USER#<sub> AND begins_with(sk, 'AUDIO#').
+   */
+  userAudioQuery: (sub: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :skPrefix)',
+    ExpressionAttributeValues: { ':pk': `USER#${sub}`, ':skPrefix': 'AUDIO#' },
   }),
 };
 
