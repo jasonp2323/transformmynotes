@@ -53,6 +53,11 @@ export const application = new sst.aws.Nextjs("Application", {
       : {}),
   },
   permissions: [
+    // NOTE (M18): no S3 block is added for the `audio/users/*` prefix. The
+    // `notesBucket` is already in the `link:` array, which grants the app full
+    // read/write to that bucket — including `audio/users/*`. A narrowly-scoped
+    // additive S3 block here would provide NO restriction (IAM is a union with
+    // the broad link grant) and would be misleading, so it is deliberately omitted.
     // Least privilege: scoped to this stage's user pool ARN only.
     {
       actions: [
@@ -83,6 +88,15 @@ export const application = new sst.aws.Nextjs("Application", {
         $interpolate`arn:aws:bedrock:us-east-2::foundation-model/${foundationModelId}`,
         $interpolate`arn:aws:bedrock:us-west-2::foundation-model/${foundationModelId}`,
       ],
+    },
+    {
+      // Polly TTS (M18). Polly's SynthesizeSpeech does NOT support per-voice or
+      // per-language ARN scoping — the minimal valid Resource is "*" (Polly's IAM
+      // model). We compensate with a polly:LanguageCode condition restricting to
+      // pt-BR. Documented in docs/milestones/M18.md "Risks → Polly IAM resource ARN".
+      actions: ["polly:SynthesizeSpeech"],
+      resources: ["*"],
+      conditions: { StringEquals: { "polly:LanguageCode": "pt-BR" } },
     },
   ],
   domain: isPR
