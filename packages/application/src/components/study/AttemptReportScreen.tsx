@@ -128,6 +128,13 @@ export function AttemptReportScreen({ studySetId, attemptId }: AttemptReportScre
         <div className="flex gap-3 pt-2 flex-wrap">
           <Button
             variant="secondary"
+            onClick={() => router.push(`/study/${studySetId}/take`)}
+            leftIcon={<Icon name="rotate-ccw" size={15} />}
+          >
+            Retake quiz
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => router.push(`/study/${studySetId}`)}
             leftIcon={<Icon name="chevron-left" size={15} />}
           >

@@ -77,9 +77,9 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
 
   // Source note id — fetched from study set meta, used for Retake / Back-to-note.
   const [noteId, setNoteId] = useState<string | null>(null);
-  // Retake state.
-  const [retaking, setRetaking] = useState(false);
-  const [retakeError, setRetakeError] = useState<string | null>(null);
+  // Regenerate state.
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
 
   // Timing — set when questions first render, used for durationMs.
   const startedAtRef = useRef<number | null>(null);
@@ -197,11 +197,24 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
     }
   }
 
-  // --- Retake handler -------------------------------------------------------
-  async function handleRetake() {
-    if (!noteId || retaking) return;
-    setRetaking(true);
-    setRetakeError(null);
+  // --- Retake handler (same quiz, no network call) --------------------------
+  function handleRetake() {
+    setReport(null);
+    setCurrent(0);
+    setAnswers({});
+    setSubmitted(false);
+    setSubmitting(false);
+    setSubmitError(null);
+    setConfirmOpen(false);
+    startedAtRef.current = Date.now();
+    setPhase('taking');
+  }
+
+  // --- Regenerate handler (AI generates a brand-new quiz) -------------------
+  async function handleRegenerate() {
+    if (!noteId || regenerating) return;
+    setRegenerating(true);
+    setRegenerateError(null);
     try {
       const res = await fetch('/api/study/generate', {
         method: 'POST',
@@ -214,9 +227,9 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
       const data = (await res.json()) as { studySetId: string };
       router.push(`/study/${data.studySetId}/take`);
     } catch {
-      setRetakeError('Could not start a new quiz. Please try again.');
+      setRegenerateError('Could not start a new quiz. Please try again.');
     } finally {
-      setRetaking(false);
+      setRegenerating(false);
     }
   }
 
@@ -275,16 +288,23 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
             />
 
             <div className="flex gap-3 pt-2 flex-wrap">
+              <Button
+                variant="secondary"
+                onClick={handleRetake}
+                leftIcon={<Icon name="rotate-ccw" size={15} />}
+              >
+                Retake quiz
+              </Button>
               {noteId ? (
                 <>
                   <Button
                     variant="secondary"
-                    onClick={() => void handleRetake()}
-                    loading={retaking}
-                    disabled={retaking}
-                    leftIcon={<Icon name="rotate-ccw" size={15} />}
+                    onClick={() => void handleRegenerate()}
+                    loading={regenerating}
+                    disabled={regenerating}
+                    leftIcon={<Icon name="sparkles" size={15} />}
                   >
-                    Retake
+                    Regenerate quiz
                   </Button>
                   <Button
                     variant="secondary"
@@ -307,9 +327,9 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
           </div>
         </AppShell>
 
-        {retakeError && (
-          <Toast tone="danger" title="Error" onClose={() => setRetakeError(null)}>
-            {retakeError}
+        {regenerateError && (
+          <Toast tone="danger" title="Error" onClose={() => setRegenerateError(null)}>
+            {regenerateError}
           </Toast>
         )}
       </>
