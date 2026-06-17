@@ -12,7 +12,7 @@ import type {
   GlossaryPayload,
   StudyGuidePayload,
 } from '@/src/lib/study-ui';
-import { STUDY_TYPE_META } from '@/src/lib/study-ui';
+import { STUDY_TYPE_META, formatProvenance } from '@/src/lib/study-ui';
 import { AppShell } from '@/src/components/shells';
 import { Button } from '@/src/components/ui/Button';
 import { Dialog } from '@/src/components/ui/Dialog';
@@ -34,20 +34,40 @@ interface AttemptSummary {
 
 // --- Payload renderers -------------------------------------------------------
 
-function FlashcardsView({ payload }: { payload: FlashcardsPayload }) {
+function FlashcardsView({
+  payload,
+  noteTitles,
+  totalSourceCount,
+}: {
+  payload: FlashcardsPayload;
+  noteTitles: Record<string, string>;
+  totalSourceCount: number;
+}) {
   return (
     <ol className="space-y-3 list-none">
       {payload.cards.map((card, i) => (
         <li key={i} className="rounded-lg border border-border-default bg-surface-card p-4">
           <p className="font-semibold text-sm">{i + 1}. {card.front}</p>
           <p className="mt-2 text-sm text-text-muted">{card.back}</p>
+          {(() => {
+            const label = formatProvenance(card.sourceNoteIds, noteTitles, totalSourceCount);
+            return label ? <p className="mt-1.5 text-xs font-mono text-text-muted">{label}</p> : null;
+          })()}
         </li>
       ))}
     </ol>
   );
 }
 
-function QuizView({ payload }: { payload: QuizPayload }) {
+function QuizView({
+  payload,
+  noteTitles,
+  totalSourceCount,
+}: {
+  payload: QuizPayload;
+  noteTitles: Record<string, string>;
+  totalSourceCount: number;
+}) {
   const [revealed, setRevealed] = useState<boolean[]>(
     () => payload.questions.map(() => false)
   );
@@ -86,16 +106,32 @@ function QuizView({ payload }: { payload: QuizPayload }) {
           >
             {revealed[i] ? 'Hide answer' : 'Reveal answer'}
           </button>
+          {(() => {
+            const label = formatProvenance(q.sourceNoteIds, noteTitles, totalSourceCount);
+            return label ? <p className="mt-2 text-xs font-mono text-text-muted">{label}</p> : null;
+          })()}
         </li>
       ))}
     </ol>
   );
 }
 
-function AssignmentView({ payload }: { payload: AssignmentPayload }) {
+function AssignmentView({
+  payload,
+  noteTitles,
+  totalSourceCount,
+}: {
+  payload: AssignmentPayload;
+  noteTitles: Record<string, string>;
+  totalSourceCount: number;
+}) {
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold">{payload.title}</h2>
+      {(() => {
+        const label = formatProvenance(payload.sourceNoteIds, noteTitles, totalSourceCount, 'Sources');
+        return label ? <p className="text-xs font-mono text-text-muted">{label}</p> : null;
+      })()}
       <p className="text-sm text-text-muted whitespace-pre-wrap">{payload.instructions}</p>
       {payload.rubric.length > 0 && (
         <div>
@@ -124,10 +160,22 @@ function AssignmentView({ payload }: { payload: AssignmentPayload }) {
   );
 }
 
-function SummaryView({ payload }: { payload: SummaryPayload }) {
+function SummaryView({
+  payload,
+  noteTitles,
+  totalSourceCount,
+}: {
+  payload: SummaryPayload;
+  noteTitles: Record<string, string>;
+  totalSourceCount: number;
+}) {
   return (
     <div className="space-y-4">
       {payload.title && <h2 className="text-base font-semibold">{payload.title}</h2>}
+      {(() => {
+        const label = formatProvenance(payload.sourceNoteIds, noteTitles, totalSourceCount, 'Sources');
+        return label ? <p className="text-xs font-mono text-text-muted">{label}</p> : null;
+      })()}
       <div className="rounded-lg border border-border-default bg-surface-card p-4">
         <p className="text-xs uppercase tracking-wide font-medium text-text-muted mb-1">TL;DR</p>
         <p className="text-sm">{payload.tldr}</p>
@@ -172,26 +220,52 @@ function SummaryView({ payload }: { payload: SummaryPayload }) {
   );
 }
 
-function GlossaryView({ payload }: { payload: GlossaryPayload }) {
+function GlossaryView({
+  payload,
+  noteTitles,
+  totalSourceCount,
+}: {
+  payload: GlossaryPayload;
+  noteTitles: Record<string, string>;
+  totalSourceCount: number;
+}) {
   return (
-    <dl className="glossary-list">
-      {payload.terms.map((entry, i) => (
-        <div key={i} className="glossary-entry">
-          <dt className="glossary-term">{entry.term}</dt>
-          <dd className="glossary-def">{entry.definition}</dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      {(() => {
+        const label = formatProvenance(payload.sourceNoteIds, noteTitles, totalSourceCount, 'Sources');
+        return label ? <p className="mb-2 text-xs font-mono text-text-muted">{label}</p> : null;
+      })()}
+      <dl className="glossary-list">
+        {payload.terms.map((entry, i) => (
+          <div key={i} className="glossary-entry">
+            <dt className="glossary-term">{entry.term}</dt>
+            <dd className="glossary-def">{entry.definition}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
   );
 }
 
-function StudyGuideView({ payload }: { payload: StudyGuidePayload }) {
+function StudyGuideView({
+  payload,
+  noteTitles,
+  totalSourceCount,
+}: {
+  payload: StudyGuidePayload;
+  noteTitles: Record<string, string>;
+  totalSourceCount: number;
+}) {
   return (
     <div className="space-y-4">
       {payload.title && <h2 className="text-base font-semibold">{payload.title}</h2>}
       {payload.sections.map((section, i) => (
         <div key={i} className="rounded-lg border border-border-default bg-surface-card p-4">
           <h3 className="text-sm font-medium mb-2">{section.heading}</h3>
+          {(() => {
+            const label = formatProvenance(section.sourceNoteIds, noteTitles, totalSourceCount, 'Sources');
+            return label ? <p className="mb-2 text-xs font-mono text-text-muted">{label}</p> : null;
+          })()}
           {section.keyPoints.length > 0 && (
             <ul className="space-y-1.5 mb-2">
               {section.keyPoints.map((point, pi) => (
@@ -402,24 +476,32 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
 
               {!loadingBody && body && (
                 <>
-                  {body.type === 'flashcards' && (
-                    <FlashcardsView payload={body.payload as FlashcardsPayload} />
-                  )}
-                  {body.type === 'quiz' && (
-                    <QuizView payload={body.payload as QuizPayload} />
-                  )}
-                  {body.type === 'assignment' && (
-                    <AssignmentView payload={body.payload as AssignmentPayload} />
-                  )}
-                  {body.type === 'summary' && (
-                    <SummaryView payload={body.payload as SummaryPayload} />
-                  )}
-                  {body.type === 'glossary' && (
-                    <GlossaryView payload={body.payload as GlossaryPayload} />
-                  )}
-                  {body.type === 'study_guide' && (
-                    <StudyGuideView payload={body.payload as StudyGuidePayload} />
-                  )}
+                  {(() => {
+                    const noteTitles = meta.noteTitles ?? {};
+                    const totalSourceCount = meta.sourceNoteIds.length;
+                    return (
+                      <>
+                        {body.type === 'flashcards' && (
+                          <FlashcardsView payload={body.payload as FlashcardsPayload} noteTitles={noteTitles} totalSourceCount={totalSourceCount} />
+                        )}
+                        {body.type === 'quiz' && (
+                          <QuizView payload={body.payload as QuizPayload} noteTitles={noteTitles} totalSourceCount={totalSourceCount} />
+                        )}
+                        {body.type === 'assignment' && (
+                          <AssignmentView payload={body.payload as AssignmentPayload} noteTitles={noteTitles} totalSourceCount={totalSourceCount} />
+                        )}
+                        {body.type === 'summary' && (
+                          <SummaryView payload={body.payload as SummaryPayload} noteTitles={noteTitles} totalSourceCount={totalSourceCount} />
+                        )}
+                        {body.type === 'glossary' && (
+                          <GlossaryView payload={body.payload as GlossaryPayload} noteTitles={noteTitles} totalSourceCount={totalSourceCount} />
+                        )}
+                        {body.type === 'study_guide' && (
+                          <StudyGuideView payload={body.payload as StudyGuidePayload} noteTitles={noteTitles} totalSourceCount={totalSourceCount} />
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
 

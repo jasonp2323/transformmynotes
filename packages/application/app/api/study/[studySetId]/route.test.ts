@@ -7,6 +7,7 @@ vi.hoisted(() => {
 const getAuthenticatedSubMock = vi.hoisted(() => vi.fn());
 const getStudySetMock = vi.hoisted(() => vi.fn());
 const deleteStudySetMock = vi.hoisted(() => vi.fn());
+const batchGetNotesMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -15,6 +16,7 @@ vi.mock('@/lib/require-api-user', () => ({
 vi.mock('@transformmynotes/core', () => ({
   getStudySet: getStudySetMock,
   deleteStudySet: deleteStudySetMock,
+  batchGetNotes: batchGetNotesMock,
 }));
 
 const s3SendMock = vi.hoisted(() => vi.fn());
@@ -54,6 +56,7 @@ beforeEach(() => {
   getStudySetMock.mockResolvedValue(FAKE_ITEM);
   deleteStudySetMock.mockResolvedValue(undefined);
   s3SendMock.mockResolvedValue({});
+  batchGetNotesMock.mockResolvedValue([{ noteId: 'note-001', title: 'Note One' }]);
 });
 
 describe('GET /api/study/[studySetId]', () => {
@@ -81,6 +84,24 @@ describe('GET /api/study/[studySetId]', () => {
     expect('pk' in body).toBe(false);
     expect('sk' in body).toBe(false);
     expect('bodyS3Key' in body).toBe(false);
+    expect(body.noteTitles).toEqual({ 'note-001': 'Note One' });
+  });
+
+  it('returns noteTitles as {} when sourceNoteIds is empty', async () => {
+    getStudySetMock.mockResolvedValueOnce({ ...FAKE_ITEM, sourceNoteIds: [] });
+    const res = await GET(REQ, PARAMS);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.noteTitles).toEqual({});
+    expect(batchGetNotesMock).not.toHaveBeenCalled();
+  });
+
+  it('returns noteTitles as {} when batchGetNotes returns no matching notes', async () => {
+    batchGetNotesMock.mockResolvedValueOnce([]);
+    const res = await GET(REQ, PARAMS);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.noteTitles).toEqual({});
   });
 });
 

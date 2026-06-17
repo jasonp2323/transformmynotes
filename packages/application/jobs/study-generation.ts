@@ -24,6 +24,7 @@ import {
   resolveContextLimit,
   chunkNotes,
   deduplicateCandidates,
+  applyProvenance,
   type StudySetItem,
   type StudyMaterialType,
   type StudyLanguage,
@@ -219,7 +220,8 @@ export async function processStudyGeneration(
         noteTitle: studySet.title,
         language: studySet.language,
       });
-      await putBody(sub, studySetId, JSON.stringify(result.payload));
+      const withProvenance = applyProvenance(studySet.type, result.payload, studySet.sourceNoteIds);
+      await putBody(sub, studySetId, JSON.stringify(withProvenance));
       await markReady({
         sub,
         studySetId,
@@ -271,7 +273,8 @@ export async function processStudyGeneration(
       candidates: deduped,
     });
 
-    await putBody(sub, studySetId, JSON.stringify(reduced.payload));
+    const reducedWithProvenance = applyProvenance(studySet.type, reduced.payload, studySet.sourceNoteIds);
+    await putBody(sub, studySetId, JSON.stringify(reducedWithProvenance));
     await markReady({
       sub,
       studySetId,

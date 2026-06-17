@@ -18,6 +18,7 @@ export interface MCQQuestion {
   options: string[]; // 2–5 choices
   correctIndex: number; // ANSWER KEY — server-side only
   explanation: string; // ANSWER KEY — revealed only post-submission
+  sourceNoteIds?: string[]; // M17.2.1 provenance (NOT an answer key)
 }
 
 export interface ShortAnswerQuestion {
@@ -27,6 +28,7 @@ export interface ShortAnswerQuestion {
   modelAnswer: string; // ANSWER KEY
   acceptableAnswers: string[]; // ANSWER KEY
   explanation: string; // ANSWER KEY (revealed post-submission)
+  sourceNoteIds?: string[]; // M17.2.1 provenance (NOT an answer key)
 }
 
 export type QuizQuestion = MCQQuestion | ShortAnswerQuestion;
@@ -37,8 +39,19 @@ export interface GeneratedQuiz {
 
 // ── Client-safe types (answer keys stripped) ──────────────────────────────────
 
-export type ClientMCQ = { type: 'mcq'; id: string; stem: string; options: string[] };
-export type ClientShortAnswer = { type: 'short-answer'; id: string; prompt: string };
+export type ClientMCQ = {
+  type: 'mcq';
+  id: string;
+  stem: string;
+  options: string[];
+  sourceNoteIds?: string[]; // M17.2.1 provenance
+};
+export type ClientShortAnswer = {
+  type: 'short-answer';
+  id: string;
+  prompt: string;
+  sourceNoteIds?: string[]; // M17.2.1 provenance
+};
 export type ClientQuestion = ClientMCQ | ClientShortAnswer;
 
 // ── Bedrock tool schema ───────────────────────────────────────────────────────
@@ -56,6 +69,7 @@ const mcqShape = {
     },
     correctIndex: { type: 'integer', minimum: 0 },
     explanation: { type: 'string', maxLength: 600 },
+    sourceNoteIds: { type: 'array', items: { type: 'string' } },
   },
   required: ['type', 'stem', 'options', 'correctIndex', 'explanation'],
 };
@@ -72,6 +86,7 @@ const shortAnswerShape = {
       maxItems: 10,
     },
     explanation: { type: 'string', maxLength: 600 },
+    sourceNoteIds: { type: 'array', items: { type: 'string' } },
   },
   required: ['type', 'prompt', 'modelAnswer', 'acceptableAnswers', 'explanation'],
 };
@@ -147,8 +162,19 @@ export function assignQuestionIds(raw: unknown): GeneratedQuiz {
 export function toClientQuestions(quiz: GeneratedQuiz): ClientQuestion[] {
   return quiz.questions.map((q): ClientQuestion => {
     if (q.type === 'mcq') {
-      return { type: 'mcq', id: q.id, stem: q.stem, options: q.options };
+      return {
+        type: 'mcq',
+        id: q.id,
+        stem: q.stem,
+        options: q.options,
+        ...(q.sourceNoteIds !== undefined && { sourceNoteIds: q.sourceNoteIds }),
+      };
     }
-    return { type: 'short-answer', id: q.id, prompt: q.prompt };
+    return {
+      type: 'short-answer',
+      id: q.id,
+      prompt: q.prompt,
+      ...(q.sourceNoteIds !== undefined && { sourceNoteIds: q.sourceNoteIds }),
+    };
   });
 }
