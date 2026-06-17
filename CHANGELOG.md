@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.64.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.63.0...transformmynotes-v1.64.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **study:** M14.2 review-before-accept flashcards + persist AI cards ([#547](https://github.com/jasonp2323/transformmynotes/issues/547)) ([da7e039](https://github.com/jasonp2323/transformmynotes/commit/da7e0391437808e387505bebdfc9eca568b99677))
+
+
+### 📝 Documentation
+
+* add M26 · Multi-page note capture milestone spec ([e10dcda](https://github.com/jasonp2323/transformmynotes/commit/e10dcda9e2c0b433f1615f971eef33c19eff32b7))
+
 ## [1.63.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.62.0...transformmynotes-v1.63.0) (2026-06-16)
 
 
