@@ -41,3 +41,4 @@ export * from './study/grading';
 export * from './study/tokenBudget';
 export * from './study/chunk';
 export * from './study/dedup';
+export * from './study/provenance';

@@ -72,7 +72,7 @@ export const MAP_PHASE_INSTRUCTION =
  * final high-quality set, deduplicating and merging as needed.
  */
 export const REDUCE_PHASE_INSTRUCTION =
-  'You are in the REDUCE phase. You are given draft candidate items extracted from multiple study notes. Synthesise them into a final, high-quality set. Remove duplicates (the same concept expressed differently is a duplicate). Merge complementary candidates. Return ONLY the final set via the tool call.';
+  'You are in the REDUCE phase. You are given draft candidate items extracted from multiple study notes. Synthesise them into a final, high-quality set. Remove duplicates (the same concept expressed differently is a duplicate). Merge complementary candidates. Return ONLY the final set via the tool call. Each draft candidate includes a `sourceNoteIds` array identifying which note(s) it came from; for every item you return, set its `sourceNoteIds` to the union of the source note ids of the candidates you merged into it.';
 
 // ── MAP phase tool schema ────────────────────────────────────────────────────
 
@@ -129,6 +129,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
             front: { type: 'string', maxLength: 300 },
             back: { type: 'string', maxLength: 600 },
             sourceSpan: { type: 'string', maxLength: 300 },
+            sourceNoteIds: { type: 'array', items: { type: 'string' } },
           },
           required: ['front', 'back'],
         },
@@ -153,6 +154,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
           required: ['criterion', 'points'],
         },
       },
+      sourceNoteIds: { type: 'array', items: { type: 'string' } },
     },
     required: ['title', 'instructions', 'rubric'],
   },
@@ -176,6 +178,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
           required: ['term', 'definition'],
         },
       },
+      sourceNoteIds: { type: 'array', items: { type: 'string' } },
     },
     required: ['title', 'tldr', 'keyPoints', 'terms'],
   },
@@ -194,6 +197,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
         },
         minItems: 1,
       },
+      sourceNoteIds: { type: 'array', items: { type: 'string' } },
     },
     required: ['terms'],
   },
@@ -209,6 +213,7 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
             heading: { type: 'string' },
             keyPoints: { type: 'array', items: { type: 'string' } },
             body: { type: 'string' },
+            sourceNoteIds: { type: 'array', items: { type: 'string' } },
           },
           required: ['heading', 'keyPoints'],
         },

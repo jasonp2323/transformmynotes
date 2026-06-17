@@ -62,6 +62,76 @@ describe('processStudyGeneration — happy path + idempotency', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// M17.2.1 — provenance: every persisted card must carry sourceNoteIds
+// ---------------------------------------------------------------------------
+
+describe('processStudyGeneration — provenance (M17.2.1)', () => {
+  it('shims sourceNoteIds onto every card in the persisted payload (single-pass, two source notes)', async () => {
+    const sub = `sub-prov-${Math.random().toString(36).slice(2)}`;
+    const studySetId = `set-prov-${Math.random().toString(36).slice(2)}`;
+    const sourceNoteIds = ['note-src-1', 'note-src-2'];
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds,
+        type: 'flashcards',
+        title: 'Provenance Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    // Three cards: first has a valid sourceNoteIds subset, second has a bogus id,
+    // third omits the field entirely — the shim must normalise all three.
+    const mockPayload = {
+      cards: [
+        { front: 'Q1', back: 'A1', sourceNoteIds: ['note-src-1'] },
+        { front: 'Q2', back: 'A2', sourceNoteIds: ['bogus-id'] },
+        { front: 'Q3', back: 'A3' /* no sourceNoteIds */ },
+      ],
+    };
+
+    let capturedJson = '';
+    const putBodySpy = vi.fn(async (_sub: string, _id: string, json: string) => {
+      capturedJson = json;
+    });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
+      generate: vi.fn().mockResolvedValue({ payload: mockPayload, promptVersion: 'test1234' }),
+      putBody: putBodySpy,
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(putBodySpy).toHaveBeenCalledTimes(1);
+
+    const persisted = JSON.parse(capturedJson) as {
+      cards: Array<{ front: string; back: string; sourceNoteIds?: string[] }>;
+    };
+
+    // Every card must have a non-empty sourceNoteIds drawn only from the allowed set.
+    for (const card of persisted.cards) {
+      expect(Array.isArray(card.sourceNoteIds)).toBe(true);
+      expect(card.sourceNoteIds!.length).toBeGreaterThanOrEqual(1);
+      for (const id of card.sourceNoteIds!) {
+        expect(sourceNoteIds).toContain(id);
+      }
+    }
+
+    // Card 0: valid subset → unchanged.
+    expect(persisted.cards[0]!.sourceNoteIds).toEqual(['note-src-1']);
+    // Card 1: bogus id → falls back to full allowed set.
+    expect(persisted.cards[1]!.sourceNoteIds).toEqual(sourceNoteIds);
+    // Card 2: missing → falls back to full allowed set.
+    expect(persisted.cards[2]!.sourceNoteIds).toEqual(sourceNoteIds);
+  });
+});
+
 describe('processStudyGeneration — failure', () => {
   it('marks the study set failed with a sanitised error', async () => {
     const sub = `sub-study-job-fail-${rand()}`;
