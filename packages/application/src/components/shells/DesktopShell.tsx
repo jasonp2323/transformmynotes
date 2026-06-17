@@ -140,11 +140,21 @@ export function DesktopShell({
 
         {/* footer */}
         <div className="tmn-sidebar__footer">
-          <Avatar name={userName} size="sm" />
-          <div className="tmn-sidebar__footer-info">
-            <div className="tmn-sidebar__footer-name">{userName}</div>
-            <div className="tmn-sidebar__footer-role">{roleLabel}</div>
-          </div>
+          <a
+            href="/account"
+            className={cn(
+              'tmn-sidebar__footer-link',
+              active === 'profile' && 'tmn-sidebar__footer-link--active',
+            )}
+            aria-label="Account settings"
+            aria-current={active === 'profile' ? 'page' : undefined}
+          >
+            <Avatar name={userName} size="sm" />
+            <div className="tmn-sidebar__footer-info">
+              <div className="tmn-sidebar__footer-name">{userName}</div>
+              <div className="tmn-sidebar__footer-role">{roleLabel}</div>
+            </div>
+          </a>
           <LogoutButton />
         </div>
       </aside>
