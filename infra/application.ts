@@ -96,7 +96,12 @@ export const application = new sst.aws.Nextjs("Application", {
       // pt-BR. Documented in docs/milestones/M18.md "Risks → Polly IAM resource ARN".
       actions: ["polly:SynthesizeSpeech"],
       resources: ["*"],
-      conditions: { StringEquals: { "polly:LanguageCode": "pt-BR" } },
+      // SST permission conditions map to a Pulumi getPolicyDocument statement
+      // condition — an array of { test, variable, values }, NOT the IAM-JSON
+      // { StringEquals: { ... } } shorthand (which Pulumi rejects at deploy).
+      conditions: [
+        { test: "StringEquals", variable: "polly:LanguageCode", values: ["pt-BR"] },
+      ],
     },
   ],
   domain: isPR
