@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.67.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.66.0...transformmynotes-v1.67.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **admin:** M19.2 — AI Settings admin page, generation wiring & version history ([#559](https://github.com/jasonp2323/transformmynotes/issues/559)) ([98fbc3e](https://github.com/jasonp2323/transformmynotes/commit/98fbc3eb435b1ae5cc7923583ab9514cb2c3c861))
+
 ## [1.66.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.65.0...transformmynotes-v1.66.0) (2026-06-17)
 
 
