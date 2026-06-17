@@ -21,6 +21,9 @@ import {
   isAnswered,
   allAnswered,
   scorePercent,
+  letterBand,
+  formatDuration,
+  formatAttemptDate,
 } from '../quiz-taking-logic';
 
 const questions: ClientQuestion[] = [
@@ -85,5 +88,71 @@ describe('scorePercent', () => {
     expect(scorePercent(0)).toBe(0);
     expect(scorePercent(0.6666)).toBe(67);
     expect(scorePercent(0.5)).toBe(50);
+  });
+});
+
+describe('letterBand', () => {
+  it('returns A/success for 90 and above', () => {
+    expect(letterBand(90)).toEqual({ letter: 'A', tone: 'success' });
+    expect(letterBand(100)).toEqual({ letter: 'A', tone: 'success' });
+    expect(letterBand(95)).toEqual({ letter: 'A', tone: 'success' });
+  });
+
+  it('returns B/warning for 75–89', () => {
+    expect(letterBand(89)).toEqual({ letter: 'B', tone: 'warning' });
+    expect(letterBand(75)).toEqual({ letter: 'B', tone: 'warning' });
+    expect(letterBand(80)).toEqual({ letter: 'B', tone: 'warning' });
+  });
+
+  it('returns C/warning for 60–74', () => {
+    expect(letterBand(60)).toEqual({ letter: 'C', tone: 'warning' });
+    expect(letterBand(74)).toEqual({ letter: 'C', tone: 'warning' });
+  });
+
+  it('returns D/danger for 45–59', () => {
+    expect(letterBand(45)).toEqual({ letter: 'D', tone: 'danger' });
+    expect(letterBand(59)).toEqual({ letter: 'D', tone: 'danger' });
+  });
+
+  it('returns F/danger below 45', () => {
+    expect(letterBand(44)).toEqual({ letter: 'F', tone: 'danger' });
+    expect(letterBand(0)).toEqual({ letter: 'F', tone: 'danger' });
+  });
+});
+
+describe('formatDuration', () => {
+  it('returns null for 0', () => {
+    expect(formatDuration(0)).toBeNull();
+  });
+
+  it('returns null for undefined', () => {
+    expect(formatDuration(undefined)).toBeNull();
+  });
+
+  it('formats seconds-only when under one minute', () => {
+    expect(formatDuration(5000)).toBe('5s');
+    expect(formatDuration(30000)).toBe('30s');
+  });
+
+  it('formats minutes and seconds', () => {
+    expect(formatDuration(90000)).toBe('1m 30s');
+    expect(formatDuration(125000)).toBe('2m 5s');
+  });
+
+  it('formats whole minutes with no seconds component', () => {
+    expect(formatDuration(60000)).toBe('1m');
+    expect(formatDuration(120000)).toBe('2m');
+  });
+});
+
+describe('formatAttemptDate', () => {
+  it('returns a non-empty string for a valid ISO date', () => {
+    const result = formatAttemptDate('2026-06-17T15:45:00.000Z');
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the raw string for an invalid date', () => {
+    expect(formatAttemptDate('not-a-date')).toBe('not-a-date');
   });
 });

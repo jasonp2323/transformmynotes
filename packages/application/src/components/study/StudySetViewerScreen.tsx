@@ -20,6 +20,17 @@ import { Icon } from '@/src/components/ui/Icon';
 import { Toast } from '@/src/components/ui/Toast';
 import { IconButton } from '@/src/components/ui/IconButton';
 import { Checkbox } from '@/src/components/ui/Checkbox';
+import { scorePercent, formatDuration, formatAttemptDate } from './quiz-taking-logic';
+
+// --- Attempt history types ---------------------------------------------------
+
+interface AttemptSummary {
+  attemptId: string;
+  score: number;
+  gradedAt: string;
+  questionCount: number;
+  durationMs?: number;
+}
 
 // --- Payload renderers -------------------------------------------------------
 
@@ -228,6 +239,10 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
   const [completed, setCompleted] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
 
+  // Attempt history (quiz only)
+  const [attempts, setAttempts] = useState<AttemptSummary[]>([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
+
   // Fetch metadata
   useEffect(() => {
     fetch(`/api/study/${studySetId}`)
@@ -251,6 +266,20 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
       })
       .catch(() => undefined)
       .finally(() => setLoadingBody(false));
+  }, [meta, studySetId]);
+
+  // Fetch attempt history when meta is available and type is quiz
+  useEffect(() => {
+    if (!meta || meta.type !== 'quiz' || meta.status !== 'ready') return;
+    setLoadingAttempts(true);
+    fetch(`/api/study/${studySetId}/attempts`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { attempts: AttemptSummary[] };
+        setAttempts(data.attempts ?? []);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoadingAttempts(false));
   }, [meta, studySetId]);
 
   // Sync assignment completion state from loaded meta
@@ -401,6 +430,57 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
                     onChange={(e) => void handleComplete(e.target.checked)}
                     label="Mark complete"
                   />
+                </div>
+              )}
+
+              {/* Attempt history — quiz only */}
+              {meta.type === 'quiz' && (
+                <div className="rounded-lg border border-border-default bg-surface-card p-4 print-hidden">
+                  <h2 className="text-sm font-semibold mb-3">Attempt history</h2>
+                  {loadingAttempts && (
+                    <div className="flex justify-center py-4">
+                      <Icon name="loader-circle" size={22} className="animate-spin text-text-muted" />
+                    </div>
+                  )}
+                  {!loadingAttempts && attempts.length === 0 && (
+                    <p className="text-sm text-text-muted">
+                      No attempts yet — take the quiz to see your results here.
+                    </p>
+                  )}
+                  {!loadingAttempts && attempts.length > 0 && (
+                    <ul className="space-y-2 list-none">
+                      {attempts.slice(0, 10).map((attempt) => {
+                        const duration = formatDuration(attempt.durationMs);
+                        return (
+                          <li
+                            key={attempt.attemptId}
+                            className="flex items-center justify-between gap-3 rounded border border-border-default bg-surface-sunken px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium tabular-nums">
+                                {scorePercent(attempt.score)}%
+                              </p>
+                              <p className="text-xs text-text-muted truncate">
+                                {formatAttemptDate(attempt.gradedAt)}
+                                {duration ? ` · ${duration}` : ''}
+                              </p>
+                            </div>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() =>
+                                router.push(
+                                  `/study/${studySetId}/attempt/${attempt.attemptId}`,
+                                )
+                              }
+                            >
+                              View results
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
               )}
 

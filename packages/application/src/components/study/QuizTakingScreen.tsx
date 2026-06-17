@@ -13,8 +13,9 @@ import {
   buildAttemptBody,
   isAnswered,
   allAnswered as allAnsweredFn,
-  scorePercent,
 } from './quiz-taking-logic';
+import { QuizScoreReport } from './QuizScoreReport';
+import type { ScoreReportQuestion } from './QuizScoreReport';
 
 // --- API contract (M15.2.1) --------------------------------------------------
 
@@ -44,6 +45,10 @@ interface QuestionsResponse {
   questions: ClientQuestion[];
 }
 
+interface StudySetMetaResponse {
+  sourceNoteIds?: string[];
+}
+
 type Phase = 'loading' | 'error' | 'taking' | 'report';
 
 const POLL_INTERVAL_MS = 2000;
@@ -69,6 +74,12 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [report, setReport] = useState<AttemptResponse | null>(null);
+
+  // Source note id — fetched from study set meta, used for Retake / Back-to-note.
+  const [noteId, setNoteId] = useState<string | null>(null);
+  // Regenerate state.
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
 
   // Timing — set when questions first render, used for durationMs.
   const startedAtRef = useRef<number | null>(null);
@@ -128,6 +139,18 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
     };
   }, [studySetId]);
 
+  // --- Fetch study set meta to resolve the source note id -----------------
+  useEffect(() => {
+    fetch(`/api/study/${studySetId}`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as StudySetMetaResponse;
+        const firstNoteId = data.sourceNoteIds?.[0];
+        if (firstNoteId) setNoteId(firstNoteId);
+      })
+      .catch(() => undefined);
+  }, [studySetId]);
+
   // --- Answer helpers ------------------------------------------------------
   const setAnswer = useCallback((id: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -174,6 +197,42 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
     }
   }
 
+  // --- Retake handler (same quiz, no network call) --------------------------
+  function handleRetake() {
+    setReport(null);
+    setCurrent(0);
+    setAnswers({});
+    setSubmitted(false);
+    setSubmitting(false);
+    setSubmitError(null);
+    setConfirmOpen(false);
+    startedAtRef.current = Date.now();
+    setPhase('taking');
+  }
+
+  // --- Regenerate handler (AI generates a brand-new quiz) -------------------
+  async function handleRegenerate() {
+    if (!noteId || regenerating) return;
+    setRegenerating(true);
+    setRegenerateError(null);
+    try {
+      const res = await fetch('/api/study/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceNoteId: noteId, type: 'quiz' }),
+      });
+      if (!res.ok) {
+        throw new Error('Could not generate a new quiz.');
+      }
+      const data = (await res.json()) as { studySetId: string };
+      router.push(`/study/${data.studySetId}/take`);
+    } catch {
+      setRegenerateError('Could not start a new quiz. Please try again.');
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   // --- Render: loading / generating ----------------------------------------
   if (phase === 'loading') {
     return (
@@ -210,88 +269,70 @@ export function QuizTakingScreen({ studySetId }: { studySetId: string }) {
 
   // --- Render: report ------------------------------------------------------
   if (phase === 'report' && report) {
-    const pct = scorePercent(report.score);
-    const byId = new Map(report.results.map((r) => [r.questionId, r]));
+    // Map ClientQuestion[] → ScoreReportQuestion[]
+    const mappedQuestions: ScoreReportQuestion[] = questions.map((q) =>
+      q.type === 'mcq'
+        ? { id: q.id, type: 'mcq', stem: q.stem, options: q.options }
+        : { id: q.id, type: 'short-answer', prompt: q.prompt },
+    );
 
     return (
-      <AppShell active="study" title="Quiz results">
-        <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto space-y-6">
-          {/* Overall score */}
-          <div className="rounded-lg border border-border-default bg-surface-card p-6 text-center">
-            <p className="text-xs uppercase tracking-wide font-medium text-text-muted mb-1">
-              Your score
-            </p>
-            <p className="text-4xl font-semibold tabular-nums">{pct}%</p>
-          </div>
+      <>
+        <AppShell active="study" title="Quiz results">
+          <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto space-y-6">
+            <QuizScoreReport
+              score={report.score}
+              questions={mappedQuestions}
+              results={report.results}
+              answers={answers}
+            />
 
-          {/* Per-question results */}
-          <ol className="space-y-4 list-none">
-            {questions.map((question, i) => {
-              const r = byId.get(question.id);
-              const stem = question.type === 'mcq' ? question.stem : question.prompt;
-              return (
-                <li
-                  key={question.id}
-                  className="rounded-lg border border-border-default bg-surface-card p-4"
+            <div className="flex gap-3 pt-2 flex-wrap">
+              <Button
+                variant="secondary"
+                onClick={handleRetake}
+                leftIcon={<Icon name="rotate-ccw" size={15} />}
+              >
+                Retake quiz
+              </Button>
+              {noteId ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => void handleRegenerate()}
+                    loading={regenerating}
+                    disabled={regenerating}
+                    leftIcon={<Icon name="sparkles" size={15} />}
+                  >
+                    Regenerate quiz
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/notes/${noteId}`)}
+                    leftIcon={<Icon name="chevron-left" size={15} />}
+                  >
+                    Back to note
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push(`/study/${studySetId}`)}
+                  leftIcon={<Icon name="chevron-left" size={15} />}
                 >
-                  <div className="flex items-start gap-2">
-                    {r ? (
-                      r.correct ? (
-                        <Icon
-                          name="check-circle-2"
-                          size={18}
-                          className="mt-0.5 shrink-0 text-success"
-                        />
-                      ) : (
-                        <Icon name="x" size={18} className="mt-0.5 shrink-0 text-danger" />
-                      )
-                    ) : null}
-                    <p className="font-semibold text-sm">
-                      {i + 1}. {stem}
-                    </p>
-                  </div>
-
-                  {r && (
-                    <div className="mt-3 space-y-2 pl-6">
-                      {question.type === 'mcq' &&
-                        r.correctIndex != null &&
-                        question.options[r.correctIndex] != null && (
-                          <p className="text-sm">
-                            <span className="text-text-muted">Correct answer: </span>
-                            <span className="font-medium text-success">
-                              {question.options[r.correctIndex]}
-                            </span>
-                          </p>
-                        )}
-
-                      {question.type === 'short-answer' && r.modelAnswer && (
-                        <p className="text-sm">
-                          <span className="text-text-muted">Model answer: </span>
-                          <span className="font-medium">{r.modelAnswer}</span>
-                        </p>
-                      )}
-
-                      {r.feedback && (
-                        <p className="text-sm text-text-muted">{r.feedback}</p>
-                      )}
-
-                      {r.explanation && (
-                        <p className="text-xs text-text-muted italic">{r.explanation}</p>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-
-          <div className="flex gap-3 pt-2 flex-wrap">
-            <Button variant="primary" onClick={() => router.push(`/study/${studySetId}`)}>
-              Back to study set
-            </Button>
+                  Back to study set
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </AppShell>
+        </AppShell>
+
+        {regenerateError && (
+          <Toast tone="danger" title="Error" onClose={() => setRegenerateError(null)}>
+            {regenerateError}
+          </Toast>
+        )}
+      </>
     );
   }
 
