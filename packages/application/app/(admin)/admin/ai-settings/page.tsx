@@ -27,6 +27,7 @@ type AiConfigInput = Omit<AiConfig, 'version' | 'updatedBy' | 'updatedAt'>;
 interface ApiConfigResponse {
   ok: boolean;
   config: AiConfig | null;
+  defaults: AiConfigInput | null;
   allowlist: string[];
   paramBounds: Record<string, { min: number; max: number }>;
 }
@@ -156,6 +157,7 @@ export default function AiSettingsPage() {
   >({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [defaults, setDefaults] = useState<AiConfigInput | null>(null);
 
   // ── Form state ───────────────────────────────────────────────────────────
   const [form, setForm] = useState<AiConfigInput>(DEFAULT_BLANK_CONFIG);
@@ -199,16 +201,25 @@ export default function AiSettingsPage() {
   // ── Load config on mount ─────────────────────────────────────────────────
 
   const applyConfig = useCallback(
-    (config: AiConfig | null, list: string[], bounds: Record<string, { min: number; max: number }>) => {
+    (
+      config: AiConfig | null,
+      defs: AiConfigInput | null,
+      list: string[],
+      bounds: Record<string, { min: number; max: number }>,
+    ) => {
       setAllowlist(list);
       setParamBounds(bounds);
+      setDefaults(defs);
       if (config) {
         const { version: _v, updatedBy: _u, updatedAt: _a, ...rest } = config;
         setForm(rest);
       } else {
+        // No saved config yet — prefill from server-side defaults so the admin
+        // sees the preprogrammed prompts rather than empty fields.
         setForm({
           ...DEFAULT_BLANK_CONFIG,
-          modelId: list[0] ?? '',
+          ...(defs ?? {}),
+          modelId: defs?.modelId || list[0] || '',
         });
       }
     },
@@ -223,7 +234,7 @@ export default function AiSettingsPage() {
       .then((data: ApiConfigResponse) => {
         if (cancelled) return;
         if (data.ok) {
-          applyConfig(data.config, data.allowlist, data.paramBounds);
+          applyConfig(data.config, data.defaults ?? null, data.allowlist, data.paramBounds);
         } else {
           setFetchError(true);
         }
@@ -365,7 +376,7 @@ export default function AiSettingsPage() {
         const configRes = await fetch('/api/admin/ai-config');
         const configData = await configRes.json() as ApiConfigResponse;
         if (configData.ok) {
-          applyConfig(configData.config, configData.allowlist, configData.paramBounds);
+          applyConfig(configData.config, configData.defaults ?? null, configData.allowlist, configData.paramBounds);
         }
         void loadVersions();
         showToast({
@@ -532,7 +543,35 @@ export default function AiSettingsPage() {
 
           {/* ── System prompts ────────────────────────────────────────────── */}
           <Card padded>
-            <SectionHeading>System prompts</SectionHeading>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <SectionHeading>System prompts</SectionHeading>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={allInputsDisabled || !defaults}
+                onClick={() => {
+                  if (!defaults) return;
+                  setField('baseSystemPrompt', defaults.baseSystemPrompt);
+                  setForm((prev) => ({
+                    ...prev,
+                    baseSystemPrompt: defaults.baseSystemPrompt,
+                    promptOverrides: { ...defaults.promptOverrides },
+                  }));
+                  setValidationErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.baseSystemPrompt;
+                    return next;
+                  });
+                  setPromptOverridesOpen(true);
+                }}
+                leftIcon={<Icon name="rotate-ccw" size={14} />}
+              >
+                Reset to defaults
+              </Button>
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--text-subtle)', marginTop: -8, marginBottom: 14 }}>
+              These are the preprogrammed default prompts — edit as needed, or reset to restore the originals.
+            </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Textarea
                 label="Base system prompt"

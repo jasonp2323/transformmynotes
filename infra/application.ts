@@ -21,11 +21,14 @@ const isPR = $app.stage.startsWith("pr-");
 
 export const application = new sst.aws.Nextjs("Application", {
   path: "packages/application",
-  // NOTE: STUDY_*_PROMPT values are intentionally NOT linked/bound here.
-  // The web server only enqueues a STUDYSET; generation runs in the M13.2 stream
-  // consumer (infra/jobs.ts). Prompts are loaded at consumer startup from bundled
-  // `prompts/` text files (via study-prompts.ts), bypassing the AWS Lambda 4 KB
-  // env-var limit — they are no longer SST secrets or env vars on either runtime.
+  // Prompt text files are bundled read-only so the admin AI-settings GET route
+  // can surface the preprogrammed defaults via loadStudyPromptsIntoEnv() +
+  // buildSecretDefaults(). Generation still runs only in the M13.2 stream
+  // consumer (infra/jobs.ts); the web runtime never calls generateStudyMaterial.
+  // Bundling mirrors infra/jobs.ts which uses the same copyFiles config.
+  // STUDY_*_PROMPT values are NOT bound as Lambda env vars (4 KB limit) — they
+  // are read directly from the bundled `prompts/` text files at request time.
+  copyFiles: [{ from: "prompts", to: "prompts" }],
   link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
@@ -45,9 +48,9 @@ export const application = new sst.aws.Nextjs("Application", {
     INVITE_FROM_ADDRESS: inviteFromAddress.value,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: turnstileSiteKey.value,
     TURNSTILE_SECRET_KEY: turnstileSecretKey.value,
-    // STUDY_*_PROMPT values are deliberately omitted from this env block — see the
-    // note on `link` above. They load from bundled `prompts/` text files in the
-    // M13.2 stream consumer (infra/jobs.ts), the only runtime that calls generateStudyMaterial.
+    // STUDY_*_PROMPT values are deliberately omitted from this env block.
+    // They are read directly from the bundled `prompts/` text files (copyFiles above)
+    // via loadStudyPromptsIntoEnv() — not as Lambda env vars (4 KB limit applies).
     ...(process.env.ANDROID_SIGNING_FINGERPRINT
       ? { ANDROID_SIGNING_FINGERPRINT: process.env.ANDROID_SIGNING_FINGERPRINT }
       : {}),

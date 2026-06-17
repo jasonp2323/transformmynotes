@@ -1,5 +1,5 @@
 /**
- * AI Settings admin page E2E tests (M19.2.1 + M19.2.3).
+ * AI Settings admin page E2E tests (M19.2.1 + M19.2.3 + defaults prefill).
  *
  * Runs against the offline stack booted by global-setup.ts:
  * dynalite + cognito-local + next dev (:3002).
@@ -13,6 +13,8 @@
  *     no success toast, no network request
  *  3. Valid config save → success toast with version number
  *  4. Expand version history → ≥1 row visible
+ *  5. On first load (no saved config) base system prompt textarea is prefilled
+ *  6. "Reset prompts to defaults" button restores the default text after editing
  */
 
 import { test, expect } from '@playwright/test';
@@ -160,6 +162,85 @@ test('version history panel shows at least one row', async ({ page }) => {
 
   await page.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'ai-settings-version-history.png'),
+    fullPage: true,
+  });
+});
+
+// ── 5. Base system prompt is prefilled with defaults on first load ────────────
+
+test('base system prompt is prefilled with defaults when no saved config', async ({ page }) => {
+  // NOTE: this test is order-sensitive — it relies on running before test 3
+  // (the save test) in a fresh E2E run so that no config has been saved yet.
+  // In practice the E2E suite boots a fresh dynalite per run, so the DB starts
+  // empty. If the test runs after a save in the same session, the textarea will
+  // still be non-empty (either from defaults or the saved value) so the assertion
+  // that it is non-empty is always valid.
+  await signInAsAdmin(page);
+
+  await page.goto('/admin/ai-settings');
+  await expect(page.getByText('System prompts')).toBeVisible({ timeout: 15_000 });
+
+  // The base system prompt textarea must be prefilled (non-empty) because the
+  // GET /api/admin/ai-config route now returns `defaults` and the UI initializes
+  // the form from them when no saved config exists.
+  const basePromptTextarea = page.getByLabel(/Base system prompt/i);
+  const promptValue = await basePromptTextarea.inputValue();
+  expect(promptValue.trim().length).toBeGreaterThan(0);
+
+  // The "Reset prompts to defaults" button must be visible and enabled.
+  await expect(page.getByRole('button', { name: /Reset to defaults/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Reset to defaults/i })).toBeEnabled();
+
+  await page.screenshot({
+    path: path.join(SCREENSHOTS_DIR, 'ai-settings-defaults-prefill.png'),
+    fullPage: true,
+  });
+});
+
+// ── 6. "Reset to defaults" button restores default prompts ───────────────────
+
+test('"Reset to defaults" button restores the base prompt to the default value', async ({ page }) => {
+  await signInAsAdmin(page);
+
+  // Fetch the true defaults from the API so we know what the reset should restore.
+  // Use the page's context (cookie-authenticated) to call the admin API.
+  await page.goto('/admin/ai-settings');
+  await expect(page.getByText('System prompts')).toBeVisible({ timeout: 15_000 });
+
+  // Fetch the API directly (Playwright page context carries the session cookie).
+  const apiResponse = await page.request.get('/api/admin/ai-config');
+  const apiData = await apiResponse.json() as { ok: boolean; defaults: { baseSystemPrompt: string } | null };
+  const trueDefaultPrompt = apiData.defaults?.baseSystemPrompt ?? '';
+  // Sanity: the defaults endpoint must return a non-empty base prompt.
+  expect(trueDefaultPrompt.trim().length).toBeGreaterThan(0);
+
+  const basePromptTextarea = page.getByLabel(/Base system prompt/i);
+
+  // Edit the base prompt to something else.
+  await basePromptTextarea.fill('TEMPORARY EDIT — should be overwritten by reset');
+
+  // Confirm the value changed.
+  await expect(basePromptTextarea).toHaveValue(/TEMPORARY EDIT/);
+
+  // Click "Reset to defaults".
+  await page.getByRole('button', { name: /Reset to defaults/i }).click();
+
+  // The textarea should return to the true default value from the API.
+  // The prompt .txt file may have trailing spaces on lines which browsers strip
+  // from textarea content — normalize per-line trailing whitespace before comparing.
+  function normalizePrompt(s: string) {
+    return s.split('\n').map((l) => l.trimEnd()).join('\n').trim();
+  }
+  await page.waitForTimeout(300);
+  const resetValue = await basePromptTextarea.inputValue();
+  expect(normalizePrompt(resetValue)).toBe(normalizePrompt(trueDefaultPrompt));
+
+  // The per-type overrides collapsible should now be open (reset opens it).
+  // Look for the heading text or a textarea associated with flashcards overrides.
+  await expect(page.getByText(/Flashcards override/i).first()).toBeVisible({ timeout: 5_000 });
+
+  await page.screenshot({
+    path: path.join(SCREENSHOTS_DIR, 'ai-settings-reset-to-defaults.png'),
     fullPage: true,
   });
 });

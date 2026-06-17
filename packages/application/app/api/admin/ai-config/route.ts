@@ -4,10 +4,12 @@ import {
   saveAiConfig,
   validateAiConfigInput,
   bustAiConfigCache,
+  buildSecretDefaults,
   AI_MODEL_ALLOWLIST,
   AI_PARAM_BOUNDS,
 } from '@transformmynotes/core';
 import { getAdminApiUser } from '@/lib/require-admin';
+import { loadStudyPromptsIntoEnv } from '@/jobs/study-prompts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,10 +21,25 @@ export async function GET() {
   }
 
   try {
+    // Load prompt files into env so buildSecretDefaults() can read them.
+    // A missing prompts directory must NOT 500 — log a warning and continue;
+    // defaults degrade gracefully to whatever env vars are already set.
+    try {
+      loadStudyPromptsIntoEnv();
+    } catch (promptErr) {
+      console.warn('[admin/ai-config] Could not load study prompt files:', promptErr);
+    }
+
     const config = await getCurrentAiConfig();
+
+    // Build defaults from env (populated by loadStudyPromptsIntoEnv above) and
+    // strip audit fields before sending to the client.
+    const { version: _v, updatedBy: _u, updatedAt: _a, ...defaults } = buildSecretDefaults();
+
     return NextResponse.json({
       ok: true,
       config,
+      defaults,
       allowlist: AI_MODEL_ALLOWLIST,
       paramBounds: AI_PARAM_BOUNDS,
     });
