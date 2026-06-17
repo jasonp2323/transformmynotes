@@ -29,15 +29,7 @@ export function FloatingActionMenu({ children }: FloatingActionMenuProps) {
         />
       )}
       {open && (
-        <div
-          className="tmn-fab-menu"
-          role="menu"
-          onClickCapture={(e) => {
-            if ((e.target as HTMLElement).closest('button')) {
-              setOpen(false);
-            }
-          }}
-        >
+        <div className="tmn-fab-menu" role="menu">
           {children}
         </div>
       )}
