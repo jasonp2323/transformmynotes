@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./tts/voices": "./src/tts/voices.ts",
     "./editor/serialize": "./src/editor/serialize.ts",
     "./editor/extensions": "./src/editor/extensions.ts",
     "./editor/highlight-mark": "./src/editor/highlight-mark.ts",

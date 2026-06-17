@@ -1,4 +1,9 @@
-import { PT_BR_VOICES, isPtBrVoiceId, type PtBrVoiceId } from '@transformmynotes/core';
+// Import from the dedicated `tts/voices` subpath, NOT the `@transformmynotes/core`
+// barrel: this module is pulled into the client bundle (via VoiceSelector), and
+// the barrel transitively imports `node:crypto` (access-requests.ts), which the
+// client webpack build cannot resolve. `voices.ts` has only a type-only import,
+// so the subpath is client-safe.
+import { PT_BR_VOICES, isPtBrVoiceId, type PtBrVoiceId } from '@transformmynotes/core/tts/voices';
 
 export const TTS_VOICE_STORAGE_KEY = 'tts.voiceId';
 
