@@ -4,6 +4,7 @@ import {
   saveAiConfig,
   validateAiConfigInput,
   bustAiConfigCache,
+  buildSecretDefaults,
   AI_MODEL_ALLOWLIST,
   AI_PARAM_BOUNDS,
 } from '@transformmynotes/core';
@@ -20,9 +21,15 @@ export async function GET() {
 
   try {
     const config = await getCurrentAiConfig();
+
+    // Build defaults from env + bundled DEFAULT_* prompt constants (no
+    // filesystem access required), and strip audit fields before sending.
+    const { version: _v, updatedBy: _u, updatedAt: _a, ...defaults } = buildSecretDefaults();
+
     return NextResponse.json({
       ok: true,
       config,
+      defaults,
       allowlist: AI_MODEL_ALLOWLIST,
       paramBounds: AI_PARAM_BOUNDS,
     });

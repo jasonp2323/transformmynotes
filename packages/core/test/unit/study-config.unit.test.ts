@@ -17,6 +17,7 @@ import {
   bustAiConfigCache,
   type AiConfig,
 } from '../../src/study/config';
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TYPE_PROMPTS } from '../../src/study/default-prompts';
 
 const ENV_VARS = {
   SST_RESOURCE_BEDROCK_MODEL_ID_value: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
@@ -77,10 +78,12 @@ describe('buildSecretDefaults', () => {
     expect(c.promptOverrides.study_guide).toBe('Study guide prompt text');
   });
 
-  it('omits a prompt-override key when its env var is unset (no empty string)', () => {
+  it('falls back to the bundled default for a prompt-override key when its env var is unset (M19 fix)', () => {
     delete process.env.SST_RESOURCE_STUDY_QUIZ_PROMPT_value;
     const c = buildSecretDefaults();
-    expect('quiz' in c.promptOverrides).toBe(false);
+    // The env var wins when set; otherwise the bundled DEFAULT_TYPE_PROMPTS
+    // constant is used so the field is never empty (no filesystem dependency).
+    expect(c.promptOverrides.quiz).toBe(DEFAULT_TYPE_PROMPTS.quiz);
     expect(c.promptOverrides.flashcards).toBe('Flashcards prompt text');
   });
 
@@ -109,12 +112,16 @@ describe('buildSecretDefaults', () => {
     expect(c.updatedBy).toBe('system');
   });
 
-  it('leaves modelId/baseSystemPrompt empty when env unset (no fallback string)', () => {
+  it('leaves modelId empty but fills prompts from bundled defaults when env unset (M19 fix)', () => {
     clearEnv();
     const c = buildSecretDefaults();
+    // modelId still has NO fallback — validateRequired fails loud on it.
     expect(c.modelId).toBe('');
-    expect(c.baseSystemPrompt).toBe('');
-    expect(c.promptOverrides).toEqual({});
+    // baseSystemPrompt + every per-type override now fall back to the bundled
+    // constants so the deployed web runtime never returns empty prompts.
+    expect(c.baseSystemPrompt).toBe(DEFAULT_SYSTEM_PROMPT);
+    expect(c.promptOverrides.flashcards).toBe(DEFAULT_TYPE_PROMPTS.flashcards);
+    expect(c.promptOverrides.study_guide).toBe(DEFAULT_TYPE_PROMPTS.study_guide);
   });
 });
 

@@ -10,6 +10,28 @@ const saveAiConfigMock = vi.hoisted(() => vi.fn());
 const revertAiConfigMock = vi.hoisted(() => vi.fn());
 const listAiConfigVersionsMock = vi.hoisted(() => vi.fn());
 const bustAiConfigCacheMock = vi.hoisted(() => vi.fn());
+const buildSecretDefaultsMock = vi.hoisted(() => vi.fn(() => ({
+  baseSystemPrompt: 'DEFAULT BASE',
+  promptOverrides: { flashcards: 'DEF FC' },
+  modelId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  modelOverrides: {},
+  maxTokens: 4096,
+  temperature: 0.5,
+  topP: 0.9,
+  languageDefault: 'auto',
+  perUserDailyGenerationCap: 100,
+  maxNotesPerRun: 25,
+  tokenBudget: 8192,
+  pollyVoiceId: 'Camila',
+  pollyEngine: 'neural',
+  speedRate: 'medium',
+  enabledMaterialTypes: {},
+  generationEnabled: true,
+  // Audit fields — must be stripped from the response
+  version: 0,
+  updatedBy: 'system',
+  updatedAt: '',
+})));
 
 vi.mock('@/lib/require-admin', () => ({
   getAdminApiUser: getAdminApiUserMock,
@@ -24,6 +46,7 @@ vi.mock('@transformmynotes/core', async (importActual) => ({
   revertAiConfig: revertAiConfigMock,
   listAiConfigVersions: listAiConfigVersionsMock,
   bustAiConfigCache: bustAiConfigCacheMock,
+  buildSecretDefaults: buildSecretDefaultsMock,
 }));
 
 // ---------------------------------------------------------------------------
@@ -92,7 +115,7 @@ describe('GET /api/admin/ai-config', () => {
     expect(body.error).toBe('Forbidden');
   });
 
-  it('returns config:null + allowlist + paramBounds when no config saved', async () => {
+  it('returns config:null + allowlist + paramBounds + defaults when no config saved', async () => {
     getCurrentAiConfigMock.mockResolvedValueOnce(null);
 
     const res = await GET();
@@ -104,9 +127,17 @@ describe('GET /api/admin/ai-config', () => {
     expect(Array.isArray(body.allowlist)).toBe(true);
     expect((body.allowlist as string[]).length).toBeGreaterThan(0);
     expect(body.paramBounds).toBeTruthy();
+    // defaults are populated from buildSecretDefaults() with audit fields stripped
+    const defs = body.defaults as Record<string, unknown>;
+    expect(defs.baseSystemPrompt).toBe('DEFAULT BASE');
+    expect((defs.promptOverrides as Record<string, unknown>).flashcards).toBe('DEF FC');
+    // Audit fields must NOT be present
+    expect(defs.version).toBeUndefined();
+    expect(defs.updatedBy).toBeUndefined();
+    expect(defs.updatedAt).toBeUndefined();
   });
 
-  it('returns the config object when present', async () => {
+  it('returns the config object when present and includes defaults', async () => {
     getCurrentAiConfigMock.mockResolvedValueOnce(VALID_CONFIG);
 
     const res = await GET();
@@ -115,6 +146,10 @@ describe('GET /api/admin/ai-config', () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.config).toEqual(VALID_CONFIG);
+    // defaults always present regardless of whether config is saved
+    const defs = body.defaults as Record<string, unknown>;
+    expect(defs.baseSystemPrompt).toBe('DEFAULT BASE');
+    expect(defs.version).toBeUndefined();
   });
 
   it('returns 500 when getCurrentAiConfig throws', async () => {

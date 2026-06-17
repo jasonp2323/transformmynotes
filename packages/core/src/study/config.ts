@@ -2,6 +2,7 @@ import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from '../db/client.js';
 import { aiConfigKeys } from '../db/keys.js';
 import type { StudyMaterialType, StudyLanguage } from './types.js';
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TYPE_PROMPTS } from './default-prompts.js';
 
 /** The four kinds of study material the generation engine can produce. */
 export type MaterialType = StudyMaterialType;
@@ -93,9 +94,9 @@ export const AI_MODEL_ALLOWLIST: readonly string[] = [
 ] as const;
 
 /**
- * Per-material-type output token caps applied at inference time. Still consumed
- * by `generate.ts` (M13 behaviour); broader wiring to the single
- * `AiConfig.maxTokens` is deferred to M19.2.2.
+ * Per-material-type output token cap defaults (M13). No longer used by
+ * `generate.ts` as of M19.2.2 — the single `AiConfig.maxTokens` runtime value
+ * from `resolveAiConfig()` is used instead. Exported for backward-compatibility.
  */
 export const MAX_TOKENS_BY_TYPE: Record<StudyMaterialType, number> = {
   flashcards: 4096,
@@ -116,29 +117,30 @@ function optionalEnv(name: string): string | undefined {
 }
 
 /**
- * Builds a complete `AiConfig` from env (SST secret bindings) + hardcoded
- * fallbacks. `modelId` and `baseSystemPrompt` have NO string fallback — they
- * resolve to '' when unset and `validateRequired()` fails loudly on them.
- * Absent per-type prompt overrides are omitted (not set to '') so consumers
- * treat them as "no override".
+ * Builds a complete `AiConfig` from env (SST secret bindings) + bundled
+ * constant fallbacks. `modelId` has NO string fallback — it resolves to ''
+ * when unset and `validateRequired()` fails loudly on it. Prompt fields are
+ * ALWAYS populated: the env var wins if set (worker keeps copyFiles), otherwise
+ * the bundled `DEFAULT_*` constants are used — so the web runtime never returns
+ * empty prompts even without filesystem access.
  */
 export function buildSecretDefaults(): AiConfig {
   const promptOverrides: Partial<Record<MaterialType, string>> = {};
-  const flashcards = optionalEnv('SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value');
-  const quiz = optionalEnv('SST_RESOURCE_STUDY_QUIZ_PROMPT_value');
-  const assignment = optionalEnv('SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value');
-  const summary = optionalEnv('SST_RESOURCE_STUDY_SUMMARY_PROMPT_value');
-  const glossary = optionalEnv('SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value');
-  const study_guide = optionalEnv('SST_RESOURCE_STUDY_GUIDE_PROMPT_value');
-  if (flashcards !== undefined) promptOverrides.flashcards = flashcards;
-  if (quiz !== undefined) promptOverrides.quiz = quiz;
-  if (assignment !== undefined) promptOverrides.assignment = assignment;
-  if (summary !== undefined) promptOverrides.summary = summary;
-  if (glossary !== undefined) promptOverrides.glossary = glossary;
-  if (study_guide !== undefined) promptOverrides.study_guide = study_guide;
+  const types: MaterialType[] = ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'];
+  const envKeys: Record<MaterialType, string> = {
+    flashcards: 'SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value',
+    quiz: 'SST_RESOURCE_STUDY_QUIZ_PROMPT_value',
+    assignment: 'SST_RESOURCE_STUDY_ASSIGNMENT_PROMPT_value',
+    summary: 'SST_RESOURCE_STUDY_SUMMARY_PROMPT_value',
+    glossary: 'SST_RESOURCE_STUDY_GLOSSARY_PROMPT_value',
+    study_guide: 'SST_RESOURCE_STUDY_GUIDE_PROMPT_value',
+  };
+  for (const type of types) {
+    promptOverrides[type] = optionalEnv(envKeys[type]) ?? DEFAULT_TYPE_PROMPTS[type];
+  }
 
   return {
-    baseSystemPrompt: process.env.SST_RESOURCE_STUDY_SYSTEM_PROMPT_value ?? '',
+    baseSystemPrompt: optionalEnv('SST_RESOURCE_STUDY_SYSTEM_PROMPT_value') ?? DEFAULT_SYSTEM_PROMPT,
     promptOverrides,
     modelId: process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value ?? '',
     modelOverrides: {},

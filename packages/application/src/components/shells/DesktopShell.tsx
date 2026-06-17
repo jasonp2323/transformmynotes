@@ -71,6 +71,7 @@ export function DesktopShell({
       },
       { id: 'members', icon: 'users',  label: 'Members', href: '/admin/members' },
       { id: 'invites', icon: 'ticket', label: 'Invites', href: '/admin/invites' },
+      { id: 'ai-settings', icon: 'sliders', label: 'AI Settings', href: '/admin/ai-settings' },
     ],
   };
   const navGroups: NavGroup[] = isAdmin ? [NOTEBOOK_GROUP, adminGroup] : [NOTEBOOK_GROUP];

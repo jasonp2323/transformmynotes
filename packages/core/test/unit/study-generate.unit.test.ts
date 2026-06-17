@@ -121,40 +121,50 @@ describe('generateStudyMaterial', () => {
     expect(toolConfig.tools[0].toolSpec.inputSchema.json).toEqual(TOOL_SCHEMAS['flashcards']);
   });
 
-  it('sets inferenceConfig.maxTokens to 4096 for flashcards', async () => {
+  it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for flashcards', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
     await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
-    expect(inferenceConfig.maxTokens).toBe(4096);
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default
   });
 
-  it('sets inferenceConfig.maxTokens to 4096 for quiz', async () => {
+  it('sets inferenceConfig.temperature and topP from AiConfig (defaults 0.5, 0.9)', async () => {
+    mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
+    await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Test', noteTitle: 'Note' });
+
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.temperature).toBe(0.5); // AiConfig default
+    expect(inferenceConfig.topP).toBe(0.9);        // AiConfig default
+  });
+
+  it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for quiz', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse(VALID_QUIZ_PAYLOAD));
     await generateStudyMaterial({ type: 'quiz', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
-    expect(inferenceConfig.maxTokens).toBe(4096);
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default
   });
 
-  it('sets inferenceConfig.maxTokens to 2048 for assignment', async () => {
+  it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for assignment', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ title: 'T', instructions: 'I', rubric: [] }));
     await generateStudyMaterial({ type: 'assignment', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
-    expect(inferenceConfig.maxTokens).toBe(2048);
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default (was per-type 2048 before M19.2.2)
   });
 
-  it('sets inferenceConfig.maxTokens to 1024 for summary', async () => {
+  it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for summary', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ title: 'T', tldr: 'S', keyPoints: [], terms: [] }));
     await generateStudyMaterial({ type: 'summary', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
-    expect(inferenceConfig.maxTokens).toBe(1024);
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default (was per-type 1024 before M19.2.2)
   });
 
   it('system[0].text contains base prompt and type prompt and auto directive (default)', async () => {
@@ -267,12 +277,20 @@ describe('generateStudyMaterial', () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it('throws when STUDY_SYSTEM_PROMPT env var is missing and never calls Bedrock', async () => {
+  it('falls back to the bundled default system prompt when the env var is missing (M19 fix)', async () => {
+    // With no STUDY_SYSTEM_PROMPT env var, buildSecretDefaults() now uses the
+    // bundled DEFAULT_SYSTEM_PROMPT constant — so generation succeeds (no
+    // filesystem dependency) and the real default prompt is sent to Bedrock.
     delete process.env.SST_RESOURCE_STUDY_SYSTEM_PROMPT_value;
-    await expect(
-      generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note' }),
-    ).rejects.toThrow(/SST_RESOURCE_STUDY_SYSTEM_PROMPT_value/);
-    expect(mockSend).not.toHaveBeenCalled();
+    delete process.env.SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value;
+    mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
+
+    await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note' });
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const system = cmd.input.system as Array<{ text: string }>;
+    expect(system[0].text).toContain('You are an expert tutor');
   });
 
   it('passes the correct inputSchema for quiz type', async () => {
@@ -314,13 +332,13 @@ describe('generateStudyMaterial', () => {
     expect(result.payload).toEqual(payload);
   });
 
-  it('sets inferenceConfig.maxTokens to 2048 for glossary', async () => {
+  it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for glossary', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ terms: [] }));
     await generateStudyMaterial({ type: 'glossary', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
-    expect(inferenceConfig.maxTokens).toBe(2048);
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default (was per-type 2048 before M19.2.2)
   });
 
   it('system[0].text contains glossary prompt when type=glossary', async () => {
@@ -352,13 +370,13 @@ describe('generateStudyMaterial', () => {
     expect(result.payload).toEqual(payload);
   });
 
-  it('sets inferenceConfig.maxTokens to 4096 for study_guide', async () => {
+  it('sets inferenceConfig.maxTokens from AiConfig.maxTokens (default 4096) for study_guide', async () => {
     mockSend.mockResolvedValue(makeToolUseResponse({ title: 'T', sections: [] }));
     await generateStudyMaterial({ type: 'study_guide', noteMarkdown: '# Test', noteTitle: 'Note' });
 
     const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
-    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number };
-    expect(inferenceConfig.maxTokens).toBe(4096);
+    const inferenceConfig = cmd.input.inferenceConfig as { maxTokens: number; temperature: number; topP: number };
+    expect(inferenceConfig.maxTokens).toBe(4096); // AiConfig default
   });
 
   it('system[0].text contains study_guide prompt when type=study_guide', async () => {

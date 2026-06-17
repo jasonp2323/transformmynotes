@@ -4,9 +4,10 @@
  */
 export function adminActiveFromPath(
   pathname: string,
-): 'pending' | 'members' | 'invites' | undefined {
+): 'pending' | 'members' | 'invites' | 'ai-settings' | undefined {
   if (pathname.startsWith('/admin/pending')) return 'pending';
   if (pathname.startsWith('/admin/members') || pathname.startsWith('/admin/users')) return 'members';
   if (pathname.startsWith('/admin/invites')) return 'invites';
+  if (pathname.startsWith('/admin/ai-settings')) return 'ai-settings';
   return undefined;
 }

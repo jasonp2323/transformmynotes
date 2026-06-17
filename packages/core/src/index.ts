@@ -31,6 +31,7 @@ export * from './srs/extract';
 
 // AI study-material generation (M13)
 export * from './study/types';
+export * from './study/default-prompts';
 export * from './study/config';
 export * from './study/generate';
 export * from './study/quiz';

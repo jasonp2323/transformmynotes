@@ -20,6 +20,12 @@ const SECTIONS = [
     label: 'Invites',
     description: 'Send email invites or create shareable codes.',
   },
+  {
+    href: '/admin/ai-settings',
+    icon: 'sliders',
+    label: 'AI Settings',
+    description: 'Tune prompts, models, and generation parameters.',
+  },
 ] as const;
 
 export default function AdminIndexPage() {
