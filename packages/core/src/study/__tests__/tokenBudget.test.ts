@@ -4,6 +4,8 @@ import {
   resolveContextLimit,
   DEFAULT_CONTEXT_LIMIT,
   HARD_CAP_TOKENS,
+  resolveMaxSourceNotes,
+  DEFAULT_MAX_SOURCE_NOTES,
 } from '../tokenBudget.js';
 
 describe('estimateTokens', () => {
@@ -87,5 +89,53 @@ describe('resolveContextLimit', () => {
   it('returns the parsed value when env var is the string "1"', () => {
     process.env[ENV_KEY] = '1';
     expect(resolveContextLimit()).toBe(1);
+  });
+});
+
+describe('resolveMaxSourceNotes', () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    process.env = { ...OLD_ENV };
+    delete process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value;
+  });
+
+  afterEach(() => {
+    process.env = OLD_ENV;
+  });
+
+  it('returns DEFAULT_MAX_SOURCE_NOTES when env var is unset', () => {
+    expect(resolveMaxSourceNotes()).toBe(DEFAULT_MAX_SOURCE_NOTES);
+    expect(resolveMaxSourceNotes()).toBe(50);
+  });
+
+  it('returns DEFAULT_MAX_SOURCE_NOTES when env var is empty string', () => {
+    process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value = '';
+    expect(resolveMaxSourceNotes()).toBe(DEFAULT_MAX_SOURCE_NOTES);
+  });
+
+  it('returns DEFAULT_MAX_SOURCE_NOTES when env var is not a number', () => {
+    process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value = 'not-a-number';
+    expect(resolveMaxSourceNotes()).toBe(DEFAULT_MAX_SOURCE_NOTES);
+  });
+
+  it('returns DEFAULT_MAX_SOURCE_NOTES when env var is 0', () => {
+    process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value = '0';
+    expect(resolveMaxSourceNotes()).toBe(DEFAULT_MAX_SOURCE_NOTES);
+  });
+
+  it('returns DEFAULT_MAX_SOURCE_NOTES when env var is negative', () => {
+    process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value = '-5';
+    expect(resolveMaxSourceNotes()).toBe(DEFAULT_MAX_SOURCE_NOTES);
+  });
+
+  it('returns the parsed value when env var is a valid positive integer', () => {
+    process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value = '75';
+    expect(resolveMaxSourceNotes()).toBe(75);
+  });
+
+  it('returns 1 when env var is 1', () => {
+    process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value = '1';
+    expect(resolveMaxSourceNotes()).toBe(1);
   });
 });

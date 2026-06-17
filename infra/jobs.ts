@@ -4,6 +4,7 @@ import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
   multiNoteContextLimit,
+  maxSourceNotes,
 } from "./secrets";
 
 const accountId = aws.getCallerIdentityOutput({}).accountId;
@@ -36,6 +37,7 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
     SST_RESOURCE_UserData_name: userData.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
     SST_RESOURCE_MULTI_NOTE_CONTEXT_LIMIT_value: multiNoteContextLimit.value,
+    SST_RESOURCE_MAX_SOURCE_NOTES_value: maxSourceNotes.value,
   },
   permissions: [
     {

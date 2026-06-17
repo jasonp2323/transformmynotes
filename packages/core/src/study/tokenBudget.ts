@@ -48,3 +48,27 @@ export function resolveContextLimit(): number {
   }
   return DEFAULT_CONTEXT_LIMIT;
 }
+
+/** Default maximum number of source notes per study-set generation run. */
+export const DEFAULT_MAX_SOURCE_NOTES = 50;
+
+/**
+ * Resolves the effective maximum number of source notes per generation run.
+ *
+ * Reads `process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value`; if that string
+ * parses to a positive integer, returns it. Otherwise returns
+ * `DEFAULT_MAX_SOURCE_NOTES` (50). This matches the secret declaration pattern
+ * where an empty/unset default is treated as "use the code default".
+ *
+ * @returns Maximum source note count.
+ */
+export function resolveMaxSourceNotes(): number {
+  const raw = process.env.SST_RESOURCE_MAX_SOURCE_NOTES_value;
+  if (raw && raw.length > 0) {
+    const parsed = parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_MAX_SOURCE_NOTES;
+}

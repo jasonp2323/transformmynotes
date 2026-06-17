@@ -21,6 +21,13 @@ const buildStudySetItemMock = vi.hoisted(() => vi.fn((input: unknown) => ({ ...(
 const resolveAiConfigMock = vi.hoisted(() => vi.fn());
 const estimateTokensMock = vi.hoisted(() => vi.fn());
 const resolveContextLimitMock = vi.hoisted(() => vi.fn());
+const resolveMaxSourceNotesMock = vi.hoisted(() => vi.fn());
+
+const s3SendMock = vi.hoisted(() => vi.fn());
+vi.mock('@aws-sdk/client-s3', () => ({
+  S3Client: vi.fn().mockImplementation(() => ({ send: s3SendMock })),
+  GetObjectCommand: vi.fn(),
+}));
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -36,6 +43,7 @@ vi.mock('@transformmynotes/core', () => ({
   resolveAiConfig: resolveAiConfigMock,
   estimateTokens: estimateTokensMock,
   resolveContextLimit: resolveContextLimitMock,
+  resolveMaxSourceNotes: resolveMaxSourceNotesMock,
   MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'],
 }));
 
@@ -102,6 +110,11 @@ beforeEach(() => {
   resolveAiConfigMock.mockResolvedValue({ ...DEFAULT_AI_CONFIG });
   estimateTokensMock.mockReturnValue(100);
   resolveContextLimitMock.mockReturnValue(60000);
+  resolveMaxSourceNotesMock.mockReturnValue(50);
+  process.env.SST_RESOURCE_NotesBucket_name = 'test-bucket';
+  s3SendMock.mockResolvedValue({
+    Body: { transformToString: async () => 'note body content' },
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -221,6 +234,44 @@ describe('POST /api/study/generate', () => {
     expect(res.status).toBe(403);
     expect(body.ok).toBe(false);
     expect(body.error).toBe('Flashcards generation is currently disabled.');
+    expect(putStudySetMock).not.toHaveBeenCalled();
+  });
+
+  it('dryRun returns estimatedTokens, rateLimitRemaining and does not write', async () => {
+    countInFlightMock.mockResolvedValue(1); // remaining = 3 - 1 = 2
+    estimateTokensMock.mockReturnValue(5000);
+    resolveContextLimitMock.mockReturnValue(60000);
+
+    const res = await POST(makeRequest({ sourceNoteId: 'note-1', type: 'flashcards', dryRun: true }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.estimatedTokens).toBe(5000);
+    expect(body.noteCount).toBe(1);
+    expect(body.rateLimitRemaining).toBe(2);
+    expect(body.truncatedFrom).toBeUndefined();
+    expect(putStudySetMock).not.toHaveBeenCalled();
+  });
+
+  it('dryRun rateLimitRemaining is 0 when at the cap', async () => {
+    countInFlightMock.mockResolvedValue(3); // at cap (MAX=3)
+
+    const res = await POST(makeRequest({ sourceNoteId: 'note-1', type: 'flashcards', dryRun: true }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.rateLimitRemaining).toBe(0);
+  });
+
+  it('returns 422 too_many_notes when sourceNoteIds exceeds the cap', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => `note-${String(i).padStart(3, '0')}`);
+
+    const res = await POST(makeRequest({ sourceNoteIds: ids, type: 'flashcards' }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(422);
+    expect(body.error).toBe('too_many_notes');
+    expect(body.max).toBe(50);
     expect(putStudySetMock).not.toHaveBeenCalled();
   });
 });
