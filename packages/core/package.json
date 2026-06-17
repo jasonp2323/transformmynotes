@@ -17,6 +17,7 @@
     "@aws-sdk/client-bedrock-runtime": "^3.1067.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.1067.0",
     "@aws-sdk/client-dynamodb": "^3.1067.0",
+    "@aws-sdk/client-polly": "^3.1067.0",
     "@aws-sdk/lib-dynamodb": "^3.1067.0",
     "@tiptap/core": "^3.26.1",
     "@tiptap/extension-table": "^3.26.1",

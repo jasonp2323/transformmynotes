@@ -42,6 +42,12 @@ export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 // path only — see infra/auth.ts. Set it as a GitHub Actions variable (deploy.yml)
 // / shell env, mirroring how CLOUDFLARE_API_TOKEN is handled.
 
+// M18 Brazilian-Portuguese TTS (Amazon Polly) needs NO secrets. The Polly voice
+// id, engine, and speed are runtime-configurable via the M19 admin AI settings
+// (AiConfig.pollyVoiceId / pollyEngine / speedRate, stored in CONFIG#AI/CURRENT
+// and resolved by resolveAiConfig()), not via SST secrets. Only the IAM grant
+// (polly:SynthesizeSpeech) is needed — see infra/application.ts.
+
 // M13 study-generation prompts are no longer SST secrets. They live as
 // committed text files in `/prompts/*.txt` and are loaded at Lambda startup
 // into process.env by `study-prompts.ts`, bypassing the AWS Lambda 4 KB

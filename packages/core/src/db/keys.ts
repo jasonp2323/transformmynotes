@@ -203,6 +203,25 @@ export const storageKeys = {
   originalImage: (sub: string, id: string) => `images/users/${sub}/${id}.jpg`,
   noteMarkdown: (sub: string, id: string) => `markdown/users/${sub}/${id}.md`,
   studySetBody: (sub: string, studySetId: string) => `study/users/${sub}/${studySetId}.json`,
+  audioMp3: (sub: string, hash: string) => `audio/users/${sub}/${hash}.mp3`, // M18
+};
+
+/**
+ * Audio pointer item (UserData table, M18): cached TTS result for a user +
+ * content hash. PK = `USER#<sub>`, SK = `AUDIO#<hash>` (hash = audioHash(text,
+ * voiceId, engine, ssmlRate)). Fetched by PK + full SK only — a point-get, not
+ * a scan — so there is NO GSI. The item carries the S3 key, voice/engine, char
+ * count, and timestamps; the audio MP3 itself lives in S3 at
+ * `storageKeys.audioMp3(sub, hash)`.
+ *
+ * This and `storageKeys.audioMp3` are the ONLY places the `AUDIO#` prefix and
+ * the `audio/users/` S3 path are ever constructed — never inline them elsewhere.
+ */
+export const audioKeys = {
+  pointer: (sub: string, hash: string) => ({
+    pk: `USER#${sub}`,
+    sk: `AUDIO#${hash}`,
+  }),
 };
 
 /** Possible note processing statuses. */
