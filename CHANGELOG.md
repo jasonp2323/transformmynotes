@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.65.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.64.0...transformmynotes-v1.65.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **application:** collapsible floating action menu + study-sets drawer on note view ([#572](https://github.com/jasonp2323/transformmynotes/issues/572)) ([f8cd39c](https://github.com/jasonp2323/transformmynotes/commit/f8cd39c107d2dafba4913d91dd237737bd4051c5))
+
+
+### 📝 Documentation
+
+* expand README with architecture, deployment, and getting started ([0571307](https://github.com/jasonp2323/transformmynotes/commit/057130720a4cfa844ebe556354ee0935bfa0244d))
+* real application README + move dispatch plan to milestones, add M22-M26 waves ([686424e](https://github.com/jasonp2323/transformmynotes/commit/686424e39761fe882660db52788d976992b22bbc))
+
 ## [1.64.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.63.0...transformmynotes-v1.64.0) (2026-06-17)
 
 
