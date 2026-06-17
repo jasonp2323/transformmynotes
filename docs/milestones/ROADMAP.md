@@ -1,6 +1,6 @@
 # TransformMyNotes — Delivery Roadmap
 
-AI-paced schedule for the 22 milestones. Durations are compressed for agent-driven
+AI-paced schedule for the 27 milestones. Durations are compressed for agent-driven
 implementation (an `L` milestone is planned at ~3 days, `XL` at ~4, `M` at ~2), not the weeks a
 human team would take. Where milestones don't depend on each other they are scheduled **in
 parallel** and tagged with the same **Wave** — those can be dispatched to separate agents at the
@@ -10,7 +10,7 @@ This file is the source of truth; it's mirrored onto **Project board #5**
 (https://github.com/users/jasonp2323/projects/5) via the `Wave`, `Start date`, and `Target date`
 fields, and onto each GitHub **milestone's due date**.
 
-- **Window:** 2026-06-08 → 2026-08-04 (~57 calendar days; M11/M12 post-launch run in one parallel wave; M13–M21 post-launch AI study-material program begins Jul 7; M20/M21 source & web-ingestion extension runs Waves 13–14)
+- **Window:** 2026-06-08 → 2026-08-04 (~57 calendar days; M11/M12 post-launch run in one parallel wave; M13–M21 post-launch AI study-material program begins Jul 7; M20/M21 source & web-ingestion extension runs Waves 13–14); M22–M26 post-program leaf milestones run Waves 15–16 (Jul 26 → Aug 1)
 - **If run fully sequentially** it would be ~64 days; the parallel waves save ~1.5 weeks.
 
 ## Dependency graph
@@ -54,6 +54,16 @@ flowchart LR
   M17 --> M20
   M13 --> M21["M21 · Web ingestion + security (L)"]
   M20 --> M21
+  M10 --> M22["M22 · Offline / PWA (L)"]
+  M12 --> M22
+  M3 --> M23["M23 · Admin Cost Breakdown (L)"]
+  M4 --> M23
+  M13 --> M24["M24 · Per-user study profile (XL)"]
+  M8 --> M25["M25 · Study Progress & Insights (L)"]
+  M13 --> M25
+  M6 --> M25
+  M4 --> M26["M26 · Multi-page capture (M)"]
+  M5 --> M26
 ```
 
 > **Post-launch milestones (M11–M12)** run after the production cutover in M10. They are
@@ -65,6 +75,17 @@ flowchart LR
 > M17 and M18 can then run in parallel once their respective dependencies are met;
 > M20 (document sources) follows M17 alone in Wave 13; M21 (web ingestion + security hardening)
 > follows M20 alone in Wave 14.
+
+> **Post-program leaf milestones (M22–M26)** all have their prerequisites fully shipped by the end
+> of Wave 14. M22/M23/M24/M26 are mutually orthogonal and run in parallel in Wave 15 (Jul 26–29):
+> M22 adds a Workbox PWA shell (touches `packages/application` infra only), M23 adds a new
+> `Usage` table + stream aggregator (entirely new infra surface), M24 extends the UserData/UserProfile
+> item with per-user study-profile fields and a settings UI, and M26 adds a Multi-page capture
+> toggle + `POST /api/transcribe/batch` route (additive change to the Notes item, no new GSI).
+> M25 is isolated in Wave 16 (Jul 30–Aug 1) to remove two merge couplings: M23 and M25 would
+> each add a new dedicated table + stream aggregator (light coupling on `infra/db.ts`/`infra/jobs.ts`),
+> and M24 and M25 would both write the UserData/UserProfile item (M24 adds profile fields, M25
+> adds lifetime counters + streak). Isolating M25 leaves M22/M23/M24/M26 fully orthogonal in Wave 15.
 
 ## Schedule (Gantt)
 
@@ -109,6 +130,13 @@ gantt
   M20 Document sources (XL)     :m20, after m17, 4d
   section Wave 14 — Web ingestion + security
   M21 Web ingestion + security (L):m21, after m20, 3d
+  section Wave 15 — Offline ∥ Cost ∥ Profile ∥ Multi-page
+  M22 Offline / PWA (L)          :m22, after m21, 3d
+  M23 Admin Cost Breakdown (L)   :m23, after m21, 3d
+  M24 Per-user study profile (XL):m24, after m21, 4d
+  M26 Multi-page capture (M)     :m26, after m21, 2d
+  section Wave 16 — Study Progress
+  M25 Study Progress & Insights (L):m25, after m24, 3d
 ```
 
 ## Wave-by-wave dispatch plan
@@ -133,6 +161,8 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | **12** | **M17** ∥ **M18** | Jul 15–18 | Independent concerns: M17 generalises input scope from single-note to notebook-wide (map-reduce synthesis, note-set picker), while M18 adds Polly TTS audio (S3 cache, audio player). Different tables, routes, and AWS services — no overlap. |
 | **13** | **M20** | Jul 19–22 | Document-sources layer depends on M17's map-reduce plumbing (large-book chunking reuses it); runs alone because it introduces `SOURCE#` entity + GSI7 + `resolveSourceText()` normalization — the foundation M21 builds on. |
 | **14** | **M21** | Jul 23–25 | Web ingestion + SSRF/prompt-injection hardening depends entirely on M20's `SOURCE#` abstraction and `resolveSourceText()`. Runs alone — security-sensitive surface, no benefit from parallelism with other active work. |
+| **15** | **M22** ∥ **M23** ∥ **M24** ∥ **M26** | Jul 26–29 | All four prerequisites (M10/M12, M3/M4, M13, M4/M5) are shipped by end of Wave 14. M22 adds a Workbox PWA shell (infra/service-worker only); M23 adds a new `Usage` table + stream aggregator (entirely new infra surface, no shared-GSI hazard); M24 extends the UserData/UserProfile item with per-user study-profile fields + AI-environment settings UI; M26 adds a Multi-page capture toggle + `POST /api/transcribe/batch` (additive NOTE# item field, no new GSI). No two of these touch the same table schema, route namespace, or component tree — safe in parallel. |
+| **16** | **M25** | Jul 30–Aug 1 | Isolated from Wave 15 to remove two couplings: M23 and M25 each add a new dedicated table + stream aggregator (light merge coupling on `infra/db.ts`/`infra/jobs.ts`), and M24 and M25 both write the UserData/UserProfile item (M24 adds profile fields, M25 adds lifetime counters + current streak). Isolating M25 into Wave 16 eliminates both couplings, leaving Wave 15 fully orthogonal. |
 
 ### Parallelization notes / light coupling to watch
 - **M3 ∥ M4 (Wave 4):** both add DynamoDB access patterns. Keep new key builders in
@@ -147,6 +177,7 @@ wave row are independent — dispatch one agent per milestone in parallel.
 - **M17 ∥ M18 (Wave 12):** fully orthogonal. M17 adds note-set picker UI + map-reduce generation routes; M18 adds Polly TTS Lambda + audio player component. Different routes, different AWS services, no shared state.
 - **M20 (Wave 13):** runs alone. Introduces the `SOURCE#` entity + GSI7 + `resolveSourceText()` normalization layer; multi-format parsers (PDF/DOCX/EPUB/TXT/MD); generalizes `STUDYSET.sourceRefs`. M21 depends on this entire surface.
 - **M21 (Wave 14):** runs alone. Builds the URL-fetch path on top of M20's `SOURCE#` model; adds `assertUrlSafe`/`safeFetch` SSRF guards and prompt-injection data-wrapping. Security-critical — isolated wave keeps the review surface small.
+- **M22 ∥ M23 ∥ M24 ∥ M26 (Wave 15) / M25 (Wave 16):** M22 (Workbox PWA shell) and M26 (Multi-page capture toggle + batch route) are fully isolated surface changes. M23 (Admin Cost Breakdown) and M24 (Per-user study profile) are also orthogonal in Wave 15: M23 introduces a brand-new `Usage` table + stream aggregator (no overlap with any existing table or UI surface), while M24 writes per-user profile fields + a settings UI on the existing UserData item — different key shapes, different admin/settings routes, no collision. **Two couplings that would arise if M25 joined Wave 15 are why it is isolated in Wave 16:** (1) M23 and M25 both add a new dedicated DynamoDB table + stream aggregator Lambda, creating a light merge coupling on `infra/db.ts`/`infra/jobs.ts`; (2) M24 and M25 both write the UserData/UserProfile item — M24 adds per-user profile/AI-environment fields, M25 adds lifetime counters + current-streak — which would require careful merge ordering. Running M25 alone in Wave 16 (after M24 lands) removes both hazards and makes all five milestones safe to ship.
 
 ## Per-milestone detail
 
@@ -174,9 +205,14 @@ wave row are independent — dispatch one agent per milestone in parallel.
 | M18 | Audio for flashcards & notes (TTS) | L | 12 | Jul 15 | Jul 17 | M8, M13, M14 | M17 |
 | M20 | Document sources — PDF / DOCX / EPUB / text | XL | 13 | Jul 19 | Jul 22 | M4, M13, M17 | — |
 | M21 | Web article ingestion + AI security hardening | L | 14 | Jul 23 | Jul 25 | M13, M20 | — |
+| M22 | Offline support — PWA service-worker app shell, offline read cache, offline mutations + sync | L | 15 | Jul 26 | Jul 29 | M10, M12 | M23, M24, M26 |
+| M23 | Admin Cost Breakdown — per-user AI-token + S3-storage metering; new `Usage` table + stream aggregator | L | 15 | Jul 26 | Jul 29 | M3, M4 | M22, M24, M26 |
+| M24 | Per-user study profile & AI environment — "Learner context" prompt layer + profile/settings UI | XL | 15 | Jul 26 | Jul 29 | M13 | M22, M23, M26 |
+| M26 | Multi-page note capture — Single/Multi toggle + page tray; `POST /api/transcribe/batch`; `stitchPages()` | M | 15 | Jul 26 | Jul 28 | M4, M5 | M22, M23, M24 |
+| M25 | Study Progress & Insights — per-user `/progress` dashboard; new `StudyEvents` table + rollup aggregator + nightly cron | L | 16 | Jul 30 | Aug 1 | M8, M13, M5, M6 (soft: M15) | — |
 
 > Critical path (longest dependent chain): **M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12} → M13 → M15 → M17 → M20 → M21**.
-> Shortening any of these directly shortens the whole project; M3, M9, M7, M14, M16, M18, and M19 have slack.
+> Shortening any of these directly shortens the whole project; M3, M9, M7, M14, M16, M18, M19, M22, M23, M24, M25, and M26 have slack.
 > The AI study-material program adds five waves after launch: M13 alone (Wave 10), then M14/M15/M16/M19 in parallel
 > (Wave 11), then M17/M18 in parallel (Wave 12), then M20 alone (Wave 13), then M21 alone (Wave 14) —
 > so nine milestones add only ~18 days, not ~34.
