@@ -94,18 +94,17 @@ export const application = new sst.aws.Nextjs("Application", {
       ],
     },
     {
-      // Polly TTS (M18). Polly's SynthesizeSpeech does NOT support per-voice or
-      // per-language ARN scoping — the minimal valid Resource is "*" (Polly's IAM
-      // model). We compensate with a polly:LanguageCode condition restricting to
-      // pt-BR. Documented in docs/milestones/M18.md "Risks → Polly IAM resource ARN".
+      // Polly TTS (M18). Polly's SynthesizeSpeech supports NEITHER resource-level
+      // scoping (only lexicon ARNs are resources — synthesis itself is "*") NOR
+      // request condition keys: it does not populate `polly:LanguageCode` (or any
+      // synthesis condition key) into the request context, so a StringEquals
+      // condition on it can never match and fails the statement closed →
+      // AccessDeniedException. The minimal grant Polly's IAM model actually
+      // accepts is the action on Resource "*" with no condition. LanguageCode is
+      // pinned to pt-BR in the synthesizeSpeech() call itself (packages/core/src/tts/polly.ts).
+      // Documented in docs/milestones/M18.md "Risks → Polly IAM resource ARN".
       actions: ["polly:SynthesizeSpeech"],
       resources: ["*"],
-      // SST permission conditions map to a Pulumi getPolicyDocument statement
-      // condition — an array of { test, variable, values }, NOT the IAM-JSON
-      // { StringEquals: { ... } } shorthand (which Pulumi rejects at deploy).
-      conditions: [
-        { test: "StringEquals", variable: "polly:LanguageCode", values: ["pt-BR"] },
-      ],
     },
   ],
   domain: isPR
