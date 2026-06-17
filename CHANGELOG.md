@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.66.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.65.0...transformmynotes-v1.66.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **study:** M15.3 quiz score report + attempt-history UI ([#573](https://github.com/jasonp2323/transformmynotes/issues/573)) ([5a0aa5e](https://github.com/jasonp2323/transformmynotes/commit/5a0aa5eb1ee7c0d0d446a59c704553d633c64a23))
+
 ## [1.65.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.64.0...transformmynotes-v1.65.0) (2026-06-17)
 
 
