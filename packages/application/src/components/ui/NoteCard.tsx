@@ -1,8 +1,13 @@
+'use client';
+
 import React from 'react';
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { Tag } from './Tag';
 import { Checkbox } from './Checkbox';
+import { IconButton } from './IconButton';
+import { Icon } from './Icon';
+import { useLongPress } from '@/src/lib/longPress';
 
 export interface NoteCardProps {
   course?: string;
@@ -22,6 +27,12 @@ export interface NoteCardProps {
   selectable?: boolean;
   /** Whether this card is currently selected (only relevant when selectable=true). */
   selected?: boolean;
+  /** Called after a 500 ms long-press; arms the delete button. */
+  onLongPress?: () => void;
+  /** When true, a trash button is shown on the card. */
+  armed?: boolean;
+  /** Called when the user taps the trash button while armed. */
+  onDelete?: () => void;
 }
 
 export const NoteCard = function NoteCard({
@@ -39,10 +50,40 @@ export const NoteCard = function NoteCard({
   sharedBy,
   selectable = false,
   selected = false,
+  onLongPress,
+  armed = false,
+  onDelete,
 }: NoteCardProps) {
+  const longPressProps = useLongPress(onLongPress ?? (() => {}));
+
   return (
-    <Card variant={onClick ? 'interactive' : 'default'} onClick={onClick} className={className}>
-      <div className="tmn-note">
+    <Card
+      variant={onClick ? 'interactive' : 'default'}
+      onClick={onClick}
+      className={className}
+      {...(onLongPress ? longPressProps : {})}
+    >
+      <div className="tmn-note" style={armed ? { position: 'relative' } : undefined}>
+        {armed && (
+          <IconButton
+            label="Delete note"
+            variant="soft"
+            size="sm"
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              color: 'var(--danger-600)',
+              zIndex: 1,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete?.();
+            }}
+          >
+            <Icon name="trash-2" size={18} />
+          </IconButton>
+        )}
         <div className="tmn-note__top">
           {selectable && (
             <Checkbox
@@ -83,7 +124,9 @@ export const NoteCard = function NoteCard({
         ) : null}
         <div className="tmn-note__meta">
           {highlights != null ? (
-            <span className="tmn-note__meta-item">{'★'} {highlights} highlights</span>
+            <span className="tmn-note__meta-item">
+              {'★'} {highlights} highlights
+            </span>
           ) : null}
           {words != null ? (
             <span className="tmn-note__meta-item">{words} words</span>

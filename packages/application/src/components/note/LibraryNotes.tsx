@@ -11,6 +11,7 @@ import {
   Button,
   Toast,
   Checkbox,
+  Dialog,
 } from '@/src/components/ui';
 import { relativeTime, filterNotesByTab } from '@/src/lib/library';
 import type { NoteMetadata, LibraryTab } from '@/src/lib/library';
@@ -181,8 +182,41 @@ export function LibraryNotes() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pickerInitialStep, setPickerInitialStep] = useState<1 | 2>(1);
 
+  // Long-press delete state
+  const [armedNoteId, setArmedNoteId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<NoteMetadata | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // AbortController ref to cancel stale in-flight requests
   const abortRef = useRef<AbortController | null>(null);
+
+  // ── Outside-click / Escape dismissal of armed card ────────────────────────
+  useEffect(() => {
+    if (!armedNoteId) return;
+
+    function handlePointerDown(e: PointerEvent) {
+      const target = e.target as Element | null;
+      if (!target) return;
+      const card = target.closest('[data-armed-card]');
+      if (!card) {
+        setArmedNoteId(null);
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setArmedNoteId(null);
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [armedNoteId]);
 
   // ── Online/offline detection ───────────────────────────────────────────────
   useEffect(() => {
@@ -300,6 +334,30 @@ export function LibraryNotes() {
     setGenPickerOpen(false);
     exitSelecting();
   }, [exitSelecting]);
+
+  // ── Long-press delete helpers ─────────────────────────────────────────────
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
+    const noteId = pendingDelete.noteId;
+    setDeleting(true);
+    setDeleteError(null);
+
+    // Optimistic removal
+    setNotes((prev) => prev.filter((n) => n.noteId !== noteId));
+    setPendingDelete(null);
+    setArmedNoteId(null);
+
+    try {
+      const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+    } catch (err) {
+      // Rollback: refetch
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete note');
+      fetchNotes(debouncedQuery);
+    } finally {
+      setDeleting(false);
+    }
+  }, [pendingDelete, fetchNotes, debouncedQuery]);
 
   // ── Window event: tmn:study-select-toggle (dispatched by mobile nav button) ─
   useEffect(() => {
@@ -466,23 +524,31 @@ export function LibraryNotes() {
                 }}
               >
                 {filteredNotes.map((note) => (
-                  <NoteCard
-                    key={note.noteId}
-                    title={note.title}
-                    tags={note.tags}
-                    highlights={note.highlights}
-                    words={note.words}
-                    status={note.status}
-                    when={relativeTime(note.updatedAt)}
-                    course={note.groupId}
-                    selectable={selecting}
-                    selected={selected.has(note.noteId)}
-                    onClick={
-                      selecting
-                        ? () => toggleSelect(note.noteId)
-                        : () => router.push(`/notes/${note.noteId}`)
-                    }
-                  />
+                  <div key={note.noteId} data-armed-card={armedNoteId === note.noteId ? 'true' : undefined}>
+                    <NoteCard
+                      title={note.title}
+                      tags={note.tags}
+                      highlights={note.highlights}
+                      words={note.words}
+                      status={note.status}
+                      when={relativeTime(note.updatedAt)}
+                      course={note.groupId}
+                      selectable={selecting}
+                      selected={selected.has(note.noteId)}
+                      onClick={
+                        selecting
+                          ? () => toggleSelect(note.noteId)
+                          : () => router.push(`/notes/${note.noteId}`)
+                      }
+                      onLongPress={
+                        selecting
+                          ? undefined
+                          : () => setArmedNoteId(note.noteId)
+                      }
+                      armed={armedNoteId === note.noteId}
+                      onDelete={() => setPendingDelete(note)}
+                    />
+                  </div>
                 ))}
               </div>
             </>
@@ -518,6 +584,59 @@ export function LibraryNotes() {
           </Toast>
         </div>
       )}
+
+      {/* Delete error toast */}
+      {deleteError && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 16,
+            right: 16,
+            bottom: 88,
+            zIndex: 50,
+          }}
+        >
+          <Toast
+            tone="danger"
+            icon={<Icon name="alert-circle" size={20} />}
+            title="Could not delete note"
+            onClose={() => setDeleteError(null)}
+          >
+            {deleteError}
+          </Toast>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        title="Delete note?"
+        description={
+          pendingDelete?.title
+            ? `"${pendingDelete.title}" will be permanently deleted.`
+            : 'This note will be permanently deleted.'
+        }
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button
+              variant="secondary"
+              onClick={() => setPendingDelete(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              leftIcon={deleting ? <Icon name="loader-circle" size={16} className="animate-spin" /> : undefined}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        }
+      />
     </div>
   );
 }
