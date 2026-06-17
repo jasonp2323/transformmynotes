@@ -14,6 +14,7 @@ import {
 import { relativeTime, filterNotesByTab } from '@/src/lib/library';
 import type { NoteMetadata, LibraryTab } from '@/src/lib/library';
 import { SharedNotes } from './SharedNotes';
+import { NoteSetPicker } from '@/src/components/study/NoteSetPicker';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ export function LibraryNotes() {
   // Offline state — initialize to true (online) to avoid hydration mismatch
   const [isOnline, setIsOnline] = useState(true);
   const [showOfflineToast, setShowOfflineToast] = useState(false);
+  const [genPickerOpen, setGenPickerOpen] = useState(false);
 
   // AbortController ref to cancel stale in-flight requests
   const abortRef = useRef<AbortController | null>(null);
@@ -310,7 +312,18 @@ export function LibraryNotes() {
               <NotebookEmptyState />
             )
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  leftIcon={<Icon name="sparkles" size={18} />}
+                  onClick={() => setGenPickerOpen(true)}
+                >
+                  Generate from notes
+                </Button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {filteredNotes.map((note) => (
                 <NoteCard
                   key={note.noteId}
@@ -325,9 +338,12 @@ export function LibraryNotes() {
                 />
               ))}
             </div>
+            </>
           )}
         </>
       )}
+
+      <NoteSetPicker open={genPickerOpen} onClose={() => setGenPickerOpen(false)} />
 
       {/* Offline toast */}
       {showOfflineToast && (
