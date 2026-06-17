@@ -24,6 +24,7 @@ export * from './ocr/retry';
 // (it stays internal to polly.ts; consumers only need synthesizeSpeech + audioHash).
 export * from './tts/polly';
 export * from './tts/hash';
+export * from './tts/voices';
 export * from './editor/serialize';
 export * from './editor/utils';
 

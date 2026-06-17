@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { signOut } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Avatar, Button, Icon } from '@/src/components/ui';
+import { VoiceSelector } from '@/src/components/tts';
 
 export interface AccountScreenProps {
   email: string;
@@ -79,6 +80,39 @@ export function AccountScreen({ email, isAdmin }: AccountScreenProps) {
             {roleLabel}
           </div>
         </div>
+      </div>
+
+      {/* Pronunciation voice */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          padding: '20px',
+          borderRadius: 16,
+          background: 'var(--surface-raised)',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--text-strong)',
+          }}
+        >
+          Pronunciation voice
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: 'var(--text-muted)',
+          }}
+        >
+          Voice used when playing flashcard audio.
+        </div>
+        <VoiceSelector />
       </div>
 
       {/* Actions */}

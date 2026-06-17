@@ -10,6 +10,7 @@ import {
   audioHash,
   synthesizeSpeech,
   resolveAiConfig,
+  resolveVoiceEngine,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -21,7 +22,7 @@ export const dynamic = 'force-dynamic';
  * values — `Vitoria` has NO accent. The M18.md spec wrote `Vitória`, but Polly's
  * VoiceId enum is unaccented; passing the accented form is a hard 400 from AWS.
  */
-const ALLOWED_VOICES = ['Camila', 'Vitoria', 'Thiago'] as const;
+const ALLOWED_VOICES = ['Camila', 'Vitoria', 'Thiago', 'Ricardo'] as const;
 /** Allowed SSML `<prosody rate>` values the client may request. */
 const ALLOWED_RATES = ['slow', 'medium', 'fast'] as const;
 
@@ -110,8 +111,8 @@ export async function POST(req: Request) {
 
     // Resolve runtime AI config — fails loudly if Polly voice/engine unset.
     const config = await resolveAiConfig();
-    const engine = config.pollyEngine;
     const effectiveVoiceId = (voiceId as string | undefined) ?? config.pollyVoiceId;
+    const engine = resolveVoiceEngine(effectiveVoiceId, config.pollyEngine);
 
     // ── Daily character cap ──────────────────────────────────────────────────
     // Approximation per M18.md: sum charCount over the user's AUDIO# pointer

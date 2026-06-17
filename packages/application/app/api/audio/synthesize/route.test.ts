@@ -49,6 +49,8 @@ vi.mock('@transformmynotes/core', () => ({
   audioHash: (t: string, v: string, e: string, r?: string) => `h-${t}-${v}-${e}-${r ?? ''}`,
   synthesizeSpeech: synthesizeSpeechMock,
   resolveAiConfig: resolveAiConfigMock,
+  resolveVoiceEngine: (voiceId: string, preferred?: string) =>
+    voiceId === 'Ricardo' ? 'standard' : (preferred ?? 'neural'),
 }));
 
 // ---------------------------------------------------------------------------
@@ -232,5 +234,21 @@ describe('POST /api/audio/synthesize', () => {
     const res = await POST(makeRequest({ text: 'olá' }));
     expect(res.status).toBe(200);
     expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves the standard engine for the Ricardo voice on a cache miss', async () => {
+    const res = await POST(makeRequest({ text: 'olá', voiceId: 'Ricardo' }));
+
+    expect(res.status).toBe(200);
+    expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1);
+    expect(synthesizeSpeechMock.mock.calls[0][2]).toBe('standard');
+  });
+
+  it('resolves the neural engine for the Thiago voice on a cache miss', async () => {
+    const res = await POST(makeRequest({ text: 'olá', voiceId: 'Thiago' }));
+
+    expect(res.status).toBe(200);
+    expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1);
+    expect(synthesizeSpeechMock.mock.calls[0][2]).toBe('neural');
   });
 });

@@ -598,6 +598,17 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   border-top: 1px solid var(--border-subtle);
   margin-top: 8px;
 }
+.tmn-sidebar__footer-link {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px; margin: -4px;
+  border-radius: var(--radius-sm);
+  text-decoration: none; color: inherit;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.tmn-sidebar__footer-link:hover { background: var(--surface-sunken); }
+.tmn-sidebar__footer-link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tmn-sidebar__footer-link--active { background: var(--surface-brand-soft); }
 .tmn-sidebar__footer-info {
   flex: 1; min-width: 0;
 }

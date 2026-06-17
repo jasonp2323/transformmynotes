@@ -20,6 +20,7 @@ import { Icon } from '@/src/components/ui/Icon';
 import { Toast } from '@/src/components/ui/Toast';
 import { IconButton } from '@/src/components/ui/IconButton';
 import { Checkbox } from '@/src/components/ui/Checkbox';
+import { PlayButton } from '@/src/components/tts';
 import { scorePercent, formatDuration, formatAttemptDate } from './quiz-taking-logic';
 
 // --- Attempt history types ---------------------------------------------------
@@ -47,8 +48,14 @@ function FlashcardsView({
     <ol className="space-y-3 list-none">
       {payload.cards.map((card, i) => (
         <li key={i} className="rounded-lg border border-border-default bg-surface-card p-4">
-          <p className="font-semibold text-sm">{i + 1}. {card.front}</p>
-          <p className="mt-2 text-sm text-text-muted">{card.back}</p>
+          <div className="flex items-start gap-2 justify-between">
+            <p className="font-semibold text-sm">{i + 1}. {card.front}</p>
+            <PlayButton text={card.front} size={18} className="shrink-0 text-text-muted" />
+          </div>
+          <div className="mt-2 flex items-start gap-2 justify-between">
+            <p className="text-sm text-text-muted">{card.back}</p>
+            <PlayButton text={card.back} size={18} className="shrink-0 text-text-muted" />
+          </div>
           {(() => {
             const label = formatProvenance(card.sourceNoteIds, noteTitles, totalSourceCount);
             return label ? <p className="mt-1.5 text-xs font-mono text-text-muted">{label}</p> : null;
@@ -238,7 +245,7 @@ function GlossaryView({
       <dl className="glossary-list">
         {payload.terms.map((entry, i) => (
           <div key={i} className="glossary-entry">
-            <dt className="glossary-term">{entry.term}</dt>
+            <dt className="glossary-term"><span className="inline-flex items-center gap-2">{entry.term}<PlayButton text={entry.term} size={18} className="shrink-0 text-text-muted" /></span></dt>
             <dd className="glossary-def">{entry.definition}</dd>
           </div>
         ))}
