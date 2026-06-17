@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.68.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.67.1...transformmynotes-v1.68.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **study:** M17.1 — multi-note & notebook-wide generation foundation ([#586](https://github.com/jasonp2323/transformmynotes/issues/586)) ([e70300e](https://github.com/jasonp2323/transformmynotes/commit/e70300e166537b23392319b96ca676e1761b5b4b))
+
+
+### 🐛 Fixes
+
+* **study:** stop sending temperature+top_p to Bedrock; lock admin model to one known-good model ([#590](https://github.com/jasonp2323/transformmynotes/issues/590)) ([229a5da](https://github.com/jasonp2323/transformmynotes/commit/229a5da215c8cfeb790992de46fc945802857fe4))
+
 ## [1.67.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.67.0...transformmynotes-v1.67.1) (2026-06-17)
 
 
