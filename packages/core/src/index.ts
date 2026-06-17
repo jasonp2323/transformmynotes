@@ -19,6 +19,11 @@ export * from './auth/access-request';
 export * from './ocr/bedrock';
 export * from './ocr/postprocess';
 export * from './ocr/retry';
+
+// Text-to-speech (M18) — withPollyRetry is intentionally NOT re-exported
+// (it stays internal to polly.ts; consumers only need synthesizeSpeech + audioHash).
+export * from './tts/polly';
+export * from './tts/hash';
 export * from './editor/serialize';
 export * from './editor/utils';
 
