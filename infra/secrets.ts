@@ -58,3 +58,11 @@ export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 // unset/empty value as the built-in default (60_000 tokens), so this does NOT
 // fail loud (unlike required secrets). Seed the real value in both Console envs.
 export const multiNoteContextLimit = new sst.Secret("MULTI_NOTE_CONTEXT_LIMIT", "");
+
+// M17.3 cost controls: maximum source notes per generation run. Declared with
+// an empty-string default ON PURPOSE — the route interprets an unset/empty value
+// as the built-in default (50 notes), so this does NOT fail loud (unlike required
+// secrets). A declared sst.Secret with no value throws SecretMissingError at
+// deploy for every stage; the empty default avoids that. Seed the real value in
+// both Console envs if you need a different cap.
+export const maxSourceNotes = new sst.Secret("MAX_SOURCE_NOTES", "");

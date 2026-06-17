@@ -10,10 +10,12 @@ import {
   HandNote,
   Button,
   Toast,
+  Checkbox,
 } from '@/src/components/ui';
 import { relativeTime, filterNotesByTab } from '@/src/lib/library';
 import type { NoteMetadata, LibraryTab } from '@/src/lib/library';
 import { SharedNotes } from './SharedNotes';
+import { NoteSetPicker } from '@/src/components/study/NoteSetPicker';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -172,6 +174,12 @@ export function LibraryNotes() {
   // Offline state — initialize to true (online) to avoid hydration mismatch
   const [isOnline, setIsOnline] = useState(true);
   const [showOfflineToast, setShowOfflineToast] = useState(false);
+  const [genPickerOpen, setGenPickerOpen] = useState(false);
+
+  // Selection mode state
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pickerInitialStep, setPickerInitialStep] = useState<1 | 2>(1);
 
   // AbortController ref to cancel stale in-flight requests
   const abortRef = useRef<AbortController | null>(null);
@@ -247,6 +255,67 @@ export function LibraryNotes() {
   // ── Filtered notes (client-side tab filter) ───────────────────────────────
   const filteredNotes = filterNotesByTab(notes, tab);
 
+  // ── Selection helpers ─────────────────────────────────────────────────────
+  const toggleSelect = useCallback((noteId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(noteId)) next.delete(noteId);
+      else next.add(noteId);
+      return next;
+    });
+  }, []);
+
+  const allFilteredSelected =
+    filteredNotes.length > 0 && filteredNotes.every((n) => selected.has(n.noteId));
+  const someFilteredSelected = filteredNotes.some((n) => selected.has(n.noteId));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allFilteredSelected) {
+      setSelected((prev) => {
+        const filteredIds = new Set(filteredNotes.map((n) => n.noteId));
+        const next = new Set(prev);
+        for (const id of filteredIds) next.delete(id);
+        return next;
+      });
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const n of filteredNotes) next.add(n.noteId);
+        return next;
+      });
+    }
+  }, [allFilteredSelected, filteredNotes]);
+
+  const exitSelecting = useCallback(() => {
+    setSelecting(false);
+    setSelected(new Set());
+  }, []);
+
+  const openGeneratePicker = useCallback(() => {
+    setPickerInitialStep(2);
+    setGenPickerOpen(true);
+  }, []);
+
+  const handlePickerClose = useCallback(() => {
+    setGenPickerOpen(false);
+    exitSelecting();
+  }, [exitSelecting]);
+
+  // ── Window event: tmn:study-select-toggle (dispatched by mobile nav button) ─
+  useEffect(() => {
+    function handleStudySelectToggle() {
+      if (selecting) {
+        exitSelecting();
+      } else {
+        setSelecting(true);
+      }
+    }
+    window.addEventListener('tmn:study-select-toggle', handleStudySelectToggle);
+    return () => {
+      window.removeEventListener('tmn:study-select-toggle', handleStudySelectToggle);
+    };
+  }, [selecting, exitSelecting]);
+
   // ── Eyebrow label ─────────────────────────────────────────────────────────
   const eyebrow = debouncedQuery
     ? `${filteredNotes.length} result${filteredNotes.length === 1 ? '' : 's'}`
@@ -310,24 +379,123 @@ export function LibraryNotes() {
               <NotebookEmptyState />
             )
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {filteredNotes.map((note) => (
-                <NoteCard
-                  key={note.noteId}
-                  title={note.title}
-                  tags={note.tags}
-                  highlights={note.highlights}
-                  words={note.words}
-                  status={note.status}
-                  when={relativeTime(note.updatedAt)}
-                  course={note.groupId}
-                  onClick={() => router.push(`/notes/${note.noteId}`)}
-                />
-              ))}
-            </div>
+            <>
+              {/* Desktop-only trigger — shown above the note list, hidden on mobile */}
+              {!selecting && (
+                <div className="hidden md:block" style={{ marginBottom: 14 }}>
+                  <Button
+                    variant="secondary"
+                    leftIcon={<Icon name="sparkles" size={18} />}
+                    onClick={() => {
+                      setPickerInitialStep(1);
+                      setSelecting(true);
+                    }}
+                  >
+                    Generate study material
+                  </Button>
+                </div>
+              )}
+
+              {/* Selection mode header row */}
+              {selecting && (
+                <div style={{ marginBottom: 12 }}>
+                  {/* Row: Select all checkbox + count + Cancel */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 0',
+                      borderBottom: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      indeterminate={someFilteredSelected && !allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all notes"
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {selected.size} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={exitSelecting}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: 'var(--text-link)',
+                        padding: '4px 0',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {/* Full-width in-flow CTA — not fixed, never overlaps bottom nav */}
+                  <div style={{ paddingTop: 10 }}>
+                    <Button
+                      variant="primary"
+                      leftIcon={<Icon name="sparkles" size={18} />}
+                      disabled={selected.size === 0}
+                      onClick={openGeneratePicker}
+                      style={{ width: '100%' }}
+                    >
+                      Generate study material
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Note list */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                }}
+              >
+                {filteredNotes.map((note) => (
+                  <NoteCard
+                    key={note.noteId}
+                    title={note.title}
+                    tags={note.tags}
+                    highlights={note.highlights}
+                    words={note.words}
+                    status={note.status}
+                    when={relativeTime(note.updatedAt)}
+                    course={note.groupId}
+                    selectable={selecting}
+                    selected={selected.has(note.noteId)}
+                    onClick={
+                      selecting
+                        ? () => toggleSelect(note.noteId)
+                        : () => router.push(`/notes/${note.noteId}`)
+                    }
+                  />
+                ))}
+              </div>
+            </>
           )}
         </>
       )}
+
+      <NoteSetPicker
+        open={genPickerOpen}
+        onClose={handlePickerClose}
+        initialSelectedIds={Array.from(selected)}
+        initialStep={pickerInitialStep}
+      />
 
       {/* Offline toast */}
       {showOfflineToast && (

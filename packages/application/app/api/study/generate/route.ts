@@ -4,7 +4,7 @@ import {
   batchGetNotes, listNotesByGroup,
   putStudySet, countInFlightStudySets, buildStudySetItem,
   MATERIAL_TYPES, type StudyMaterialType, type StudyLanguage, type NoteItem,
-  resolveAiConfig, estimateTokens, resolveContextLimit,
+  resolveAiConfig, estimateTokens, resolveContextLimit, resolveMaxSourceNotes,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -69,6 +69,7 @@ export async function POST(req: Request) {
   // ── Resolve sourceNoteIds ─────────────────────────────────────────────────
 
   let resolvedNoteIds: string[];
+  let fromNotebook = false;
 
   if (typeof notebookId === 'string' && notebookId) {
     // 1. notebookId: resolve via listNotesByGroup server-side.
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
         );
       }
       resolvedNoteIds = notebookNotes.map((n) => n.noteId);
+      fromNotebook = true;
     } catch (err) {
       console.error('[study/generate] listNotesByGroup failed', err);
       return NextResponse.json(
@@ -124,6 +126,23 @@ export async function POST(req: Request) {
       { ok: false, error: 'Missing or invalid sourceNoteId.' },
       { status: 400 },
     );
+  }
+
+  // ── Note cap enforcement ────────────────────────────────────────────────
+  let truncatedFrom: number | undefined;
+  const maxSourceNotesCap = resolveMaxSourceNotes();
+  if (deduped.length > maxSourceNotesCap) {
+    if (fromNotebook) {
+      truncatedFrom = deduped.length;
+      // Sort newest-first by ULID (lexicographic descending), then truncate.
+      deduped.sort((a, b) => b.localeCompare(a));
+      deduped.splice(maxSourceNotesCap);
+    } else {
+      return NextResponse.json(
+        { error: 'too_many_notes', max: maxSourceNotesCap },
+        { status: 422 },
+      );
+    }
   }
 
   // Validate type.
@@ -170,12 +189,16 @@ export async function POST(req: Request) {
       const estimatedTokens = estimateTokens(bodies);
       const estimatedCostUsd = estimatedTokens * 0.000003;
       const mapReduceNeeded = estimatedTokens > resolveContextLimit();
+      const inFlight = await countInFlightStudySets(sub);
+      const rateLimitRemaining = Math.max(0, MAX_CONCURRENT_STUDY_JOBS - inFlight);
       return NextResponse.json(
         {
           estimatedTokens,
           estimatedCostUsd,
           mapReduceNeeded,
           noteCount: deduped.length,
+          rateLimitRemaining,
+          ...(truncatedFrom !== undefined ? { truncatedFrom } : {}),
         },
         { status: 200 },
       );

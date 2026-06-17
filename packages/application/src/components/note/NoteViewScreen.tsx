@@ -18,6 +18,7 @@ import {
 import { ShareSheet } from './ShareSheet';
 import { GenerateStudyMaterial } from './GenerateStudyMaterial';
 import { StudySetsForNote } from './StudySetsForNote';
+import { NoteSetPicker } from '@/src/components/study/NoteSetPicker';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ export function NoteViewScreen({
   const [cardSyncing, setCardSyncing] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [studyRefreshNonce, setStudyRefreshNonce] = useState(0);
+  const [multiPickerOpen, setMultiPickerOpen] = useState(false);
 
   // ── Save handler ──────────────────────────────────────────────────────────
 
@@ -333,12 +335,31 @@ export function NoteViewScreen({
           )}
 
           {isOwner && (
+            <Button
+              variant="secondary"
+              fullWidth
+              leftIcon={<Icon name="sparkles" size={18} />}
+              onClick={() => setMultiPickerOpen(true)}
+            >
+              Multi-note generate
+            </Button>
+          )}
+
+          {isOwner && (
             <GenerateStudyMaterial
               noteId={noteId}
               onStudySetReady={() => setStudyRefreshNonce((n) => n + 1)}
             />
           )}
         </FloatingActionMenu>
+      )}
+
+      {isOwner && (
+        <NoteSetPicker
+          open={multiPickerOpen}
+          onClose={() => setMultiPickerOpen(false)}
+          initialSelectedIds={[noteId]}
+        />
       )}
 
       {/* ── Study sets for this note — owner only ── */}

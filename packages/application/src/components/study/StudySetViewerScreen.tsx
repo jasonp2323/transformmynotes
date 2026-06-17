@@ -317,16 +317,76 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
   const [attempts, setAttempts] = useState<AttemptSummary[]>([]);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
 
-  // Fetch metadata
+  // Fetch metadata — polls every 2000ms while status is non-terminal
   useEffect(() => {
-    fetch(`/api/study/${studySetId}`)
-      .then(async (res) => {
-        if (res.status === 404) { setNotFound(true); return; }
-        if (!res.ok) throw new Error('Failed to load study set');
-        setMeta((await res.json()) as StudySetMeta);
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoadingMeta(false));
+    const POLL_INTERVAL_MS = 2000;
+    const MAX_ATTEMPTS = 150; // ~5 min, matching the generation Lambda timeout
+    const TERMINAL_STATUSES = new Set(['ready', 'failed', 'too_large']);
+
+    let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+    let attemptCount = 0;
+    let everLoaded = false;
+
+    async function poll() {
+      if (cancelled) return;
+      attemptCount += 1;
+
+      try {
+        const res = await fetch(`/api/study/${studySetId}`);
+        if (cancelled) return;
+
+        if (res.status === 404) {
+          setNotFound(true);
+          setLoadingMeta(false);
+          return;
+        }
+
+        if (!res.ok) {
+          // Transient error after first successful load — keep last good meta, stop polling
+          if (everLoaded) {
+            return;
+          }
+          // First-ever load failed — fall through to not-found
+          setNotFound(true);
+          setLoadingMeta(false);
+          return;
+        }
+
+        const data = (await res.json()) as StudySetMeta;
+        if (cancelled) return;
+
+        setMeta(data);
+        if (!everLoaded) {
+          everLoaded = true;
+          setLoadingMeta(false);
+        }
+
+        // Stop if terminal or cap reached
+        if (TERMINAL_STATUSES.has(data.status) || attemptCount >= MAX_ATTEMPTS) {
+          return;
+        }
+
+        // Schedule next poll
+        timerId = setTimeout(poll, POLL_INTERVAL_MS);
+      } catch {
+        if (cancelled) return;
+        if (everLoaded) {
+          // Transient network error — keep last good meta, stop polling
+          return;
+        }
+        // First-ever load threw — treat as not found
+        setNotFound(true);
+        setLoadingMeta(false);
+      }
+    }
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      if (timerId !== undefined) clearTimeout(timerId);
+    };
   }, [studySetId]);
 
   // Fetch body when meta is ready
@@ -462,6 +522,13 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
             <div className="rounded-lg border border-danger bg-surface-sunken px-4 py-4 text-sm text-danger">
               <p className="font-medium">Generation failed</p>
               {meta.error && <p className="mt-1">{meta.error}</p>}
+            </div>
+          )}
+
+          {meta.status === 'too_large' && (
+            <div className="rounded-lg border border-danger bg-surface-sunken px-4 py-4 text-sm text-danger">
+              <p className="font-medium">Too many notes</p>
+              <p className="mt-1">This selection is too large to generate in one run. Remove some notes and try again.</p>
             </div>
           )}
 
@@ -606,8 +673,8 @@ export function StudySetViewerScreen({ studySetId }: StudySetViewerScreenProps) 
             </div>
           )}
 
-          {/* Also show delete button for failed sets */}
-          {meta.status === 'failed' && (
+          {/* Also show delete button for failed / too_large sets */}
+          {(meta.status === 'failed' || meta.status === 'too_large') && (
             <div className="mt-4">
               <Button
                 variant="danger"

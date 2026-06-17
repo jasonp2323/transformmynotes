@@ -3,6 +3,7 @@ import { cn } from '@/src/lib/cn';
 import { Icon } from '@/src/components/ui/Icon';
 import { ReviewNavBadge } from '@/src/components/review/ReviewNavBadge';
 import { LogoutButton } from './LogoutButton';
+import { StudySelectNavButton } from '@/src/components/note/StudySelectNavButton';
 
 export interface MobileShellProps {
   active?: 'library' | 'search' | 'review' | 'study' | 'profile';
@@ -67,6 +68,7 @@ export function MobileShell({ active, fab, children, className }: MobileShellPro
             </a>
           );
         })}
+        {active === 'library' && <StudySelectNavButton />}
         <div className="tmn-bottomnav__logout">
           <LogoutButton />
         </div>
