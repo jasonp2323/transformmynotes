@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.73.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.72.0...transformmynotes-v1.73.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **tts:** M18.3 — play button UI in /review + study viewers, voice selector in account ([420ac31](https://github.com/jasonp2323/transformmynotes/commit/420ac31da731c5cbb149abcb3d00e7ec5ba5dfa7))
+
 ## [1.72.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.71.0...transformmynotes-v1.72.0) (2026-06-17)
 
 
