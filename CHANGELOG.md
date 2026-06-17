@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.70.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.69.0...transformmynotes-v1.70.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **study:** M17.2.1 — multi-source provenance across all material types ([#593](https://github.com/jasonp2323/transformmynotes/issues/593)) ([c5cb3e7](https://github.com/jasonp2323/transformmynotes/commit/c5cb3e78dfc305f7fe5c4a122373bc9c3d862557))
+
 ## [1.69.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.68.0...transformmynotes-v1.69.0) (2026-06-17)
 
 
