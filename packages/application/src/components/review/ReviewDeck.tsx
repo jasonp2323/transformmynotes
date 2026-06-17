@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import type { Card } from '@transformmynotes/core';
 import { Button, Icon, IconButton, Toast } from '@/src/components/ui';
+import { PlayButton } from '@/src/components/tts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -350,6 +351,19 @@ export function ReviewDeck() {
           onKeyDown={(e) => handleCardKeyDown(e, currentCard.back)}
         >
           <div className="tmn-deck-card__accent-bar" aria-hidden="true" />
+          <div
+            className="tmn-deck-card__audio"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <PlayButton text={currentCard.front} />
+            <PlayButton
+              text={currentCard.front}
+              ssmlRate="slow"
+              label="0.8×"
+              ariaLabel="Play pronunciation slowly"
+            />
+          </div>
           <div className="tmn-deck-card__inner">
             <p className="tmn-deck-card__front">{currentCard.front}</p>
 
@@ -363,6 +377,13 @@ export function ReviewDeck() {
             {flipped && (
               <>
                 <hr className="tmn-deck-card__divider" />
+                <div
+                  className="tmn-deck-card__back-audio"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <PlayButton text={currentCard.back} />
+                </div>
                 <p className="tmn-deck-card__back">{currentCard.back}</p>
               </>
             )}

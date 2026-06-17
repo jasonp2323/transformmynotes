@@ -388,6 +388,25 @@
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
+/* TTS audio controls — top-right of the card surface */
+.tmn-deck-card__audio {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-subtle);
+}
+
+/* TTS audio control above the card back text */
+.tmn-deck-card__back-audio {
+  display: flex;
+  margin-bottom: var(--space-3);
+  color: var(--text-subtle);
+}
+
 .tmn-deck-card__inner {
   padding: var(--space-6) var(--space-6) var(--space-7);
 }
