@@ -32,8 +32,18 @@ const MAX_POLLS = 60;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function GenerateCardsScreen({ noteId }: { noteId: string }) {
+export function GenerateCardsScreen({
+  noteId,
+  studySetId,
+  returnTo,
+}: {
+  noteId?: string;
+  studySetId?: string;
+  returnTo?: string;
+}) {
   const router = useRouter();
+
+  const dest = returnTo ?? (noteId ? `/notes/${noteId}` : '/study');
 
   const [phase, setPhase] = useState<Phase>({ phase: 'generating' });
   const [editing, setEditing] = useState<{
@@ -60,7 +70,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
   // ── Polling ───────────────────────────────────────────────────────────────
 
   const schedulePoll = useCallback(
-    (studySetId: string, pollCount: number) => {
+    (id: string, pollCount: number) => {
       timerRef.current = setTimeout(async () => {
         if (!mountedRef.current) return;
 
@@ -73,7 +83,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
         }
 
         try {
-          const res = await fetch(`/api/study/${studySetId}`);
+          const res = await fetch(`/api/study/${id}`);
           if (!mountedRef.current) return;
 
           if (!res.ok) {
@@ -96,7 +106,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
           }
 
           if (meta.status === 'ready') {
-            const bodyRes = await fetch(`/api/study/${studySetId}/body`);
+            const bodyRes = await fetch(`/api/study/${id}/body`);
             if (!mountedRef.current) return;
 
             if (!bodyRes.ok) {
@@ -118,12 +128,12 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
             const noteTitles = meta.noteTitles ?? {};
             const totalSourceCount = meta.sourceNoteIds.length;
 
-            setPhase({ phase: 'ready', studySetId, cards, noteTitles, totalSourceCount });
+            setPhase({ phase: 'ready', studySetId: id, cards, noteTitles, totalSourceCount });
             return;
           }
 
           // Still queued or running — keep polling
-          schedulePoll(studySetId, pollCount + 1);
+          schedulePoll(id, pollCount + 1);
         } catch {
           if (!mountedRef.current) return;
           setPhase({
@@ -170,8 +180,28 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
     }
   }, [noteId, schedulePoll]);
 
+  // ── Retry — branches on mode ──────────────────────────────────────────────
+
+  const handleRetry = useCallback(() => {
+    if (studySetId) {
+      setPhase({ phase: 'generating' });
+      schedulePoll(studySetId, 0);
+    } else {
+      void startGeneration();
+    }
+  }, [studySetId, schedulePoll, startGeneration]);
+
   useEffect(() => {
-    void startGeneration();
+    if (studySetId) {
+      // Review-existing mode: skip generation, go straight to polling
+      schedulePoll(studySetId, 0);
+    } else if (noteId) {
+      // Generate-from-scratch mode
+      void startGeneration();
+    } else {
+      // Defensive: neither prop provided
+      setPhase({ phase: 'error', message: 'Nothing to review.' });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -179,12 +209,12 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
 
   const handleAccept = useCallback(async () => {
     if (phase.phase !== 'ready') return;
-    const { studySetId, cards, noteTitles, totalSourceCount } = phase;
+    const { studySetId: activeStudySetId, cards, noteTitles, totalSourceCount } = phase;
 
-    setPhase({ phase: 'accepting', studySetId, cards, noteTitles, totalSourceCount });
+    setPhase({ phase: 'accepting', studySetId: activeStudySetId, cards, noteTitles, totalSourceCount });
 
     try {
-      const res = await fetch(`/api/study/${studySetId}/accept-cards`, {
+      const res = await fetch(`/api/study/${activeStudySetId}/accept-cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accepted: toAcceptedPayload(cards) }),
@@ -200,13 +230,13 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
         tone: 'success',
         title: `${cards.length} ${cards.length === 1 ? 'card' : 'cards'} added to your review deck`,
       });
-      router.push(`/notes/${noteId}`);
+      router.push(dest);
     } catch {
       if (!mountedRef.current) return;
       setToast({ tone: 'danger', title: "Couldn't save cards — try again" });
-      setPhase({ phase: 'ready', studySetId, cards, noteTitles, totalSourceCount });
+      setPhase({ phase: 'ready', studySetId: activeStudySetId, cards, noteTitles, totalSourceCount });
     }
-  }, [phase, noteId, router]);
+  }, [phase, dest, router]);
 
   // ── Discard ───────────────────────────────────────────────────────────────
 
@@ -252,7 +282,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
           <IconButton
             label="Back"
             variant="plain"
-            onClick={() => router.push(`/notes/${noteId}`)}
+            onClick={() => router.push(dest)}
           >
             <Icon name="chevron-left" size={24} />
           </IconButton>
@@ -278,7 +308,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
               <p className="text-text-muted text-sm text-center">{phase.message}</p>
               <Button
                 variant="secondary"
-                onClick={() => void startGeneration()}
+                onClick={handleRetry}
               >
                 Try again
               </Button>
@@ -386,7 +416,7 @@ export function GenerateCardsScreen({ noteId }: { noteId: string }) {
             <Button
               variant="ghost"
               fullWidth
-              onClick={() => router.push(`/notes/${noteId}`)}
+              onClick={() => router.push(dest)}
             >
               Cancel
             </Button>

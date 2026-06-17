@@ -78,7 +78,7 @@ export function NoteSetPicker({
 
   // Selection state
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
-  const [selectedType, setSelectedType] = useState<StudyMaterialType | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<Set<StudyMaterialType>>(new Set());
 
   // Note data
   const [recentNotes, setRecentNotes] = useState<NoteMetadata[]>([]);
@@ -106,7 +106,7 @@ export function NoteSetPicker({
     if (open && !prevOpenRef.current) {
       // Transitioned from closed → open
       setStep(initialStep ?? 1);
-      setSelectedType(null);
+      setSelectedTypes(new Set());
       setSearchInput('');
       setDebouncedQuery('');
       setDryRun({ phase: 'idle' });
@@ -236,6 +236,18 @@ export function NoteSetPicker({
     });
   }, []);
 
+  const toggleType = useCallback((type: StudyMaterialType) => {
+    setSelectedTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  }, []);
+
   // ── Step 1 CTA validation ─────────────────────────────────────────────────
 
   const step1Disabled =
@@ -250,43 +262,100 @@ export function NoteSetPicker({
       ? 'Too many notes — remove some.'
       : undefined;
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  const reviewUrl = (ids: string[]) => `/study/review?ids=${ids.join(',')}`;
+
+  async function dispatchOne(body: Record<string, unknown>): Promise<{ ok: true; id: string } | { ok: false; status: number }> {
+    try {
+      const res = await fetch('/api/study/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 202) {
+        const data = (await res.json()) as { studySetId: string };
+        return { ok: true, id: data.studySetId };
+      }
+      return { ok: false, status: res.status };
+    } catch {
+      return { ok: false, status: 0 };
+    }
+  }
+
   // ── Step 2: proceed ───────────────────────────────────────────────────────
 
   const handleStep2Continue = useCallback(async () => {
-    if (!selectedType) return;
+    const types = Array.from(selectedTypes);
     const sourceNoteIds = Array.from(selectedNoteIds);
 
+    // Single note path
     if (sourceNoteIds.length === 1) {
       const noteId = sourceNoteIds[0]!;
 
-      if (selectedType === 'flashcards') {
-        onClose();
-        setStep(1);
-        router.push(`/notes/${noteId}/generate-cards`);
+      if (types.length === 1) {
+        // EXISTING SINGLE-TYPE BEHAVIOR — unchanged
+        const type = types[0]!;
+        if (type === 'flashcards') {
+          router.push(`/notes/${noteId}/generate-cards`);
+          onClose();
+          return;
+        }
+        setSubmitting(true);
+        try {
+          const res = await fetch('/api/study/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceNoteId: noteId, type }),
+          });
+          if (res.status === 202) {
+            const data = (await res.json()) as { studySetId: string };
+            onClose();
+            setStep(1);
+            router.push(`/study/${data.studySetId}`);
+          } else if (res.status === 429) {
+            const data = (await res.json()) as { error?: string };
+            setToast({
+              tone: 'warning',
+              title: data.error ?? 'Too many in-flight generations.',
+            });
+          } else {
+            setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+          }
+        } catch {
+          setToast({ tone: 'danger', title: 'Network error — please try again.' });
+        } finally {
+          setSubmitting(false);
+        }
         return;
       }
 
-      // Single note, non-flashcard: dispatch immediately
+      // Multi-type, single note: dispatch all types in parallel
       setSubmitting(true);
       try {
-        const res = await fetch('/api/study/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceNoteId: noteId, type: selectedType }),
-        });
-        if (res.status === 202) {
-          const data = (await res.json()) as { studySetId: string };
+        const results = await Promise.all(
+          types.map(type => dispatchOne({ sourceNoteId: noteId, type }))
+        );
+        const successIds = results.filter((r): r is { ok: true; id: string } => r.ok).map(r => r.id);
+        const failures = results.filter(r => !r.ok);
+        const hasRateLimit = failures.some(r => !r.ok && r.status === 429);
+
+        if (successIds.length > 0) {
+          if (failures.length > 0) {
+            const msg = hasRateLimit
+              ? 'Rate limit reached for some formats — try again later.'
+              : "Some formats couldn't start — try again.";
+            setToast({ tone: 'warning', title: msg });
+          }
           onClose();
           setStep(1);
-          router.push(`/study/${data.studySetId}`);
-        } else if (res.status === 429) {
-          const data = (await res.json()) as { error?: string };
-          setToast({
-            tone: 'warning',
-            title: data.error ?? 'Too many in-flight generations.',
-          });
+          router.push(reviewUrl(successIds));
         } else {
-          setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+          if (hasRateLimit) {
+            setToast({ tone: 'warning', title: "You've hit the generation limit. Try again later." });
+          } else {
+            setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+          }
         }
       } catch {
         setToast({ tone: 'danger', title: 'Network error — please try again.' });
@@ -296,84 +365,117 @@ export function NoteSetPicker({
       return;
     }
 
-    // Multi-note: go to step 3 and kick off dry run
+    // Multi-note path: do dry-run with representative type (types[0])
     setStep(3);
+    setSubmitting(true);
     setDryRun({ phase: 'loading' });
-
     try {
       const res = await fetch('/api/study/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: selectedType,
-          sourceNoteIds,
-          dryRun: true,
-        }),
+        body: JSON.stringify({ type: types[0], sourceNoteIds, dryRun: true }),
       });
-      if (!res.ok) {
+      if (res.status === 202) {
+        const result = (await res.json()) as DryRunResult;
+        setDryRun({ phase: 'done', result });
+      } else if (res.status === 422) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setDryRun({
-          phase: 'error',
-          message: data.error ?? `Request failed (${res.status})`,
-        });
-        return;
+        setDryRun({ phase: 'error', message: data?.error ?? 'Too many notes selected.' });
+      } else {
+        setDryRun({ phase: 'error', message: 'Failed to estimate cost.' });
       }
-      const result = (await res.json()) as DryRunResult;
-      setDryRun({ phase: 'done', result });
     } catch {
-      setDryRun({ phase: 'error', message: 'Network error — please try again.' });
+      setDryRun({ phase: 'error', message: 'Failed to estimate cost.' });
+    } finally {
+      setSubmitting(false);
     }
-  }, [selectedType, selectedNoteIds, onClose, router]);
+  }, [selectedTypes, selectedNoteIds, onClose, router]);
 
   // ── Step 3: dispatch ──────────────────────────────────────────────────────
 
   const handleDispatch = useCallback(async () => {
-    if (!selectedType) return;
+    const types = Array.from(selectedTypes);
     const sourceNoteIds = Array.from(selectedNoteIds);
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/study/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: selectedType, sourceNoteIds }),
-      });
-
-      if (res.status === 202) {
-        const data = (await res.json()) as { studySetId: string };
-        onClose();
-        setStep(1);
-        router.push(`/study/${data.studySetId}`);
-      } else if (res.status === 422) {
-        const data = (await res.json()) as { error?: string; max?: number };
-        setToast({
-          tone: 'danger',
-          title:
-            data.error === 'too_many_notes' && data.max != null
-              ? `Too many notes — the limit is ${data.max}.`
-              : 'Too many notes — remove some and try again.',
+      if (types.length === 1) {
+        // Existing single-type behavior
+        const type = types[0]!;
+        const res = await fetch('/api/study/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, sourceNoteIds }),
         });
-      } else if (res.status === 429) {
-        const data = (await res.json()) as { error?: string };
-        setToast({
-          tone: 'warning',
-          title: data.error ?? 'Too many in-flight generations.',
-        });
+        if (res.status === 202) {
+          const data = (await res.json()) as { studySetId: string };
+          onClose();
+          setStep(1);
+          if (type === 'flashcards') {
+            router.push(`/study/${data.studySetId}/review-cards?returnTo=/study`);
+          } else {
+            router.push(`/study/${data.studySetId}`);
+          }
+        } else if (res.status === 422) {
+          const data = (await res.json()) as { error?: string; max?: number };
+          setToast({
+            tone: 'warning',
+            title:
+              data.error === 'too_many_notes' && data.max != null
+                ? `Too many notes — the limit is ${data.max}.`
+                : 'Too many notes — remove some and try again.',
+          });
+        } else if (res.status === 429) {
+          const data = (await res.json()) as { error?: string };
+          setToast({
+            tone: 'warning',
+            title: data.error ?? 'Too many in-flight generations.',
+          });
+        } else {
+          setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+        }
       } else {
-        setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+        // Multi-type: dispatch all in parallel
+        const results = await Promise.all(
+          types.map(type => dispatchOne({ type, sourceNoteIds }))
+        );
+        const successIds = results.filter((r): r is { ok: true; id: string } => r.ok).map(r => r.id);
+        const failures = results.filter(r => !r.ok);
+        const hasRateLimit = failures.some(r => !r.ok && r.status === 429);
+        const has422 = failures.some(r => !r.ok && r.status === 422);
+
+        if (successIds.length > 0) {
+          if (failures.length > 0) {
+            let msg = "Some formats couldn't start — try again.";
+            if (hasRateLimit) msg = 'Rate limit reached for some formats — try again later.';
+            else if (has422) msg = 'Some formats failed due to note count — try with fewer notes.';
+            setToast({ tone: 'warning', title: msg });
+          }
+          onClose();
+          setStep(1);
+          router.push(reviewUrl(successIds));
+        } else {
+          if (hasRateLimit) {
+            setToast({ tone: 'warning', title: "You've hit the generation limit. Try again later." });
+          } else if (has422) {
+            setToast({ tone: 'warning', title: 'Too many notes — reduce the number of notes selected.' });
+          } else {
+            setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
+          }
+        }
       }
     } catch {
       setToast({ tone: 'danger', title: 'Network error — please try again.' });
     } finally {
       setSubmitting(false);
     }
-  }, [selectedType, selectedNoteIds, onClose, router]);
+  }, [selectedTypes, selectedNoteIds, onClose, router]);
 
   // ── Retry dry run ────────────────────────────────────────────────────────
 
   const handleRetryDryRun = useCallback(async () => {
-    if (!selectedType) return;
     const sourceNoteIds = Array.from(selectedNoteIds);
+    const type = Array.from(selectedTypes)[0];
 
     setDryRun({ phase: 'loading' });
     try {
@@ -381,7 +483,7 @@ export function NoteSetPicker({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: selectedType,
+          type,
           sourceNoteIds,
           dryRun: true,
         }),
@@ -399,7 +501,7 @@ export function NoteSetPicker({
     } catch {
       setDryRun({ phase: 'error', message: 'Network error — please try again.' });
     }
-  }, [selectedType, selectedNoteIds]);
+  }, [selectedTypes, selectedNoteIds]);
 
   // ── Handle close ──────────────────────────────────────────────────────────
 
@@ -483,7 +585,7 @@ export function NoteSetPicker({
       <Button
         variant="primary"
         fullWidth
-        disabled={!selectedType || submitting}
+        disabled={selectedTypes.size === 0 || submitting}
         loading={submitting}
         onClick={() => void handleStep2Continue()}
       >
@@ -496,7 +598,7 @@ export function NoteSetPicker({
 
   const canDispatch =
     dryRun.phase === 'done' &&
-    dryRun.result.rateLimitRemaining > 0 &&
+    dryRun.result.rateLimitRemaining >= selectedTypes.size &&
     (dryRun.result.mapReduceNeeded || dryRun.result.estimatedTokens <= HARD_CAP_TOKENS);
 
   const step3Footer = (
@@ -709,7 +811,7 @@ export function NoteSetPicker({
           <div className="tmn-study-type-picker">
             {STUDY_TYPE_ORDER.map((type) => {
               const meta = STUDY_TYPE_META[type];
-              const isSelected = selectedType === type;
+              const isSelected = selectedTypes.has(type);
               return (
                 <button
                   key={type}
@@ -718,7 +820,7 @@ export function NoteSetPicker({
                     'tmn-study-type-option' +
                     (isSelected ? ' tmn-study-type-option--selected' : '')
                   }
-                  onClick={() => setSelectedType(type)}
+                  onClick={() => toggleType(type)}
                   aria-pressed={isSelected}
                 >
                   <span className="tmn-study-type-option__icon">
@@ -808,7 +910,8 @@ export function NoteSetPicker({
                     color: 'var(--text-muted)',
                   }}
                 >
-                  Estimated cost: ~${dryRun.result.estimatedCostUsd.toFixed(2)}
+                  Estimated cost: ~${(dryRun.result.estimatedCostUsd * selectedTypes.size).toFixed(2)}
+                  {selectedTypes.size > 1 ? ` for ${selectedTypes.size} formats` : ''}
                 </div>
 
                 {/* Map-reduce notice */}
@@ -838,7 +941,7 @@ export function NoteSetPicker({
                 )}
 
                 {/* Rate limit error */}
-                {dryRun.result.rateLimitRemaining <= 0 && (
+                {dryRun.result.rateLimitRemaining < selectedTypes.size && (
                   <div
                     style={{
                       fontFamily: 'var(--font-sans)',
@@ -850,7 +953,9 @@ export function NoteSetPicker({
                       border: '1px solid var(--danger-200)',
                     }}
                   >
-                    Generation limit reached — wait for an in-progress run to finish.
+                    {dryRun.result.rateLimitRemaining <= 0
+                      ? 'Generation limit reached — wait for an in-progress run to finish.'
+                      : `Not enough generation slots — need ${selectedTypes.size}, have ${dryRun.result.rateLimitRemaining}. Wait for a run to finish.`}
                   </div>
                 )}
 
