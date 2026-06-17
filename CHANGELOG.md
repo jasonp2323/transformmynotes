@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.67.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.67.0...transformmynotes-v1.67.1) (2026-06-17)
+
+
+### 📝 Documentation
+
+* add M27 milestone — manual & explicit flashcard creation ([83a26d5](https://github.com/jasonp2323/transformmynotes/commit/83a26d503f683c82f3a16bf1d2ca9d48126d9f36))
+* add M27 milestone — manual & explicit flashcard creation ([0b87891](https://github.com/jasonp2323/transformmynotes/commit/0b87891eea88d53a50667e758fdc41efbcabef7e))
+
 ## [1.67.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.66.0...transformmynotes-v1.67.0) (2026-06-17)
 
 
