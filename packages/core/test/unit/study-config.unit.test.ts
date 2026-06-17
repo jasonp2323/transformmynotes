@@ -47,14 +47,15 @@ describe('MAX_TOKENS_BY_TYPE', () => {
 });
 
 describe('AI_MODEL_ALLOWLIST', () => {
-  it('includes both the bare and us.-prefixed 3.5 Sonnet v2 ids', () => {
-    expect(AI_MODEL_ALLOWLIST).toContain('anthropic.claude-3-5-sonnet-20241022-v2:0');
+  it('is locked to exactly one entry — the us. cross-region inference profile', () => {
+    expect(AI_MODEL_ALLOWLIST).toHaveLength(1);
     expect(AI_MODEL_ALLOWLIST).toContain('us.anthropic.claude-3-5-sonnet-20241022-v2:0');
   });
-  it('includes both Haiku ids and legacy Sonnet', () => {
-    expect(AI_MODEL_ALLOWLIST).toContain('anthropic.claude-3-haiku-20240307-v1:0');
-    expect(AI_MODEL_ALLOWLIST).toContain('us.anthropic.claude-3-haiku-20240307-v1:0');
-    expect(AI_MODEL_ALLOWLIST).toContain('anthropic.claude-3-sonnet-20240229-v1:0');
+  it('does NOT include the bare foundation-model id, Haiku ids, or legacy Sonnet', () => {
+    expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-3-5-sonnet-20241022-v2:0');
+    expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-3-haiku-20240307-v1:0');
+    expect(AI_MODEL_ALLOWLIST).not.toContain('us.anthropic.claude-3-haiku-20240307-v1:0');
+    expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-3-sonnet-20240229-v1:0');
   });
 });
 
@@ -148,7 +149,7 @@ describe('deepMergeAiConfig', () => {
   it('merges record fields per key, keeping default keys not in the override', () => {
     const merged = deepMergeAiConfig(buildSecretDefaults(), {
       promptOverrides: { flashcards: 'DB flashcards' },
-      modelOverrides: { quiz: 'us.anthropic.claude-3-haiku-20240307-v1:0' },
+      modelOverrides: { quiz: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0' },
       enabledMaterialTypes: { summary: false },
     });
     // overridden keys win
@@ -156,7 +157,7 @@ describe('deepMergeAiConfig', () => {
     // non-overridden default keys survive
     expect(merged.promptOverrides.quiz).toBe('Quiz prompt text');
     // model override added without dropping anything
-    expect(merged.modelOverrides.quiz).toBe('us.anthropic.claude-3-haiku-20240307-v1:0');
+    expect(merged.modelOverrides.quiz).toBe('us.anthropic.claude-3-5-sonnet-20241022-v2:0');
     // per-key flag merge
     expect(merged.enabledMaterialTypes.summary).toBe(false);
     expect(merged.enabledMaterialTypes.flashcards).toBe(true);
