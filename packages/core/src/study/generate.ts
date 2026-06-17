@@ -258,7 +258,6 @@ interface BedrockCallOptions {
   userMessage: string;
   maxTokens: number;
   temperature: number;
-  topP: number;
   toolSchema: DocumentType;
 }
 
@@ -283,9 +282,9 @@ async function callBedrock(opts: BedrockCallOptions): Promise<BedrockCallResult>
       },
     ],
     inferenceConfig: {
+      // Send only temperature — Bedrock Claude models reject specifying both temperature and top_p.
       maxTokens: opts.maxTokens,
       temperature: opts.temperature,
-      topP: opts.topP,
     },
     toolConfig: {
       tools: [
@@ -387,7 +386,6 @@ export async function generateStudyMaterial(
       userMessage: input.noteMarkdown,
       maxTokens: input.maxTokensOverride ?? 2048,
       temperature: config.temperature,
-      topP: config.topP,
       toolSchema: mapSchema,
     });
 
@@ -418,7 +416,6 @@ export async function generateStudyMaterial(
       userMessage,
       maxTokens: input.maxTokensOverride ?? config.maxTokens,
       temperature: config.temperature,
-      topP: config.topP,
       toolSchema: TOOL_SCHEMAS[type],
     });
 
@@ -449,7 +446,6 @@ export async function generateStudyMaterial(
     userMessage: `Note: "${input.noteTitle}"\n\n${input.noteMarkdown}`,
     maxTokens: config.maxTokens,
     temperature: config.temperature,
-    topP: config.topP,
     toolSchema: TOOL_SCHEMAS[type],
   });
 
