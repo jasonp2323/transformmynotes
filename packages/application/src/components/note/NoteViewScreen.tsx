@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import NoteEditor from '@/src/components/editor/NoteEditor';
 import type { NoteEditorHandle } from '@/src/components/editor/NoteEditor';
-import { ActionBar } from '@/src/components/review/ActionBar';
+import { FloatingActionMenu } from '@/src/components/note/FloatingActionMenu';
 import { ImageLightbox } from '@/src/components/review/ImageLightbox';
 import {
   Badge,
@@ -275,9 +275,9 @@ export function NoteViewScreen({
         )}
       </div>
 
-      {/* ── ActionBar — only when NOT editing ── */}
+      {/* ── FloatingActionMenu — only when NOT editing ── */}
       {!editing && (
-        <ActionBar>
+        <FloatingActionMenu>
           {/* Share button — owner only */}
           {isOwner && (
             <IconButton
@@ -338,7 +338,7 @@ export function NoteViewScreen({
               onStudySetReady={() => setStudyRefreshNonce((n) => n + 1)}
             />
           )}
-        </ActionBar>
+        </FloatingActionMenu>
       )}
 
       {/* ── Study sets for this note — owner only ── */}
