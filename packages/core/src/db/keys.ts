@@ -297,6 +297,28 @@ export const noteKeys = {
   }),
 
   /**
+   * Builds the BatchGetItem key list for multiple notes owned by one user.
+   * Returns [{ pk: 'USER#<sub>', sk: 'NOTE#<noteId>' }, ...] — the canonical place
+   * multi-note BatchGetItem keys are constructed (no inline pk/sk in jobs/routes).
+   * De-duplication and chunking are the caller's concern.
+   */
+  noteMultiGetKeys: (userSub: string, noteIds: string[]) =>
+    noteIds.map((id) => ({ pk: `USER#${userSub}`, sk: `NOTE#${id}` })),
+
+  /**
+   * Query params for listing all of a user's notes that belong to a given group
+   * (notebook), via GSI1 (UserNotesByTime) with a FilterExpression on groupId.
+   * Newest-first (ScanIndexForward:false). Pass directly to QueryCommand.
+   */
+  notesByGroupQuery: (sub: string, groupId: string) => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :pk AND begins_with(gsi1sk, :sk)',
+    FilterExpression: 'groupId = :gid',
+    ExpressionAttributeValues: { ':pk': `USER#${sub}`, ':sk': 'NOTE#', ':gid': groupId },
+    ScanIndexForward: false,
+  }),
+
+  /**
    * Base-table query parameters for listing a user's recent notes, newest-first.
    * Queries the primary index directly: pk = `USER#<sub>` AND begins_with(sk, 'NOTE#').
    * ScanIndexForward: false gives descending ULID order (newest first); Limit: 20

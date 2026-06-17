@@ -21,6 +21,12 @@ export interface StudySet {
   bodyS3Key?: string;
   /** Whole-assignment completion toggle (M16.2.2). Absent until first set. */
   completed?: boolean;
+  /** True when the map-reduce code path was used (M17). */
+  mapReduce?: boolean;
+  /** Number of map-phase chunks executed (M17). */
+  chunkCount?: number;
+  /** length of sourceNoteIds at dispatch time (M17). */
+  inputNoteCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -207,7 +213,9 @@ export async function claimStudySet(
 
 /**
  * Marks a study set as successfully generated: status → 'ready', plus the S3
- * body key and the prompt version used.
+ * body key and the prompt version used. Optionally records M17 map-reduce
+ * metadata (`mapReduce`, `chunkCount`, `inputNoteCount`) when provided; omitted
+ * fields are not written to DynamoDB (SET clause built dynamically).
  */
 export async function markStudySetReady(input: {
   sub: string;
@@ -215,20 +223,50 @@ export async function markStudySetReady(input: {
   bodyS3Key: string;
   promptVersion: string;
   updatedAt?: string;
+  /** True when the map-reduce code path was used (M17). */
+  mapReduce?: boolean;
+  /** Number of map-phase chunks executed (M17). */
+  chunkCount?: number;
+  /** length of sourceNoteIds at dispatch time (M17). */
+  inputNoteCount?: number;
 }): Promise<void> {
+  const updatedAt = input.updatedAt ?? new Date().toISOString();
+
+  // Build the SET clause dynamically so optional M17 fields are only written
+  // when explicitly provided (avoids storing `undefined` as DynamoDB NULL).
+  const setClauses = [
+    '#status = :status',
+    'bodyS3Key = :bodyS3Key',
+    'promptVersion = :promptVersion',
+    'updatedAt = :updatedAt',
+  ];
+  const expressionValues: Record<string, unknown> = {
+    ':status': 'ready',
+    ':bodyS3Key': input.bodyS3Key,
+    ':promptVersion': input.promptVersion,
+    ':updatedAt': updatedAt,
+  };
+
+  if (input.mapReduce !== undefined) {
+    setClauses.push('mapReduce = :mapReduce');
+    expressionValues[':mapReduce'] = input.mapReduce;
+  }
+  if (input.chunkCount !== undefined) {
+    setClauses.push('chunkCount = :chunkCount');
+    expressionValues[':chunkCount'] = input.chunkCount;
+  }
+  if (input.inputNoteCount !== undefined) {
+    setClauses.push('inputNoteCount = :inputNoteCount');
+    expressionValues[':inputNoteCount'] = input.inputNoteCount;
+  }
+
   await ddb.send(
     new UpdateCommand({
       TableName: TableNames.Notes,
       Key: studySetKeys.item(input.sub, input.studySetId),
-      UpdateExpression:
-        'SET #status = :status, bodyS3Key = :bodyS3Key, promptVersion = :promptVersion, updatedAt = :updatedAt',
+      UpdateExpression: `SET ${setClauses.join(', ')}`,
       ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: {
-        ':status': 'ready',
-        ':bodyS3Key': input.bodyS3Key,
-        ':promptVersion': input.promptVersion,
-        ':updatedAt': input.updatedAt ?? new Date().toISOString(),
-      },
+      ExpressionAttributeValues: expressionValues,
     }),
   );
 }
@@ -249,6 +287,29 @@ export async function markStudySetFailed(input: {
       ExpressionAttributeValues: {
         ':status': 'failed',
         ':error': input.error,
+        ':updatedAt': input.updatedAt ?? new Date().toISOString(),
+      },
+    }),
+  );
+}
+
+/**
+ * Marks a study set as rejected for being too large to process: status → 'too_large'.
+ * No Bedrock call was made. Mirrors markStudySetFailed but with a dedicated status.
+ */
+export async function markStudySetTooLarge(input: {
+  sub: string;
+  studySetId: string;
+  updatedAt?: string;
+}): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: studySetKeys.item(input.sub, input.studySetId),
+      UpdateExpression: 'SET #status = :status, updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':status': 'too_large',
         ':updatedAt': input.updatedAt ?? new Date().toISOString(),
       },
     }),

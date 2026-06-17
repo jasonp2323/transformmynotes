@@ -46,3 +46,9 @@ export const turnstileSecretKey = new sst.Secret("TURNSTILE_SECRET_KEY");
 // committed text files in `/prompts/*.txt` and are loaded at Lambda startup
 // into process.env by `study-prompts.ts`, bypassing the AWS Lambda 4 KB
 // env-var limit.
+
+// M17 multi-note generation: the direct-pass input-token threshold. Declared
+// with an empty-string default ON PURPOSE — the generation job interprets an
+// unset/empty value as the built-in default (60_000 tokens), so this does NOT
+// fail loud (unlike required secrets). Seed the real value in both Console envs.
+export const multiNoteContextLimit = new sst.Secret("MULTI_NOTE_CONTEXT_LIMIT", "");
