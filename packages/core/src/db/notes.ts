@@ -661,7 +661,7 @@ export async function batchGetNotes(sub: string, noteIds: string[]): Promise<Not
   const batches = chunk(unique, 100);
 
   for (const batch of batches) {
-    let keys = batch.map((id) => noteKeys.note(sub, id));
+    let keys = noteKeys.noteMultiGetKeys(sub, batch);
     let retries = 0;
 
     while (keys.length > 0 && retries <= 3) {
@@ -682,4 +682,19 @@ export async function batchGetNotes(sub: string, noteIds: string[]): Promise<Not
   }
 
   return results;
+}
+
+/**
+ * Lists all of a user's notes that belong to a given group (notebook), newest-first,
+ * via GSI1 with a groupId FilterExpression. Returns [] if none. Used by the
+ * multi-note generation flow to resolve a notebookId → its note ids server-side.
+ */
+export async function listNotesByGroup(sub: string, groupId: string): Promise<NoteItem[]> {
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TableNames.Notes,
+      ...noteKeys.notesByGroupQuery(sub, groupId),
+    }),
+  );
+  return (Items ?? []) as NoteItem[];
 }

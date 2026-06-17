@@ -8,11 +8,35 @@ import { QUIZ_TOOL_SCHEMA, assignQuestionIds } from './quiz.js';
 
 export { MAX_TOKENS_BY_TYPE };
 
+// ── M17 map-reduce types ─────────────────────────────────────────────────────
+
+/**
+ * A raw map-phase candidate. Carries the source note(s) that produced the chunk
+ * it came from, used for cross-note dedup + provenance. The other fields are
+ * the type-specific extracted content (loosely typed; the reduce phase + the
+ * final schema validate the real shape).
+ */
+export interface RawCandidate {
+  /** Short text used for dedup similarity (card front, question stem, fact, objective). */
+  text: string;
+  /** Optional richer detail (card back, answer/explanation, definition). */
+  detail?: string;
+  sourceNoteIds: string[];
+}
+
+// ── Input / output types ─────────────────────────────────────────────────────
+
 export interface GenerateStudyMaterialInput {
   type: StudyMaterialType;
   noteMarkdown: string;
   noteTitle: string;
   language?: StudyLanguage;
+  /** M17 map-reduce phase. Absent → existing single-pass generation. */
+  phase?: 'map' | 'reduce';
+  /** For phase:'reduce' — the deduped map-phase candidates to synthesise. */
+  candidates?: RawCandidate[];
+  /** Per-call maxTokens override (map/reduce phases use phase-specific caps). */
+  maxTokensOverride?: number;
 }
 
 export interface GenerateStudyMaterialResult {
@@ -20,6 +44,8 @@ export interface GenerateStudyMaterialResult {
   promptVersion: string;
   usage?: { inputTokens?: number; outputTokens?: number };
 }
+
+// ── Language directives ──────────────────────────────────────────────────────
 
 export const AUTO_DIRECTIVE =
   "Write all generated study material in the same language as the source note, matching its language and regional conventions. Do not translate the note into another language unless explicitly instructed.";
@@ -29,6 +55,65 @@ export const PT_BR_DIRECTIVE =
 
 export const BILINGUAL_DIRECTIVE =
   'Este é um material de aprendizado de idiomas pt-BR ↔ en. Para cada item gerado, escreva a frente (front) em Português Brasileiro e o verso (back) em inglês (English). Para flashcards: frente em pt-BR, verso em inglês. Para quizzes: enunciado em pt-BR, explicações em ambos os idiomas. Para resumos e tarefas: conteúdo principal em pt-BR com termos-chave também em inglês.';
+
+// ── M17 map-reduce phase instruction constants ────────────────────────────────
+
+/**
+ * Appended to the combined system prompt during the MAP phase.
+ * Instructs the model to extract raw candidates from a single chunk only —
+ * no synthesis, no dedup, no cross-document reasoning.
+ */
+export const MAP_PHASE_INSTRUCTION =
+  'You are in the MAP phase of a multi-document synthesis. Extract RAW candidate items from THIS chunk only — do NOT synthesise, summarise across documents, or deduplicate. Return candidates via the tool call.';
+
+/**
+ * Appended to the combined system prompt during the REDUCE phase.
+ * Instructs the model to synthesise previously extracted candidates into the
+ * final high-quality set, deduplicating and merging as needed.
+ */
+export const REDUCE_PHASE_INSTRUCTION =
+  'You are in the REDUCE phase. You are given draft candidate items extracted from multiple study notes. Synthesise them into a final, high-quality set. Remove duplicates (the same concept expressed differently is a duplicate). Merge complementary candidates. Return ONLY the final set via the tool call.';
+
+// ── MAP phase tool schema ────────────────────────────────────────────────────
+
+/**
+ * Per-type maximum number of candidate items extracted in the MAP phase.
+ * Flashcards and study_guide-style types support up to 15; quiz is capped at 10
+ * to match the quiz generation schema constraints.
+ */
+export const MAP_MAX_ITEMS_BY_TYPE: Record<StudyMaterialType, number> = {
+  flashcards: 15,
+  quiz: 10,
+  assignment: 15,
+  summary: 15,
+  glossary: 15,
+  study_guide: 15,
+};
+
+/**
+ * Bedrock tool schema used during the MAP phase. The model extracts raw
+ * candidates from a single chunk; the REDUCE phase uses TOOL_SCHEMAS[type].
+ */
+export const MAP_TOOL_SCHEMA: DocumentType = {
+  type: 'object',
+  properties: {
+    candidates: {
+      type: 'array',
+      maxItems: 15,
+      items: {
+        type: 'object',
+        properties: {
+          text: { type: 'string', maxLength: 400 },
+          detail: { type: 'string', maxLength: 800 },
+        },
+        required: ['text'],
+      },
+    },
+  },
+  required: ['candidates'],
+};
+
+// ── Final output tool schemas (single-pass + reduce phase) ───────────────────
 
 export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
   flashcards: {
@@ -133,7 +218,113 @@ export const TOOL_SCHEMAS: Record<StudyMaterialType, DocumentType> = {
   },
 };
 
+// ── Bedrock client singleton ──────────────────────────────────────────────────
+
 const client = new BedrockRuntimeClient({});
+
+// ── Pure helper: build the combined system prompt with optional phase suffix ──
+
+/**
+ * Builds the combined system prompt for a generation call.
+ *
+ * Pure helper — no I/O, exported for unit testing.
+ *
+ * - Single-pass (phase undefined): base + type override + language directive.
+ * - Map phase: adds MAP_PHASE_INSTRUCTION as a final paragraph.
+ * - Reduce phase: adds REDUCE_PHASE_INSTRUCTION as a final paragraph.
+ */
+export function buildPhaseSystemPrompt(
+  base: string,
+  typePrompt: string,
+  languageDirective: string,
+  phase?: 'map' | 'reduce',
+): string {
+  const combined =
+    base +
+    (typePrompt ? '\n\n' + typePrompt : '') +
+    '\n\n' +
+    languageDirective;
+
+  if (phase === 'map') return combined + '\n\n' + MAP_PHASE_INSTRUCTION;
+  if (phase === 'reduce') return combined + '\n\n' + REDUCE_PHASE_INSTRUCTION;
+  return combined;
+}
+
+// ── Internal: shared Bedrock call plumbing ────────────────────────────────────
+
+interface BedrockCallOptions {
+  modelId: string;
+  systemPrompt: string;
+  userMessage: string;
+  maxTokens: number;
+  temperature: number;
+  toolSchema: DocumentType;
+}
+
+interface BedrockCallResult {
+  toolUseInput: unknown;
+  usage?: { inputTokens?: number; outputTokens?: number };
+}
+
+/**
+ * Builds and sends a single Bedrock ConverseCommand that forces a tool call,
+ * extracts `toolUse.input`, and returns it alongside usage stats.
+ * All map/reduce/single-pass paths funnel through here.
+ */
+async function callBedrock(opts: BedrockCallOptions): Promise<BedrockCallResult> {
+  const command = new ConverseCommand({
+    modelId: opts.modelId,
+    system: [{ text: opts.systemPrompt }],
+    messages: [
+      {
+        role: 'user',
+        content: [{ text: opts.userMessage }],
+      },
+    ],
+    inferenceConfig: {
+      // Send only temperature — Bedrock Claude models reject specifying both temperature and top_p.
+      maxTokens: opts.maxTokens,
+      temperature: opts.temperature,
+    },
+    toolConfig: {
+      tools: [
+        {
+          toolSpec: {
+            name: 'submit_study_material',
+            description: 'Submit the generated study material as structured JSON.',
+            inputSchema: { json: opts.toolSchema },
+          },
+        },
+      ],
+      toolChoice: { tool: { name: 'submit_study_material' } },
+    },
+  });
+
+  const response = await withBedrockRetry(() => client.send(command));
+
+  const contentBlocks = response.output?.message?.content ?? [];
+  let toolUseInput: unknown = undefined;
+  for (const block of contentBlocks) {
+    if (
+      'toolUse' in block &&
+      (block as { toolUse?: { name?: string; input?: unknown } }).toolUse?.name ===
+        'submit_study_material'
+    ) {
+      toolUseInput = (block as { toolUse: { name: string; input: unknown } }).toolUse.input;
+      break;
+    }
+  }
+
+  return {
+    toolUseInput,
+    usage: {
+      inputTokens: response.usage?.inputTokens,
+      outputTokens: response.usage?.outputTokens,
+    },
+  };
+}
+
+// ── Public generation function ────────────────────────────────────────────────
 
 export async function generateStudyMaterial(
   input: GenerateStudyMaterialInput,
@@ -150,65 +341,115 @@ export async function generateStudyMaterial(
   // Per-type prompt override (M19): absent → no extra block, so don't append an
   // empty section (which would leave a stray double newline).
   const typePrompt = config.promptOverrides[type] ?? '';
-  const combinedPrompt =
-    config.baseSystemPrompt +
-    (typePrompt ? '\n\n' + typePrompt : '') +
-    '\n\n' +
-    languageDirective;
-
-  const promptVersion = createHash('sha256')
-    .update(combinedPrompt)
-    .digest('hex')
-    .slice(0, 8);
 
   // Per-type model override (M19) falls back to the default modelId.
   const modelId = config.modelOverrides[type] ?? config.modelId;
 
-  const command = new ConverseCommand({
-    modelId,
-    system: [{ text: combinedPrompt }],
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            text: `Note: "${input.noteTitle}"\n\n${input.noteMarkdown}`,
-          },
-        ],
-      },
-    ],
-    // Send only `temperature` — current Bedrock Claude models reject a request
-    // that specifies both `temperature` and `top_p` ("use only one").
-    inferenceConfig: { maxTokens: config.maxTokens, temperature: config.temperature },
-    toolConfig: {
-      tools: [
-        {
-          toolSpec: {
-            name: 'submit_study_material',
-            description: 'Submit the generated study material as structured JSON.',
-            inputSchema: { json: TOOL_SCHEMAS[type] },
+  // ── MAP phase ──────────────────────────────────────────────────────────────
+  if (input.phase === 'map') {
+    const systemPrompt = buildPhaseSystemPrompt(
+      config.baseSystemPrompt,
+      typePrompt,
+      languageDirective,
+      'map',
+    );
+
+    const promptVersion = createHash('sha256')
+      .update(systemPrompt)
+      .digest('hex')
+      .slice(0, 8);
+
+    // Per-type cap on map candidates — override the MAP_TOOL_SCHEMA maxItems
+    // by substituting the per-type value so the model knows the actual limit.
+    const maxItems = MAP_MAX_ITEMS_BY_TYPE[type];
+    const mapSchema: DocumentType = {
+      ...(MAP_TOOL_SCHEMA as Record<string, unknown>),
+      properties: {
+        candidates: {
+          type: 'array',
+          maxItems,
+          items: {
+            type: 'object',
+            properties: {
+              text: { type: 'string', maxLength: 400 },
+              detail: { type: 'string', maxLength: 800 },
+            },
+            required: ['text'],
           },
         },
-      ],
-      toolChoice: { tool: { name: 'submit_study_material' } },
-    },
-  });
+      },
+    };
 
-  const response = await withBedrockRetry(() => client.send(command));
+    const { toolUseInput, usage } = await callBedrock({
+      modelId,
+      systemPrompt,
+      userMessage: input.noteMarkdown,
+      maxTokens: input.maxTokensOverride ?? 2048,
+      temperature: config.temperature,
+      toolSchema: mapSchema,
+    });
 
-  const contentBlocks = response.output?.message?.content ?? [];
-  let payload: unknown = undefined;
-  for (const block of contentBlocks) {
-    if (
-      'toolUse' in block &&
-      (block as { toolUse?: { name?: string; input?: unknown } }).toolUse?.name ===
-        'submit_study_material'
-    ) {
-      payload = (block as { toolUse: { name: string; input: unknown } }).toolUse.input;
-      break;
-    }
+    const payload = (toolUseInput as { candidates?: unknown[] } | null)?.candidates ?? [];
+
+    return { payload, promptVersion, usage };
   }
 
+  // ── REDUCE phase ───────────────────────────────────────────────────────────
+  if (input.phase === 'reduce') {
+    const systemPrompt = buildPhaseSystemPrompt(
+      config.baseSystemPrompt,
+      typePrompt,
+      languageDirective,
+      'reduce',
+    );
+
+    const promptVersion = createHash('sha256')
+      .update(systemPrompt)
+      .digest('hex')
+      .slice(0, 8);
+
+    const userMessage = `Draft candidates (JSON):\n\n${JSON.stringify(input.candidates ?? [])}`;
+
+    const { toolUseInput, usage } = await callBedrock({
+      modelId,
+      systemPrompt,
+      userMessage,
+      maxTokens: input.maxTokensOverride ?? config.maxTokens,
+      temperature: config.temperature,
+      toolSchema: TOOL_SCHEMAS[type],
+    });
+
+    let payload: unknown = toolUseInput;
+    if (type === 'quiz') {
+      payload = assignQuestionIds(payload);
+    }
+
+    return { payload, promptVersion, usage };
+  }
+
+  // ── Single-pass (existing behaviour — MUST remain identical) ───────────────
+  const systemPrompt = buildPhaseSystemPrompt(
+    config.baseSystemPrompt,
+    typePrompt,
+    languageDirective,
+    // phase is undefined → no suffix appended
+  );
+
+  const promptVersion = createHash('sha256')
+    .update(systemPrompt)
+    .digest('hex')
+    .slice(0, 8);
+
+  const { toolUseInput, usage } = await callBedrock({
+    modelId,
+    systemPrompt,
+    userMessage: `Note: "${input.noteTitle}"\n\n${input.noteMarkdown}`,
+    maxTokens: config.maxTokens,
+    temperature: config.temperature,
+    toolSchema: TOOL_SCHEMAS[type],
+  });
+
+  let payload: unknown = toolUseInput;
   if (type === 'quiz') {
     payload = assignQuestionIds(payload);
   }
@@ -216,9 +457,6 @@ export async function generateStudyMaterial(
   return {
     payload,
     promptVersion,
-    usage: {
-      inputTokens: response.usage?.inputTokens,
-      outputTokens: response.usage?.outputTokens,
-    },
+    usage,
   };
 }

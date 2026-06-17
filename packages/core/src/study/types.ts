@@ -23,12 +23,13 @@ export const MATERIAL_TYPES: readonly StudyMaterialType[] = [
 
 /**
  * Lifecycle status of a STUDYSET item.
- *   queued  → written by POST /api/study/generate, awaiting the consumer
- *   running → consumer claimed it (atomic guard) and is calling Bedrock
- *   ready   → generation succeeded; `bodyS3Key` points at the JSON payload
- *   failed  → generation failed; `error` carries the reason
+ *   queued    → written by POST /api/study/generate, awaiting the consumer
+ *   running   → consumer claimed it (atomic guard) and is calling Bedrock
+ *   ready     → generation succeeded; `bodyS3Key` points at the JSON payload
+ *   failed    → generation failed; `error` carries the reason
+ *   too_large → estimated input exceeded the hard cap; no Bedrock call was made
  */
-export type StudySetStatus = 'queued' | 'running' | 'ready' | 'failed';
+export type StudySetStatus = 'queued' | 'running' | 'ready' | 'failed' | 'too_large';
 
 /**
  * Resolved output-language mode for a generation request.
