@@ -13,10 +13,14 @@ vi.hoisted(() => {
 
 const getAuthenticatedSubMock = vi.hoisted(() => vi.fn());
 const getNoteMock = vi.hoisted(() => vi.fn());
+const batchGetNotesMock = vi.hoisted(() => vi.fn());
+const listNotesByGroupMock = vi.hoisted(() => vi.fn());
 const putStudySetMock = vi.hoisted(() => vi.fn());
 const countInFlightMock = vi.hoisted(() => vi.fn());
 const buildStudySetItemMock = vi.hoisted(() => vi.fn((input: unknown) => ({ ...(input as object) })));
 const resolveAiConfigMock = vi.hoisted(() => vi.fn());
+const estimateTokensMock = vi.hoisted(() => vi.fn());
+const resolveContextLimitMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -24,10 +28,14 @@ vi.mock('@/lib/require-api-user', () => ({
 
 vi.mock('@transformmynotes/core', () => ({
   getNote: getNoteMock,
+  batchGetNotes: batchGetNotesMock,
+  listNotesByGroup: listNotesByGroupMock,
   putStudySet: putStudySetMock,
   countInFlightStudySets: countInFlightMock,
   buildStudySetItem: buildStudySetItemMock,
   resolveAiConfig: resolveAiConfigMock,
+  estimateTokens: estimateTokensMock,
+  resolveContextLimit: resolveContextLimitMock,
   MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'],
 }));
 
@@ -84,10 +92,16 @@ const DEFAULT_AI_CONFIG = {
 beforeEach(() => {
   vi.clearAllMocks();
   getAuthenticatedSubMock.mockResolvedValue('user-sub-1');
-  getNoteMock.mockResolvedValue({ title: 'My Note' });
+  // getNote is no longer used by the route (kept for backward-compat reference);
+  // batchGetNotes is the new ownership-check function.
+  getNoteMock.mockResolvedValue({ noteId: 'note-1', title: 'My Note', bodyS3Key: 'markdown/note-1.md' });
+  batchGetNotesMock.mockResolvedValue([{ noteId: 'note-1', title: 'My Note', bodyS3Key: 'markdown/note-1.md' }]);
+  listNotesByGroupMock.mockResolvedValue([{ noteId: 'note-1', title: 'My Note', bodyS3Key: 'markdown/note-1.md' }]);
   countInFlightMock.mockResolvedValue(0);
   putStudySetMock.mockResolvedValue(undefined);
   resolveAiConfigMock.mockResolvedValue({ ...DEFAULT_AI_CONFIG });
+  estimateTokensMock.mockReturnValue(100);
+  resolveContextLimitMock.mockReturnValue(60000);
 });
 
 // ---------------------------------------------------------------------------
@@ -137,14 +151,15 @@ describe('POST /api/study/generate', () => {
     expect(body.error).toBe('Invalid language.');
   });
 
-  it('returns 404 when the note is not found', async () => {
-    getNoteMock.mockResolvedValueOnce(undefined);
+  it('returns 404 when the note is not found (or owned by another user)', async () => {
+    // batchGetNotes returns an empty array when no notes match the caller's partition.
+    batchGetNotesMock.mockResolvedValueOnce([]);
 
     const res = await POST(makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }));
     const body = (await res.json()) as Record<string, unknown>;
 
     expect(res.status).toBe(404);
-    expect(body.error).toBe('Note not found.');
+    expect(body.error).toBe('One or more notes not found.');
   });
 
   it('returns 429 when the in-flight cap is reached', async () => {

@@ -1,6 +1,6 @@
 /// <reference path="../.sst/platform/config.d.ts" />
 import { router } from "./router";
-import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey } from "./secrets";
+import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey, multiNoteContextLimit } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
 import { userData, invites, groups, notes } from "./db";
 import { notesBucket } from "./storage";
@@ -36,6 +36,10 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
+    // M17 multi-note context limit (mirrors the binding in infra/jobs.ts so
+    // the route's resolveContextLimit() honours the seeded value consistently).
+    // Empty/unset resolves to the built-in 60k default — never fails loud.
+    SST_RESOURCE_MULTI_NOTE_CONTEXT_LIMIT_value: multiNoteContextLimit.value,
     // M13.2 per-user in-flight study-generation cap (route fails loud if unset/non-integer).
     // Set to 4 to allow all four study-material types (flashcards, quiz, assignment, summary)
     // to be generated concurrently for the same note.

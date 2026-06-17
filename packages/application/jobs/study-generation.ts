@@ -1,5 +1,5 @@
 /**
- * Core logic for generating an AI study set (M13).
+ * Core logic for generating an AI study set (M13 + M17).
  *
  * Runs as a STANDALONE Lambda consuming the Notes-table DynamoDB stream — NOT
  * through the Next.js bundler — so it must avoid the `@/` path alias and import
@@ -15,18 +15,25 @@ import {
   claimStudySet,
   markStudySetReady,
   markStudySetFailed,
+  markStudySetTooLarge,
   getNote,
   generateStudyMaterial,
   storageKeys,
   studySetKeys,
+  estimateTokens,
+  resolveContextLimit,
+  chunkNotes,
+  deduplicateCandidates,
   type StudySetItem,
   type StudyMaterialType,
   type StudyLanguage,
+  type RawCandidate,
+  HARD_CAP_TOKENS,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { loadStudyPromptsIntoEnv } from './study-prompts.js';
 
-const MAX_NOTE_MARKDOWN_CHARS = 40000; // ~10k tokens; truncate oversized note bodies (log a warning)
+const MAX_NOTE_MARKDOWN_CHARS = 40000; // ~10k tokens; truncate oversized combined bodies (log a warning)
 
 // ---------------------------------------------------------------------------
 // Default dependency implementations
@@ -57,6 +64,9 @@ export interface ProcessStudyDeps {
     studySetId: string;
     bodyS3Key: string;
     promptVersion: string;
+    mapReduce?: boolean;
+    chunkCount?: number;
+    inputNoteCount?: number;
   }) => Promise<void>;
   /** Mark a study set failed with a sanitised message. Default: `markStudySetFailed`. */
   markFailed: (input: { sub: string; studySetId: string; error: string }) => Promise<void>;
@@ -75,6 +85,9 @@ export interface ProcessStudyDeps {
     noteMarkdown: string;
     noteTitle: string;
     language: StudyLanguage;
+    phase?: 'map' | 'reduce';
+    candidates?: RawCandidate[];
+    maxTokensOverride?: number;
   }) => Promise<{ payload: unknown; promptVersion: string }>;
   /**
    * Persist the generated study set body JSON.
@@ -127,8 +140,11 @@ const DEFAULT_DEPS: ProcessStudyDeps = {
  *   1. Fetches the study set — returns 'not_found' if absent.
  *   2. Idempotency guard — if status is not 'queued', returns 'skipped'.
  *   3. Atomically claims the set — returns 'skipped' if another worker won.
- *   4. Reads the source note markdown (truncating oversized bodies), generates
- *      the study material, persists the body to S3, and marks the set ready.
+ *   4. Fetches ALL source note bodies; estimates total tokens.
+ *      - too_large (> HARD_CAP_TOKENS): marks 'too_large', returns 'too_large'.
+ *      - direct (≤ resolveContextLimit()): single-pass generation.
+ *      - map-reduce (DIRECT < est ≤ HARD_CAP): chunked map→reduce generation.
+ *   5. Persists the body to S3 and marks the set ready.
  *
  * On generation failure:
  *   - Logs the real error server-side.
@@ -143,13 +159,13 @@ export async function processStudyGeneration(
   sub: string,
   studySetId: string,
   deps: Partial<ProcessStudyDeps> = {},
-): Promise<{ outcome: 'ready' | 'failed' | 'skipped' | 'not_found' }> {
-  const { getStudySet, claim, markReady, markFailed, getNoteMarkdown, generate, putBody } = {
+): Promise<{ outcome: 'ready' | 'failed' | 'skipped' | 'not_found' | 'too_large' }> {
+  const { getStudySet: _getStudySet, claim, markReady, markFailed, getNoteMarkdown, generate, putBody } = {
     ...DEFAULT_DEPS,
     ...deps,
   };
 
-  const studySet = await getStudySet(sub, studySetId);
+  const studySet = await _getStudySet(sub, studySetId);
   if (!studySet) {
     return { outcome: 'not_found' };
   }
@@ -164,24 +180,107 @@ export async function processStudyGeneration(
   }
 
   try {
-    const noteId = studySet.sourceNoteIds[0];
-    let md = await getNoteMarkdown(sub, noteId);
-    if (md.length > MAX_NOTE_MARKDOWN_CHARS) {
-      console.warn(
-        '[study-generation] note markdown exceeds ' + MAX_NOTE_MARKDOWN_CHARS + ' chars; truncating',
-        { sub, studySetId, length: md.length },
-      );
-      md = md.slice(0, MAX_NOTE_MARKDOWN_CHARS);
+    // Fetch all source note bodies in parallel.
+    const noteBodies = await Promise.all(
+      studySet.sourceNoteIds.map(async (noteId) => ({
+        noteId,
+        body: await getNoteMarkdown(sub, noteId),
+      })),
+    );
+
+    const est = estimateTokens(noteBodies.map((n) => n.body));
+    const directLimit = resolveContextLimit();
+    const bodyS3Key = storageKeys.studySetBody(sub, studySetId);
+
+    // ── Branch: too large ────────────────────────────────────────────────────
+    if (est > HARD_CAP_TOKENS) {
+      await markStudySetTooLarge({ sub, studySetId });
+      return { outcome: 'too_large' };
     }
-    const result = await generate({
+
+    // ── Branch: direct single-pass ───────────────────────────────────────────
+    if (est <= directLimit) {
+      // Stitch all note bodies together with separators for clear provenance.
+      let combined = noteBodies
+        .map((n) => `\n---\n${n.noteId}\n---\n${n.body}`)
+        .join('');
+
+      if (combined.length > MAX_NOTE_MARKDOWN_CHARS) {
+        console.warn(
+          '[study-generation] combined note markdown exceeds ' + MAX_NOTE_MARKDOWN_CHARS + ' chars; truncating',
+          { sub, studySetId, length: combined.length },
+        );
+        combined = combined.slice(0, MAX_NOTE_MARKDOWN_CHARS);
+      }
+
+      const result = await generate({
+        type: studySet.type,
+        noteMarkdown: combined,
+        noteTitle: studySet.title,
+        language: studySet.language,
+      });
+      await putBody(sub, studySetId, JSON.stringify(result.payload));
+      await markReady({
+        sub,
+        studySetId,
+        bodyS3Key,
+        promptVersion: result.promptVersion,
+        inputNoteCount: studySet.sourceNoteIds.length,
+      });
+      return { outcome: 'ready' };
+    }
+
+    // ── Branch: map-reduce ───────────────────────────────────────────────────
+    const chunks = chunkNotes(noteBodies, directLimit);
+
+    // MAP phase: process each chunk sequentially to respect Bedrock throttling.
+    const rawCandidates: RawCandidate[] = [];
+    for (const chunk of chunks) {
+      const r = await generate({
+        type: studySet.type,
+        noteMarkdown: chunk.body,
+        noteTitle: studySet.title,
+        language: studySet.language,
+        phase: 'map',
+        maxTokensOverride: 2048,
+      });
+
+      // Guard: map payload must be an array; skip if not.
+      const items = Array.isArray(r.payload) ? r.payload : [];
+      for (const item of items as Array<{ text?: string; detail?: string }>) {
+        if (typeof item.text === 'string') {
+          rawCandidates.push({
+            text: item.text,
+            detail: item.detail,
+            sourceNoteIds: chunk.noteIds,
+          });
+        }
+      }
+    }
+
+    // Deduplicate across chunks.
+    const deduped = deduplicateCandidates(rawCandidates, (c) => c.text);
+
+    // REDUCE phase: synthesise into the final payload.
+    const reduced = await generate({
       type: studySet.type,
-      noteMarkdown: md,
+      noteMarkdown: '',
       noteTitle: studySet.title,
       language: studySet.language,
+      phase: 'reduce',
+      candidates: deduped,
     });
-    const bodyS3Key = storageKeys.studySetBody(sub, studySetId);
-    await putBody(sub, studySetId, JSON.stringify(result.payload));
-    await markReady({ sub, studySetId, bodyS3Key, promptVersion: result.promptVersion });
+
+    await putBody(sub, studySetId, JSON.stringify(reduced.payload));
+    await markReady({
+      sub,
+      studySetId,
+      bodyS3Key,
+      promptVersion: reduced.promptVersion,
+      mapReduce: true,
+      chunkCount: chunks.length,
+      inputNoteCount: studySet.sourceNoteIds.length,
+    });
     return { outcome: 'ready' };
   } catch (err) {
     // Log the REAL error server-side (CloudWatch), but never expose it.
