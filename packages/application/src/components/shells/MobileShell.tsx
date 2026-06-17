@@ -38,9 +38,10 @@ export function MobileShell({ active, fab, children, className }: MobileShellPro
         {children}
       </main>
 
-      {/* FAB slot — only rendered when a node is provided */}
-      {fab != null && (
-        <div className="tmn-shell__fab" aria-label="Quick action">
+      {/* FAB slot — rendered when a fab is provided or on the library tab */}
+      {(fab != null || active === 'library') && (
+        <div className="tmn-shell__fab" aria-label="Quick actions">
+          {active === 'library' && <StudySelectNavButton />}
           {fab}
         </div>
       )}
@@ -68,7 +69,6 @@ export function MobileShell({ active, fab, children, className }: MobileShellPro
             </a>
           );
         })}
-        {active === 'library' && <StudySelectNavButton />}
         <div className="tmn-bottomnav__logout">
           <LogoutButton />
         </div>
