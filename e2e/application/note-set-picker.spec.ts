@@ -3,9 +3,9 @@
  *
  * Drives the library multi-note generation flow + NoteSetPicker fully offline:
  *   1. Seeds three notes (Biology×2 + History×1) for the library user.
- *   2. "Generate Study Material" enters in-place selection mode (checkboxes).
- *   3. Library "Select all" checks every note + enables the generate CTA.
- *   4. "Generate from N notes" opens the picker at the "Choose format" step.
+ *   2. Mobile nav "Generate study material" button enters in-place selection mode (checkboxes).
+ *   3. Library "Select all" checks every note + enables the in-flow generate CTA.
+ *   4. In-flow "Generate study material" CTA opens the picker at the "Choose format" step.
  *   5. Stepping back to note selection, search filters the picker list.
  *
  * Uses a dedicated library test user (e2e-library@example.com) seeded by
@@ -13,6 +13,13 @@
  * because dynalite v4 does not support TransactWriteItems.
  *
  * The [E2E] tag in the describe title is the CI opt-in gate.
+ *
+ * Selector strategy:
+ *   - The mobile nav button (StudySelectNavButton) has aria-label="Select notes to generate
+ *     study material" — unique in the DOM, so no positional qualifier needed.
+ *   - The in-flow CTA inside the selection header reads "Generate study material" — at mobile
+ *     viewport (390×844) the desktop trigger is display:none and NOT in the accessibility tree,
+ *     so this name is also unique; no positional qualifier needed.
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -146,7 +153,7 @@ test.describe('[E2E] NoteSetPicker', () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
   }
 
-  // ── 2. "Generate Study Material" enters in-place selection mode ────────────────
+  // ── 2. Mobile nav "Generate study material" enters in-place selection mode ────
 
   test('Generate Study Material enters library selection mode with checkboxes', async ({ page }) => {
     const runtime = readRuntime();
@@ -155,8 +162,8 @@ test.describe('[E2E] NoteSetPicker', () => {
     // Wait for note list to load
     await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    // Click "Generate Study Material" button to enter selection mode
-    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+    // Click the mobile nav button to enter selection mode
+    await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
 
     // Header "Select all" checkbox + per-note checkboxes appear
     await expect(
@@ -175,7 +182,8 @@ test.describe('[E2E] NoteSetPicker', () => {
 
     await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+    // Enter selection mode via the mobile nav button
+    await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
 
     // Click the library "Select all notes" checkbox
     await page.getByRole('checkbox', { name: 'Select all notes' }).first().click();
@@ -191,13 +199,13 @@ test.describe('[E2E] NoteSetPicker', () => {
       page.getByRole('checkbox', { name: `Select ${NOTE_C_TITLE}` }).first(),
     ).toBeChecked({ timeout: 5_000 });
 
-    // The bottom CTA reflects the count
+    // The in-flow CTA becomes enabled
     await expect(
-      page.getByRole('button', { name: 'Generate from 3 notes' }).first(),
-    ).toBeVisible({ timeout: 5_000 });
+      page.getByRole('button', { name: 'Generate study material' }),
+    ).toBeEnabled({ timeout: 5_000 });
   });
 
-  // ── 4. "Generate from N notes" opens the picker at the format step ─────────────
+  // ── 4. In-flow "Generate study material" CTA opens the picker at the format step
 
   test('Generate from N notes opens NoteSetPicker at the Choose format step', async ({ page }) => {
     const runtime = readRuntime();
@@ -205,12 +213,12 @@ test.describe('[E2E] NoteSetPicker', () => {
 
     await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    // Enter selection mode and pick one note (click the card)
-    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+    // Enter selection mode via mobile nav button and pick one note
+    await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
     await page.getByText(NOTE_A_TITLE).first().click();
 
-    // Open the picker — library flow jumps straight to the material-type step
-    await page.getByRole('button', { name: /Generate from/ }).first().click();
+    // Open the picker via the in-flow CTA — library flow jumps straight to the material-type step
+    await page.getByRole('button', { name: 'Generate study material' }).click();
     await expect(page.getByText('Choose format').first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -222,10 +230,10 @@ test.describe('[E2E] NoteSetPicker', () => {
 
     await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    // Enter selection mode, select a note, open picker (lands on "Choose format")
-    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+    // Enter selection mode via mobile nav button, select a note, open picker via in-flow CTA
+    await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
     await page.getByText(NOTE_A_TITLE).first().click();
-    await page.getByRole('button', { name: /Generate from/ }).first().click();
+    await page.getByRole('button', { name: 'Generate study material' }).click();
     await expect(page.getByText('Choose format').first()).toBeVisible({ timeout: 10_000 });
 
     // Step back to the note-selection step

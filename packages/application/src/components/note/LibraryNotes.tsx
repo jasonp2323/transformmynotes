@@ -301,6 +301,21 @@ export function LibraryNotes() {
     exitSelecting();
   }, [exitSelecting]);
 
+  // ── Window event: tmn:study-select-toggle (dispatched by mobile nav button) ─
+  useEffect(() => {
+    function handleStudySelectToggle() {
+      if (selecting) {
+        exitSelecting();
+      } else {
+        setSelecting(true);
+      }
+    }
+    window.addEventListener('tmn:study-select-toggle', handleStudySelectToggle);
+    return () => {
+      window.removeEventListener('tmn:study-select-toggle', handleStudySelectToggle);
+    };
+  }, [selecting, exitSelecting]);
+
   // ── Eyebrow label ─────────────────────────────────────────────────────────
   const eyebrow = debouncedQuery
     ? `${filteredNotes.length} result${filteredNotes.length === 1 ? '' : 's'}`
@@ -365,50 +380,80 @@ export function LibraryNotes() {
             )
           ) : (
             <>
+              {/* Desktop-only trigger — shown above the note list, hidden on mobile */}
+              {!selecting && (
+                <div className="hidden md:block" style={{ marginBottom: 14 }}>
+                  <Button
+                    variant="secondary"
+                    leftIcon={<Icon name="sparkles" size={18} />}
+                    onClick={() => {
+                      setPickerInitialStep(1);
+                      setSelecting(true);
+                    }}
+                  >
+                    Generate study material
+                  </Button>
+                </div>
+              )}
+
               {/* Selection mode header row */}
               {selecting && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    marginBottom: 12,
-                    padding: '8px 0',
-                    borderBottom: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <Checkbox
-                    checked={allFilteredSelected}
-                    indeterminate={someFilteredSelected && !allFilteredSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all notes"
-                  />
-                  <span
+                <div style={{ marginBottom: 12 }}>
+                  {/* Row: Select all checkbox + count + Cancel */}
+                  <div
                     style={{
-                      flex: 1,
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 0',
+                      borderBottom: '1px solid var(--border-subtle)',
                     }}
                   >
-                    {selected.size} selected
-                  </span>
-                  <button
-                    type="button"
-                    onClick={exitSelecting}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: 'var(--text-link)',
-                      padding: '4px 0',
-                    }}
-                  >
-                    Cancel
-                  </button>
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      indeterminate={someFilteredSelected && !allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all notes"
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {selected.size} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={exitSelecting}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: 'var(--text-link)',
+                        padding: '4px 0',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {/* Full-width in-flow CTA — not fixed, never overlaps bottom nav */}
+                  <div style={{ paddingTop: 10 }}>
+                    <Button
+                      variant="primary"
+                      leftIcon={<Icon name="sparkles" size={18} />}
+                      disabled={selected.size === 0}
+                      onClick={openGeneratePicker}
+                      style={{ width: '100%' }}
+                    >
+                      Generate study material
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -418,7 +463,6 @@ export function LibraryNotes() {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 14,
-                  paddingBottom: 88,
                 }}
               >
                 {filteredNotes.map((note) => (
@@ -452,41 +496,6 @@ export function LibraryNotes() {
         initialSelectedIds={Array.from(selected)}
         initialStep={pickerInitialStep}
       />
-
-      {/* Fixed "Generate Study Material" / "Generate from N notes" bottom button */}
-      {tab !== 'shared' && filteredNotes.length > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            bottom: 88,
-            zIndex: 40,
-          }}
-        >
-          {selecting ? (
-            <Button
-              variant="primary"
-              leftIcon={<Icon name="sparkles" size={18} />}
-              disabled={selected.size === 0}
-              onClick={openGeneratePicker}
-            >
-              Generate from {selected.size} {selected.size === 1 ? 'note' : 'notes'}
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              leftIcon={<Icon name="sparkles" size={18} />}
-              onClick={() => {
-                setPickerInitialStep(1);
-                setSelecting(true);
-              }}
-            >
-              Generate Study Material
-            </Button>
-          )}
-        </div>
-      )}
 
       {/* Offline toast */}
       {showOfflineToast && (
