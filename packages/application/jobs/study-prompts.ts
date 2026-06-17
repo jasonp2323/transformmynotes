@@ -14,23 +14,17 @@ const PROMPT_FILES: Array<{ file: string; envKey: string }> = [
 let loaded = false;
 
 /**
- * Reads each study prompt .txt file from `baseDir` (or a resolved candidate
- * directory by default) and assigns the content to the corresponding
- * `process.env.SST_RESOURCE_STUDY_*_PROMPT_value` key so that
- * `resolveAiConfig()` can read it without the key being a Lambda configured
- * environment variable (which is subject to the 4 KB limit).
+ * Reads each study prompt .txt file from `baseDir` (or
+ * `$LAMBDA_TASK_ROOT/prompts` / `<cwd>/prompts` by default) and assigns
+ * the content to the corresponding `process.env.SST_RESOURCE_STUDY_*_PROMPT_value`
+ * key so that `resolveAiConfig()` can read it without the key being a Lambda
+ * configured environment variable (which is subject to the 4 KB limit).
  *
  * - Only assigns if the key is not already set (tests/overrides win).
  * - Strips a leading UTF-8 BOM (U+FEFF) defensively.
  * - Module-level cache: no-arg calls skip disk after the first load.
  *   Calls with an explicit `baseDir` always re-read (useful in tests).
  * - Throws loudly if any file is missing or unreadable.
- *
- * When `baseDir` is undefined, candidate directories are tried in order:
- *   1. `$LAMBDA_TASK_ROOT/prompts` (if LAMBDA_TASK_ROOT is set) — worker behavior
- *   2. `<cwd>/prompts` — works when next dev is run from packages/application
- *   3. `<cwd>/../../prompts` — repo root when running next dev from packages/application
- * The first candidate that contains `STUDY_SYSTEM_PROMPT.txt` is used.
  */
 export function loadStudyPromptsIntoEnv(baseDir?: string): void {
   // If no explicit dir is provided, use the module-level cache.
@@ -38,29 +32,9 @@ export function loadStudyPromptsIntoEnv(baseDir?: string): void {
     if (loaded) return;
   }
 
-  let dir: string;
-  if (baseDir !== undefined) {
-    // Explicit dir — use exactly as provided (test behavior unchanged).
-    dir = baseDir;
-  } else {
-    // Auto-resolve: pick the first candidate that contains STUDY_SYSTEM_PROMPT.txt.
-    const sentinel = 'STUDY_SYSTEM_PROMPT.txt';
-    const candidates: string[] = [];
-    if (process.env.LAMBDA_TASK_ROOT) {
-      candidates.push(path.join(process.env.LAMBDA_TASK_ROOT, 'prompts'));
-    }
-    candidates.push(path.join(process.cwd(), 'prompts'));
-    candidates.push(path.join(process.cwd(), '..', '..', 'prompts'));
-
-    const found = candidates.find((c) => fs.existsSync(path.join(c, sentinel)));
-    if (!found) {
-      throw new Error(
-        `study-prompts: could not locate prompt files. Tried:\n` +
-          candidates.map((c) => `  ${c}`).join('\n'),
-      );
-    }
-    dir = found;
-  }
+  const dir =
+    baseDir ??
+    path.join(process.env.LAMBDA_TASK_ROOT ?? process.cwd(), 'prompts');
 
   for (const { file, envKey } of PROMPT_FILES) {
     // Only assign if not already set (explicit override / test wins).

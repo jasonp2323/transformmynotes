@@ -277,12 +277,20 @@ describe('generateStudyMaterial', () => {
     expect(mockSend).not.toHaveBeenCalled();
   });
 
-  it('throws when STUDY_SYSTEM_PROMPT env var is missing and never calls Bedrock', async () => {
+  it('falls back to the bundled default system prompt when the env var is missing (M19 fix)', async () => {
+    // With no STUDY_SYSTEM_PROMPT env var, buildSecretDefaults() now uses the
+    // bundled DEFAULT_SYSTEM_PROMPT constant — so generation succeeds (no
+    // filesystem dependency) and the real default prompt is sent to Bedrock.
     delete process.env.SST_RESOURCE_STUDY_SYSTEM_PROMPT_value;
-    await expect(
-      generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note' }),
-    ).rejects.toThrow(/SST_RESOURCE_STUDY_SYSTEM_PROMPT_value/);
-    expect(mockSend).not.toHaveBeenCalled();
+    delete process.env.SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value;
+    mockSend.mockResolvedValue(makeToolUseResponse({ cards: [] }));
+
+    await generateStudyMaterial({ type: 'flashcards', noteMarkdown: '# Note', noteTitle: 'Note' });
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const cmd = mockSend.mock.calls[0][0] as { input: Record<string, unknown> };
+    const system = cmd.input.system as Array<{ text: string }>;
+    expect(system[0].text).toContain('You are an expert tutor');
   });
 
   it('passes the correct inputSchema for quiz type', async () => {

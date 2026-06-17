@@ -14,7 +14,7 @@
  *  3. Valid config save → success toast with version number
  *  4. Expand version history → ≥1 row visible
  *  5. On first load (no saved config) base system prompt textarea is prefilled
- *  6. "Reset prompts to defaults" button restores the default text after editing
+ *  6. "Restore default prompts" button restores the default text after editing
  */
 
 import { test, expect } from '@playwright/test';
@@ -180,16 +180,27 @@ test('base system prompt is prefilled with defaults when no saved config', async
   await page.goto('/admin/ai-settings');
   await expect(page.getByText('System prompts')).toBeVisible({ timeout: 15_000 });
 
-  // The base system prompt textarea must be prefilled (non-empty) because the
-  // GET /api/admin/ai-config route now returns `defaults` and the UI initializes
-  // the form from them when no saved config exists.
+  // Authoritative check: the GET route returns bundled `defaults` regardless of
+  // any saved config, so assert against the API directly (the prefill in the UI
+  // can be masked by a previously-saved config from an earlier test).
+  const apiResponse = await page.request.get('/api/admin/ai-config');
+  const apiData = (await apiResponse.json()) as {
+    ok: boolean;
+    defaults: { baseSystemPrompt: string; promptOverrides: Record<string, string> } | null;
+  };
+  expect(apiData.ok).toBe(true);
+  // The real default system prompt starts with this stable phrase.
+  expect(apiData.defaults?.baseSystemPrompt ?? '').toMatch(/^You are an expert tutor/);
+  expect((apiData.defaults?.promptOverrides?.flashcards ?? '').trim().length).toBeGreaterThan(0);
+
+  // The base system prompt textarea must be prefilled (non-empty).
   const basePromptTextarea = page.getByLabel(/Base system prompt/i);
   const promptValue = await basePromptTextarea.inputValue();
   expect(promptValue.trim().length).toBeGreaterThan(0);
 
-  // The "Reset prompts to defaults" button must be visible and enabled.
-  await expect(page.getByRole('button', { name: /Reset to defaults/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Reset to defaults/i })).toBeEnabled();
+  // The "Restore default prompts" button must be visible and enabled.
+  await expect(page.getByRole('button', { name: /Restore default prompts/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Restore default prompts/i })).toBeEnabled();
 
   await page.screenshot({
     path: path.join(SCREENSHOTS_DIR, 'ai-settings-defaults-prefill.png'),
@@ -197,9 +208,9 @@ test('base system prompt is prefilled with defaults when no saved config', async
   });
 });
 
-// ── 6. "Reset to defaults" button restores default prompts ───────────────────
+// ── 6. "Restore default prompts" button restores default prompts ──────────────
 
-test('"Reset to defaults" button restores the base prompt to the default value', async ({ page }) => {
+test('"Restore default prompts" button restores the base prompt to the default value', async ({ page }) => {
   await signInAsAdmin(page);
 
   // Fetch the true defaults from the API so we know what the reset should restore.
@@ -222,8 +233,8 @@ test('"Reset to defaults" button restores the base prompt to the default value',
   // Confirm the value changed.
   await expect(basePromptTextarea).toHaveValue(/TEMPORARY EDIT/);
 
-  // Click "Reset to defaults".
-  await page.getByRole('button', { name: /Reset to defaults/i }).click();
+  // Click "Restore default prompts".
+  await page.getByRole('button', { name: /Restore default prompts/i }).click();
 
   // The textarea should return to the true default value from the API.
   // The prompt .txt file may have trailing spaces on lines which browsers strip

@@ -551,7 +551,6 @@ export default function AiSettingsPage() {
                 disabled={allInputsDisabled || !defaults}
                 onClick={() => {
                   if (!defaults) return;
-                  setField('baseSystemPrompt', defaults.baseSystemPrompt);
                   setForm((prev) => ({
                     ...prev,
                     baseSystemPrompt: defaults.baseSystemPrompt,
@@ -566,11 +565,11 @@ export default function AiSettingsPage() {
                 }}
                 leftIcon={<Icon name="rotate-ccw" size={14} />}
               >
-                Reset to defaults
+                Restore default prompts
               </Button>
             </div>
             <p style={{ fontSize: 12.5, color: 'var(--text-subtle)', marginTop: -8, marginBottom: 14 }}>
-              These are the preprogrammed default prompts — edit as needed, or reset to restore the originals.
+              These are the preprogrammed default prompts — edit as needed, or restore the originals.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Textarea

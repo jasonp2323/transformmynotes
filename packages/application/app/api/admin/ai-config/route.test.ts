@@ -37,10 +37,6 @@ vi.mock('@/lib/require-admin', () => ({
   getAdminApiUser: getAdminApiUserMock,
 }));
 
-vi.mock('@/jobs/study-prompts', () => ({
-  loadStudyPromptsIntoEnv: vi.fn(),
-}));
-
 // Keep the REAL validateAiConfigInput / AI_MODEL_ALLOWLIST / AI_PARAM_BOUNDS and
 // the real error classes; stub only the DB functions + bustAiConfigCache.
 vi.mock('@transformmynotes/core', async (importActual) => ({
