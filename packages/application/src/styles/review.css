@@ -245,6 +245,12 @@
   margin: 0 0 var(--space-6);
 }
 
+/* ---- Overview: filter row ---- */
+
+.tmn-deck-filter-row {
+  margin: 0 0 var(--space-5);
+}
+
 /* ---- Overview: grouped note list ---- */
 
 .tmn-deck-note-list {
@@ -274,6 +280,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tmn-deck-note-row__badge {
+  flex: none;
 }
 
 .tmn-deck-note-row__count {

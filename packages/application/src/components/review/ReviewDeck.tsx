@@ -7,7 +7,14 @@ import React, {
   useCallback,
 } from 'react';
 import type { Card } from '@transformmynotes/core';
-import { Button, Icon, IconButton, Toast } from '@/src/components/ui';
+import { Button, Icon, IconButton, Toast, SegmentedControl, Badge } from '@/src/components/ui';
+import {
+  type OriginFilter,
+  REVIEW_FILTER_STORAGE_KEY,
+  cardOrigin,
+  filterCardsByOrigin,
+  isOriginFilter,
+} from './deckFilter';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,17 +36,23 @@ interface GroupedNote {
   sourceNoteId: string;
   title: string;
   count: number;
+  hasAi: boolean;
 }
 
 function groupByNote(cards: Card[], titleMap: Map<string, string>): GroupedNote[] {
-  const map = new Map<string, number>();
+  const map = new Map<string, { count: number; hasAi: boolean }>();
   for (const card of cards) {
-    map.set(card.sourceNoteId, (map.get(card.sourceNoteId) ?? 0) + 1);
+    const existing = map.get(card.sourceNoteId) ?? { count: 0, hasAi: false };
+    map.set(card.sourceNoteId, {
+      count: existing.count + 1,
+      hasAi: existing.hasAi || cardOrigin(card) === 'ai',
+    });
   }
-  return Array.from(map.entries()).map(([sourceNoteId, count]) => ({
+  return Array.from(map.entries()).map(([sourceNoteId, { count, hasAi }]) => ({
     sourceNoteId,
     title: titleMap.get(sourceNoteId) ?? 'Untitled note',
     count,
+    hasAi,
   }));
 }
 
@@ -47,15 +60,21 @@ function groupByNote(cards: Card[], titleMap: Map<string, string>): GroupedNote[
 
 function DeckOverview({
   cards,
+  visibleCards,
   titleMap,
+  filter,
+  onFilterChange,
   onStart,
 }: {
   cards: Card[];
+  visibleCards: Card[];
   titleMap: Map<string, string>;
+  filter: OriginFilter;
+  onFilterChange: (f: OriginFilter) => void;
   onStart: () => void;
 }) {
-  const count = cards.length;
-  const groups = groupByNote(cards, titleMap);
+  const count = cards.length; // total, unfiltered — headline stays unaffected by filter
+  const groups = groupByNote(visibleCards, titleMap);
 
   return (
     <div className="tmn-deck-page">
@@ -72,11 +91,24 @@ function DeckOverview({
           : 'Review your flashcards to strengthen memory.'}
       </p>
 
+      <div className="tmn-deck-filter-row">
+        <SegmentedControl
+          value={filter}
+          onChange={(v) => onFilterChange(v as OriginFilter)}
+          ariaLabel="Filter cards by origin"
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'highlights', label: 'Highlights' },
+            { value: 'ai', label: 'AI' },
+          ]}
+        />
+      </div>
+
       <Button
         variant="primary"
         size="lg"
         fullWidth
-        disabled={count === 0}
+        disabled={visibleCards.length === 0}
         leftIcon={<Icon name="layers" size={18} />}
         onClick={onStart}
       >
@@ -89,6 +121,11 @@ function DeckOverview({
             <div key={g.sourceNoteId} className="tmn-deck-note-row" role="listitem">
               <Icon name="book-open" size={16} color="var(--text-subtle)" />
               <span className="tmn-deck-note-row__title">{g.title}</span>
+              {g.hasAi && (
+                <Badge tone="accent" className="tmn-deck-note-row__badge">
+                  AI
+                </Badge>
+              )}
               <span className="tmn-deck-note-row__count">
                 {g.count} {g.count === 1 ? 'card' : 'cards'}
               </span>
@@ -128,10 +165,29 @@ export function ReviewDeck() {
   const [flipped, setFlipped] = useState(false);
   const [grading, setGrading] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [filter, setFilter] = useState<OriginFilter>('all');
 
   const cardRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
+
+  // ── Restore filter from sessionStorage on mount ─────────────────────────────
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem(REVIEW_FILTER_STORAGE_KEY);
+      if (isOriginFilter(stored)) {
+        setFilter(stored);
+      }
+    }
+  }, []);
+
+  const onFilterChange = useCallback((f: OriginFilter) => {
+    setFilter(f);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(REVIEW_FILTER_STORAGE_KEY, f);
+    }
+  }, []);
 
   // ── Fetch due cards ─────────────────────────────────────────────────────────
 
@@ -203,11 +259,11 @@ export function ReviewDeck() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleStart = useCallback(() => {
-    setSessionCards(cards);
+    setSessionCards(filterCardsByOrigin(cards, filter));
     setCurrentIndex(0);
     setFlipped(false);
     setDeckState('session');
-  }, [cards]);
+  }, [cards, filter]);
 
   const handleFlip = useCallback((back?: string) => {
     setFlipped(true);
@@ -297,10 +353,14 @@ export function ReviewDeck() {
   // ── Render: Overview ────────────────────────────────────────────────────────
 
   if (deckState === 'overview') {
+    const visibleCards = filterCardsByOrigin(cards, filter);
     return (
       <DeckOverview
         cards={cards}
+        visibleCards={visibleCards}
         titleMap={titleMap}
+        filter={filter}
+        onFilterChange={onFilterChange}
         onStart={handleStart}
       />
     );
