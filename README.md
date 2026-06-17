@@ -1,75 +1,235 @@
 # TransformMyNotes
 
-Mobile-first web app that digitizes handwritten study notes: photograph a page → Amazon Bedrock
-(Claude vision) transcribes the handwriting (primarily **Brazilian Portuguese**) into Markdown →
-review/edit in a **Notion-like block editor** → save into a personal, full-text searchable
-notebook. Access is invite/approval-gated with an admin panel; courses/groups, a spaced-repetition
-review deck, and shared notes are included.
+TransformMyNotes is a mobile-first web application that digitizes handwritten study notes. The core
+workflow is: photograph a page → Amazon Bedrock (Claude vision) transcribes the handwriting
+(optimized for Brazilian Portuguese) into Markdown → review and edit in a Notion-like
+(TipTap/ProseMirror) block editor → save into a personal, full-text-searchable notebook. Access is
+invite- and approval-gated with an admin panel. The application also supports courses and groups,
+a spaced-repetition review deck, shared notes, and an AI study-material suite (flashcards, quizzes,
+summaries, and study guides) generated from notes and ingested documents.
 
-**Stack:** AWS serverless · Next.js App Router · SST v4 · S3 + DynamoDB · Cognito · Bedrock
-(Converse) · Resend · CloudFront · `us-east-1`. Marketing at the apex `transformmynotes.com`, the
-app at `app.transformmynotes.com`.
+---
 
-- 📋 **Specs:** [`docs/milestones/`](docs/milestones/) — one `M*.md` per milestone (mirrored into each epic issue)
-- 🗺️ **Roadmap, dependency graph & Gantt:** [`docs/milestones/ROADMAP.md`](docs/milestones/ROADMAP.md)
-- 📌 **Board:** [Transform My Notes (Project #5)](https://github.com/users/jasonp2323/projects/5) — Status · Size · Wave · Start/Target dates
+## Features
 
-## Parallel dispatch plan
+- **Capture and OCR** — photograph a handwritten page; the image is uploaded via a presigned S3 URL
+  and transcribed by Amazon Bedrock Converse (Claude vision), with strong support for Brazilian
+  Portuguese handwriting.
+- **Notion-like block editor** — review and edit the transcribed Markdown in a TipTap/ProseMirror
+  block editor before saving.
+- **Full-text search** — per-user token-index items in DynamoDB back prefix-match search across all
+  saved notes.
+- **Tags and library** — organize notes with tags; browse the personal notebook library sorted
+  newest-first.
+- **Sharing and groups** — share individual notes with other users; organize users into courses or
+  groups.
+- **Spaced-repetition review deck** — schedule flashcards for review using a spaced-repetition
+  algorithm; cards are surfaced oldest-due-first via a DynamoDB GSI.
+- **AI study materials** — generate flashcard decks, auto-graded quizzes, summaries, and study
+  guides from one note or across an entire notebook using Amazon Bedrock tool-use.
+- **Document and web-article sources** — ingest PDF, DOCX, EPUB, and plain-text files, or fetch
+  web articles, as source material for AI generation.
+- **Brazilian-Portuguese TTS audio** — generate audio for flashcards and notes via Amazon Polly.
+- **Admin panel** — invite-only registration; admin users manage invites, approve accounts, and
+  configure AI generation settings at runtime.
+- **Android app** — a Capacitor shell wraps `app.transformmynotes.com` in a native Android WebView
+  for Play Store distribution.
 
-Each **Wave** is a set of milestones that can be worked **at the same time** — dispatch one agent
-per milestone in a wave, in parallel, without them heavily stepping on each other. Finish a wave
-(and its CI gates) before starting the next, since the next wave depends on it. On the board, filter
-by the **`Wave`** field to pull exactly the issues for the agents you're about to dispatch.
+---
 
-| Wave | Milestones (run in parallel) | Dates | Why they're safe in parallel |
-|---|---|---|---|
-| **1** | **M0** — Monorepo & infra bootstrap | Jun 8–11 | Foundation; nothing else can start until the monorepo + infra + CI exist. |
-| **2** | **M1** — Design-system port | Jun 12–14 | The design system gates every UI surface; do it once, alone. |
-| **3** | **M2** Auth ∥ **M9** Marketing | Jun 15–17 | Different packages (`application` vs `marketing`), no shared code. |
-| **4** | **M3** Invites & admin ∥ **M4** Capture→OCR | Jun 18–20 | Both need auth (M2) but touch different routes/tables; coordinate only on shared `keys.ts` builders. |
-| **5** | **M5** — Review & Notion editor | Jun 21–24 | Builds directly on M4's transcription output; single focused track. |
-| **6** | **M6** — Library & full-text search | Jun 25–27 | Depends on the saved-note shape from M5. |
-| **7** | **M7** Sharing ∥ **M8** Review deck | Jun 28–30 | Independently extend the note model — different GSIs (`ByRecipient` vs `ByDue`). |
-| **8** | **M10** — Hardening & launch | Jul 1–3 | Needs everything merged; production cutover — run last, alone. |
-| **9** | **M11** Security hardening ∥ **M12** Android (Capacitor) | Jul 4–6 | Post-launch. App hardening vs. the Android wrapper touch different surfaces; both depend only on the launched app (M10). |
-| **10** | **M13** — AI generation engine & foundation | Jul 7–10 | The shared foundation for every study-material type; establish it alone before others branch off. |
-| **11** | **M14** Flashcards ∥ **M15** Quizzes ∥ **M16** Guides ∥ **M19** Admin AI settings | Jul 11–14 | All four depend only on M13 (M19 also on M3, done). Different item types / GSIs; only shared touchpoint is the read-only `resolveAiConfig()` resolver. |
-| **12** | **M17** Multi-note generation ∥ **M18** Audio / TTS | Jul 15–18 | Orthogonal: map-reduce note-set synthesis vs. Polly TTS audio. Different tables, routes, and AWS services. |
-| **13** | **M20** — Document sources (PDF/DOCX/EPUB/text) | Jul 19–22 | Reuses M17's map-reduce chunking; introduces the `SOURCE#` entity + GSI7 + `resolveSourceText()` that M21 builds on — run alone. |
-| **14** | **M21** — Web ingestion + AI security hardening | Jul 23–25 | Builds the URL-fetch path on M20's `SOURCE#` model + SSRF / prompt-injection guards. Security-sensitive — isolated wave keeps the review surface small. |
+## Tech stack
 
-> **Critical path:** M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12} → M13 → M15 → M17 → M20 → M21.
-> **M3, M9, M7, M14, M16, M18, M19 have slack.**
-> Coupling to watch: when two parallel milestones each add a GSI to the same table, land one PR and
-> rebase the other to avoid SST's "index already exists" hazard (see ROADMAP.md).
+| Layer | Technology |
+|---|---|
+| Framework | Next.js App Router (Node runtime) |
+| Infrastructure-as-code | SST v4 (Pulumi) |
+| Hosting | AWS CloudFront + Lambda@Edge, `us-east-1` |
+| Storage | DynamoDB (single-table) + S3 (note bodies, study-set blobs) |
+| Auth | AWS Cognito (Amplify Auth client, `aws-jwt-verify` server) |
+| AI / OCR | Amazon Bedrock Converse — Claude vision for transcription, tool-use for study materials |
+| TTS | Amazon Polly |
+| Email | Resend (transactional — invites, welcome) |
+| DNS / CDN | Cloudflare (DNS-only for PR stages) |
+| CI/CD | GitHub Actions + OIDC → AWS |
 
-## Milestones
+Production URLs: `transformmynotes.com` (marketing) · `app.transformmynotes.com` (application).
 
-| # | Milestone | Size | Wave | Start | Target | Depends on | Parallel with |
-|---|---|---|---|---|---|---|---|
-| M0 | Monorepo & infra bootstrap | XL | 1 | Jun 8 | Jun 11 | — | — |
-| M1 | Design-system port | L | 2 | Jun 12 | Jun 14 | M0 | — |
-| M2 | Auth & onboarding | L | 3 | Jun 15 | Jun 17 | M0, M1 | M9 |
-| M9 | Marketing site | M | 3 | Jun 15 | Jun 16 | M0, M1 | M2 |
-| M3 | Invites, groups & admin panel | L | 4 | Jun 18 | Jun 20 | M2 | M4 |
-| M4 | Capture → Transcribe (Bedrock OCR) | L | 4 | Jun 18 | Jun 20 | M1, M2 | M3 |
-| M5 | Review & Notion-like editor | XL | 5 | Jun 21 | Jun 24 | M4 | — |
-| M6 | Notebook library & full-text search | L | 6 | Jun 25 | Jun 27 | M5 | — |
-| M7 | Sharing & collaboration | L | 7 | Jun 28 | Jun 30 | M6 | M8 |
-| M8 | Review deck / spaced repetition | L | 7 | Jun 28 | Jun 30 | M6 | M7 |
-| M10 | Hardening & launch | L | 8 | Jul 1 | Jul 3 | all prior | — |
-| M11 | Security hardening | L | 9 | Jul 4 | Jul 6 | M2, M3, M10 | M12 |
-| M12 | Android app · Capacitor | L | 9 | Jul 4 | Jul 6 | M10 | M11 |
-| M13 | AI generation engine & foundation | XL | 10 | Jul 7 | Jul 10 | M4, M5, M6 | — |
-| M14 | AI flashcards → review deck | L | 11 | Jul 11 | Jul 13 | M13, M8 | M15, M16, M19 |
-| M15 | Quizzes & tests (auto-graded) | XL | 11 | Jul 11 | Jul 14 | M13 | M14, M16, M19 |
-| M16 | Assignments, summaries & study guides | L | 11 | Jul 11 | Jul 13 | M13 | M14, M15, M19 |
-| M19 | Admin AI settings — runtime-configurable generation | L | 11 | Jul 11 | Jul 13 | M3, M13 | M14, M15, M16 |
-| M17 | Multi-note & notebook-wide generation | XL | 12 | Jul 15 | Jul 18 | M13, M15, M16, M6 | M18 |
-| M18 | Audio for flashcards & notes (TTS) | L | 12 | Jul 15 | Jul 17 | M8, M13, M14 | M17 |
-| M20 | Document sources — PDF / DOCX / EPUB / text | XL | 13 | Jul 19 | Jul 22 | M4, M13, M17 | — |
-| M21 | Web article ingestion + AI security hardening | L | 14 | Jul 23 | Jul 25 | M13, M20 | — |
+---
 
-Every milestone has an **epic issue** (full spec) tracking ~7–10 **sub-issues**, each with a Size,
-Wave, and dates on the board. See [`ROADMAP.md`](docs/milestones/ROADMAP.md) for the dependency
-graph, Gantt chart, and per-wave coupling notes.
+## Monorepo layout
+
+npm workspaces monorepo; all packages live under `packages/`.
+
+```
+packages/
+  marketing/    @transformmynotes/marketing — public Next.js site (port 3000)
+  application/  @transformmynotes/application — authed Next.js app (port 3002, Cognito)
+  core/         @transformmynotes/core — shared DynamoDB client + key builders
+  scripts/      one-off SST-shell scripts (sst shell tsx)
+  mobile/       @transformmynotes/mobile — Capacitor Android shell (wraps app.transformmynotes.com)
+
+infra/          SST resource definitions
+  secrets.ts    sst.Secret declarations
+  router.ts     single sst.aws.Router (shared by both Next.js apps)
+  auth.ts       Cognito user pool + app client
+  marketing.ts  marketing Next.js site attachment
+  application.ts authed Next.js app + IAM grants
+  db.ts         DynamoDB table + GSI definitions (shared by application and jobs)
+  jobs.ts       background Lambda jobs
+
+scripts/        repo-level Node/tsx utilities (SST secrets management, CI vars)
+```
+
+`infra/` modules are loaded in order by `sst.config.ts`: `secrets → router → auth → marketing →
+application → jobs`. The `core` package is consumed by `application` via `sst.Resource` bindings
+and is never imported by `marketing`. The `mobile` package has no SST entrypoint and is excluded
+from the main deploy; Android release builds run via `.github/workflows/android.yml`.
+
+---
+
+## Getting started / local development
+
+**Prerequisites:** Node 22, npm (included with Node).
+
+```bash
+git clone https://github.com/jasonp2323/transformmynotes.git
+cd transformmynotes
+npm ci
+```
+
+**Start the marketing site** (no auth, no DB):
+```bash
+npm run dev:marketing   # http://localhost:3000
+```
+
+**Start the application** (Cognito-authed, DynamoDB-backed):
+```bash
+npm run dev:application # http://localhost:3002
+```
+
+The application runs fully offline locally — dynalite (in-memory DynamoDB) replaces AWS DynamoDB,
+and `cognito-local` replaces the Cognito service, so you never need live AWS credentials during
+development. See the **"Local UI / browser testing"** section in `CLAUDE.md` for the complete setup
+recipe (env vars, table seeding, headless sign-in token minting).
+
+---
+
+## Common commands
+
+Run all commands from the repo root.
+
+```bash
+# Development
+npm run dev:marketing          # marketing site on :3000
+npm run dev:application        # authed app on :3002
+
+# Quality gates (all required to pass before merge)
+npm run lint                   # ESLint across all workspaces
+npm run typecheck              # TypeScript across all workspaces
+
+# Tests
+npm run test:unit              # pure unit tests — no AWS, no SST stage (gates CI)
+npm run test:integration       # dynalite integration tests — no AWS, no SST stage (gates CI)
+npm run test:e2e               # Playwright E2E against offline marketing site (gates CI)
+npm run test:e2e:application   # Playwright E2E against offline authed app — opt-in ([E2E] tag)
+
+# SST
+npx sst deploy --stage <stage>           # deploy a named stage to AWS
+npx sst remove --stage <stage>           # tear down a stage
+npx sst shell --stage <stage> <cmd>      # run any command with sst.Resource bindings injected
+npx sst secret set <NAME> <value> --stage <stage>  # seed an SST secret for a stage
+```
+
+**Test coverage:**
+- `test:unit` — pure logic (parsers, key builders, data transforms). No AWS.
+- `test:integration` — real DynamoDB client against dynalite; exercises GSI writes + reads. No AWS.
+- `test:e2e` — Playwright drives the marketing Next.js app offline. Runs on every PR.
+- `test:e2e:application` — Playwright drives the Cognito-authed app offline (dynalite + cognito-local).
+  Opt-in on `master` pushes: runs only when the head commit message contains `[E2E]`, and gates
+  the production deploy when it does.
+
+---
+
+## Architecture
+
+### Routing
+
+A single `sst.aws.Router` (defined in `infra/router.ts`) fronts both Next.js apps via one
+CloudFront distribution. The marketing site attaches at the apex; the application attaches at
+`app.transformmynotes.com`. Do not add a second Router.
+
+Ephemeral PR stages get their own CloudFront distributions at `pr-<N>.pr.transformmynotes.com`
+with DNS-only (grey-cloud) Cloudflare records so ACM can issue the cert directly.
+
+### Persistence
+
+DynamoDB uses a single-table design. All table and GSI definitions live in `infra/db.ts`. All
+data access goes through `packages/core/src/db`:
+
+- `client.ts` — exports the `ddb` DocumentClient and `TableNames` map.
+- `keys.ts` — all PK/SK/GSI key builders. Never construct key strings inline in route handlers.
+
+Note bodies (Markdown) and study-set blobs are stored in S3; DynamoDB holds only metadata.
+
+### Auth
+
+`packages/application/proxy.ts` is the auth middleware. It verifies the Cognito-issued JWT with
+`aws-jwt-verify` (pool id and client id from `sst.Resource` bindings) and protects authed routes
+(`/dashboard`, `/account`, etc.). Client-side sign-in uses AWS Amplify Auth. The pool id and
+app-client id are public values exposed via `NEXT_PUBLIC_` env vars — there is no secret API key
+for Cognito.
+
+Production owns its Cognito pool. Ephemeral `pr-<N>` stages reference a shared dev pool (pool id
+passed as the `DEV_COGNITO_USER_POOL_ID` GitHub Actions repository variable). See
+`docs/runbooks/shared-dev-cognito-pool.md` for one-time setup.
+
+### OCR pipeline
+
+1. User photographs a page in the app; the client requests a presigned S3 upload URL.
+2. The image is uploaded directly from the browser to S3.
+3. `POST /api/transcribe` calls Amazon Bedrock Converse with the image (Claude vision) and returns
+   Markdown.
+4. The user reviews and edits the Markdown in the TipTap block editor, then saves.
+
+### AI study materials
+
+Study-material generation (flashcards, quizzes, summaries, study guides) uses Amazon Bedrock
+tool-use to produce typed JSON. Results are stored as `STUDYSET` items in DynamoDB and their
+bodies in S3. Per-user runtime AI settings (model, prompt overrides) are configurable by admins.
+
+---
+
+## Deployment / CI-CD
+
+Four GitHub Actions workflows under `.github/workflows/`:
+
+| Workflow | Trigger | Action |
+|---|---|---|
+| `deploy.yml` | push to `master`; PR open/sync/reopen | Gates (lint, typecheck, unit, integration, E2E) then deploys `production` or `pr-<N>` |
+| `teardown.yml` | PR closed | Removes the `pr-<N>` stage (`sst unlock → refresh → remove`) |
+| `release.yml` | push to `master`; `workflow_dispatch` | release-please tags `vX.Y.Z`; Claude writes GitHub Release notes |
+| `android.yml` | `mobile-v*` tag push; `workflow_dispatch` | Builds the Capacitor Android release APK/AAB |
+
+- Every gate (lint, typecheck, unit, integration, marketing E2E) runs **before** AWS credentials are
+  configured, so they block deployment without needing cloud access.
+- Add `[skip deploy]` to the commit message (production path) or PR title (`pr-<N>` path) to skip
+  the SST deploy steps while still running all quality gates. This differs from `[skip ci]`, which
+  skips everything.
+- Deployment uses GitHub OIDC (`aws-actions/configure-aws-credentials@v4`) — no long-lived AWS
+  access keys are stored in GitHub.
+- SST application secrets are stored in AWS SSM Parameter Store and seeded with
+  `npx sst secret set`.
+- Region is pinned to `us-east-1` (required for CloudFront ACM certificate issuance).
+
+---
+
+## Project planning and docs
+
+| Resource | Location |
+|---|---|
+| Milestone specs | [`docs/milestones/`](docs/milestones/) — one `M*.md` per milestone, mirrored into each epic issue |
+| Delivery roadmap, dependency graph, Gantt | [`docs/milestones/ROADMAP.md`](docs/milestones/ROADMAP.md) |
+| Parallel-dispatch (wave) plan | [`docs/milestones/PARALLEL-DISPATCH.md`](docs/milestones/PARALLEL-DISPATCH.md) |
+| GitHub Project board | [Transform My Notes — Project #5](https://github.com/users/jasonp2323/projects/5) |
+| Runbooks | [`docs/runbooks/`](docs/runbooks/) — operational recipes (shared dev Cognito pool, admin bootstrap, E2E setup, production launch) |
+| Contributor conventions | [`CLAUDE.md`](CLAUDE.md) — architecture details, branch naming, commit style, testing rules, secret management, CI/CD internals |

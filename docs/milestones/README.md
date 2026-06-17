@@ -64,6 +64,11 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 | **M19** | Admin AI settings — runtime-configurable generation (system prompt, model allowlist, inference params, guardrails, Polly voice, per-type enable + global kill-switch; `CONFIG#AI` DynamoDB item, `resolveAiConfig()`, version history + revert) | L | M3, M13 |
 | **M20** | Document sources — PDF / DOCX / EPUB / text (upload documents/books, `SOURCE#` entity + recency GSI7, `resolveSourceText()` normalization layer so M14–M17 generators run unchanged off any source, multi-format parsers, large books reuse M17 map-reduce, `STUDYSET` source refs generalized to `sourceRefs`) | XL | M4, M13, M17 |
 | **M21** | Web article ingestion + AI security hardening (paste URL → fetch + readable-article extract into a web `SOURCE#` → generate any material type; SSRF hardening via `assertUrlSafe`/`safeFetch` — scheme allowlist, private/link-local/cloud-metadata IP blocking, DNS-rebinding guard, per-hop redirect re-validation, size/timeout/content-type caps; prompt-injection mitigation — untrusted web content wrapped as data) | L | M13, M20 |
+| **M22** | Offline support — PWA service-worker app shell, offline read cache, offline mutations + sync, behind a static-export decision gate (no DB change; benefits web + Capacitor shell) | L | M10, M12 |
+| **M23** | Admin Cost Breakdown — per-user AI-token + S3-storage metering via a new `Usage` table + Streams aggregator; admin tab; store quantities, derive USD from an editable price book | L | M3, M4 |
+| **M24** | Per-user study profile & AI environment — per-user "Learner context" prompt layer + profile/settings UI; generalizes the platform to "learn anything" | XL | M13 |
+| **M25** | Study Progress & Insights — per-user `/progress` dashboard; new `StudyEvents` table + rollup aggregator + nightly cron; lifetime counters + streak on the profile | L | M8, M13, M5, M6 (soft M15) |
+| **M26** | Multi-page note capture — capture-screen Single/Multi toggle + page tray; `POST /api/transcribe/batch` stitches pages into one note; pure `stitchPages()`; additive `originalImageS3Keys` | M | M4, M5 |
 
 ## Architecture summary
 
