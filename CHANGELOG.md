@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.71.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.70.0...transformmynotes-v1.71.0) (2026-06-17)
+
+
+### 🚀 Features
+
+* **audio:** M18.2 — POST /api/audio/synthesize with per-user rate/cost controls ([#594](https://github.com/jasonp2323/transformmynotes/issues/594)) ([9d2ef57](https://github.com/jasonp2323/transformmynotes/commit/9d2ef57e56266204f59a5c5b2cf7e6edfa37e463))
+
 ## [1.70.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.69.0...transformmynotes-v1.70.0) (2026-06-17)
 
 
