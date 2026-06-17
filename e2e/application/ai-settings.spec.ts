@@ -114,7 +114,7 @@ test('valid config save shows success toast with version number', async ({ page 
   await expect(page.getByText('System prompts')).toBeVisible({ timeout: 15_000 });
 
   // Set a valid baseSystemPrompt (required field)
-  const basePromptTextarea = page.getByLabel(/Base system prompt/i);
+  const basePromptTextarea = page.getByLabel(/^Base system prompt$/i);
   await basePromptTextarea.fill('You are a helpful study assistant for Brazilian students.');
 
   // Set a valid maxTokens value (within bounds)
@@ -144,7 +144,7 @@ test('version history panel shows at least one row', async ({ page }) => {
   await expect(page.getByText('System prompts')).toBeVisible({ timeout: 15_000 });
 
   // Save a config first to ensure at least one version exists
-  const basePromptTextarea = page.getByLabel(/Base system prompt/i);
+  const basePromptTextarea = page.getByLabel(/^Base system prompt$/i);
   await basePromptTextarea.fill('You are a study assistant.');
   await page.getByLabel(/Max tokens/i).fill('4096');
   await page.getByRole('button', { name: /Save configuration/i }).click();
@@ -194,7 +194,7 @@ test('base system prompt is prefilled with defaults when no saved config', async
   expect((apiData.defaults?.promptOverrides?.flashcards ?? '').trim().length).toBeGreaterThan(0);
 
   // The base system prompt textarea must be prefilled (non-empty).
-  const basePromptTextarea = page.getByLabel(/Base system prompt/i);
+  const basePromptTextarea = page.getByLabel(/^Base system prompt$/i);
   const promptValue = await basePromptTextarea.inputValue();
   expect(promptValue.trim().length).toBeGreaterThan(0);
 
@@ -225,7 +225,7 @@ test('"Restore default prompts" button restores the base prompt to the default v
   // Sanity: the defaults endpoint must return a non-empty base prompt.
   expect(trueDefaultPrompt.trim().length).toBeGreaterThan(0);
 
-  const basePromptTextarea = page.getByLabel(/Base system prompt/i);
+  const basePromptTextarea = page.getByLabel(/^Base system prompt$/i);
 
   // Edit the base prompt to something else.
   await basePromptTextarea.fill('TEMPORARY EDIT — should be overwritten by reset');
@@ -254,4 +254,44 @@ test('"Restore default prompts" button restores the base prompt to the default v
     path: path.join(SCREENSHOTS_DIR, 'ai-settings-reset-to-defaults.png'),
     fullPage: true,
   });
+});
+
+// ── 7. Per-field "Restore default" restores a single prompt ───────────────────
+
+test('per-field "Restore default" restores the base prompt and a per-type override individually', async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto('/admin/ai-settings');
+  await expect(page.getByText('System prompts')).toBeVisible({ timeout: 15_000 });
+
+  const apiResponse = await page.request.get('/api/admin/ai-config');
+  const apiData = (await apiResponse.json()) as {
+    ok: boolean;
+    defaults: { baseSystemPrompt: string; promptOverrides: Record<string, string> } | null;
+  };
+  const defaultBase = apiData.defaults?.baseSystemPrompt ?? '';
+  const defaultFlashcards = apiData.defaults?.promptOverrides?.flashcards ?? '';
+  expect(defaultBase.trim().length).toBeGreaterThan(0);
+  expect(defaultFlashcards.trim().length).toBeGreaterThan(0);
+
+  function normalizePrompt(s: string) {
+    return s.split('\n').map((l) => l.trimEnd()).join('\n').trim();
+  }
+
+  // --- Base prompt: edit then restore via its own per-field button. ---
+  const basePromptTextarea = page.getByLabel(/^Base system prompt$/i);
+  await basePromptTextarea.fill('TEMP BASE EDIT');
+  await expect(basePromptTextarea).toHaveValue('TEMP BASE EDIT');
+  await page.getByRole('button', { name: /Restore base system prompt to default/i }).click();
+  await page.waitForTimeout(200);
+  expect(normalizePrompt(await basePromptTextarea.inputValue())).toBe(normalizePrompt(defaultBase));
+
+  // --- Flashcards override: expand, edit, restore via its own button. ---
+  await page.getByRole('button', { name: /Per-type prompt overrides/i }).click();
+  const flashcardsTextarea = page.getByLabel(/Flashcards override/i);
+  await expect(flashcardsTextarea).toBeVisible({ timeout: 5_000 });
+  await flashcardsTextarea.fill('TEMP FLASHCARDS EDIT');
+  await expect(flashcardsTextarea).toHaveValue('TEMP FLASHCARDS EDIT');
+  await page.getByRole('button', { name: /Restore Flashcards prompt to default/i }).click();
+  await page.waitForTimeout(200);
+  expect(normalizePrompt(await flashcardsTextarea.inputValue())).toBe(normalizePrompt(defaultFlashcards));
 });

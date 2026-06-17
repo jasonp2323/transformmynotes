@@ -431,6 +431,18 @@ export default function AiSettingsPage() {
     });
   }
 
+  // Restore a single prompt field to its bundled default (leaves the other
+  // prompt fields untouched). The all-prompts button lives in the card header.
+  function restoreBasePromptDefault() {
+    if (!defaults) return;
+    setField('baseSystemPrompt', defaults.baseSystemPrompt);
+  }
+
+  function restoreTypePromptDefault(type: MaterialType) {
+    if (!defaults) return;
+    setPromptOverride(type, defaults.promptOverrides[type] ?? '');
+  }
+
   function setModelOverride(type: MaterialType, value: string) {
     setForm((prev) => {
       const next = { ...prev.modelOverrides };
@@ -572,14 +584,34 @@ export default function AiSettingsPage() {
               These are the preprogrammed default prompts — edit as needed, or restore the originals.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Textarea
-                label="Base system prompt"
-                rows={6}
-                value={form.baseSystemPrompt}
-                onChange={(e) => setField('baseSystemPrompt', e.target.value)}
-                disabled={allInputsDisabled}
-                aria-describedby={validationErrors.baseSystemPrompt ? 'err-base-prompt' : undefined}
-              />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label
+                    htmlFor="base-system-prompt"
+                    style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-strong)' }}
+                  >
+                    Base system prompt
+                  </label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Restore base system prompt to default"
+                    disabled={allInputsDisabled || !defaults}
+                    onClick={restoreBasePromptDefault}
+                    leftIcon={<Icon name="rotate-ccw" size={13} />}
+                  >
+                    Restore default
+                  </Button>
+                </div>
+                <Textarea
+                  id="base-system-prompt"
+                  rows={6}
+                  value={form.baseSystemPrompt}
+                  onChange={(e) => setField('baseSystemPrompt', e.target.value)}
+                  disabled={allInputsDisabled}
+                  aria-describedby={validationErrors.baseSystemPrompt ? 'err-base-prompt' : undefined}
+                />
+              </div>
               {validationErrors.baseSystemPrompt && (
                 <span
                   id="err-base-prompt"
@@ -621,16 +653,39 @@ export default function AiSettingsPage() {
 
               {promptOverridesOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {MATERIAL_TYPES.map((type) => (
-                    <Textarea
-                      key={type}
-                      label={`${MATERIAL_TYPE_LABELS[type]} override (leave empty to use base)`}
-                      rows={3}
-                      value={form.promptOverrides[type] ?? ''}
-                      onChange={(e) => setPromptOverride(type, e.target.value)}
-                      disabled={allInputsDisabled}
-                    />
-                  ))}
+                  {MATERIAL_TYPES.map((type) => {
+                    const fieldId = `prompt-override-${type}`;
+                    const fieldLabel = `${MATERIAL_TYPE_LABELS[type]} override (leave empty to use base)`;
+                    return (
+                      <div key={type}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <label
+                            htmlFor={fieldId}
+                            style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-strong)' }}
+                          >
+                            {fieldLabel}
+                          </label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Restore ${MATERIAL_TYPE_LABELS[type]} prompt to default`}
+                            disabled={allInputsDisabled || !defaults}
+                            onClick={() => restoreTypePromptDefault(type)}
+                            leftIcon={<Icon name="rotate-ccw" size={13} />}
+                          >
+                            Restore default
+                          </Button>
+                        </div>
+                        <Textarea
+                          id={fieldId}
+                          rows={3}
+                          value={form.promptOverrides[type] ?? ''}
+                          onChange={(e) => setPromptOverride(type, e.target.value)}
+                          disabled={allInputsDisabled}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
