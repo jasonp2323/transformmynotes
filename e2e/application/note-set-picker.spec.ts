@@ -1,12 +1,12 @@
 /**
  * [E2E] NoteSetPicker — multi-note generation entry points
  *
- * Drives the NoteSetPicker modal from the library dashboard fully offline:
+ * Drives the library multi-note generation flow + NoteSetPicker fully offline:
  *   1. Seeds three notes (Biology×2 + History×1) for the library user.
- *   2. Opens the picker from "Generate from notes" and asserts the recent list.
- *   3. Searches and asserts filtering works.
- *   4. Uses notebook quick-select ("All in Biology") and asserts checkboxes.
- *   5. Selects a note, sees it as a chip, removes it, confirms it's gone.
+ *   2. "Generate Study Material" enters in-place selection mode (checkboxes).
+ *   3. Library "Select all" checks every note + enables the generate CTA.
+ *   4. "Generate from N notes" opens the picker at the "Choose format" step.
+ *   5. Stepping back to note selection, search filters the picker list.
  *
  * Uses a dedicated library test user (e2e-library@example.com) seeded by
  * global-setup. Token-index items are seeded manually (individual PutCommands)
@@ -146,107 +146,96 @@ test.describe('[E2E] NoteSetPicker', () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
   }
 
-  // ── 2. Opens picker and shows recent notes ────────────────────────────────────
+  // ── 2. "Generate Study Material" enters in-place selection mode ────────────────
 
-  test('opens NoteSetPicker from library and shows recently edited notes', async ({ page }) => {
+  test('Generate Study Material enters library selection mode with checkboxes', async ({ page }) => {
     const runtime = readRuntime();
     await signIn(page, runtime);
 
     // Wait for note list to load
     await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    // Click "Generate from notes" button
-    await page.getByRole('button', { name: 'Generate from notes' }).first().click();
+    // Click "Generate Study Material" button to enter selection mode
+    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
 
-    // Dialog should open — look for "Select notes" or "Recently edited"
-    await expect(page.getByText('Select notes').first()).toBeVisible({ timeout: 10_000 });
-
-    // Both Biology notes should be visible in the dialog
-    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(NOTE_B_TITLE).first()).toBeVisible({ timeout: 10_000 });
-  });
-
-  // ── 3. Search filters notes ───────────────────────────────────────────────────
-
-  test('search filters notes in picker', async ({ page }) => {
-    const runtime = readRuntime();
-    await signIn(page, runtime);
-
-    // Wait for note list
-    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
-
-    // Open picker
-    await page.getByRole('button', { name: 'Generate from notes' }).first().click();
-    await expect(page.getByText('Select notes').first()).toBeVisible({ timeout: 10_000 });
-
-    // Fill in search
-    await page.getByLabel('Search notes').fill('French');
-
-    // French Revolution should appear
-    await expect(page.getByText(NOTE_C_TITLE).first()).toBeVisible({ timeout: 10_000 });
-
-    // Cell Division Notes should not be visible
-    await expect(page.getByText(NOTE_A_TITLE).first()).toBeHidden({ timeout: 10_000 });
-  });
-
-  // ── 4. Notebook quick-select ──────────────────────────────────────────────────
-
-  test('notebook quick-select checks all notes in group', async ({ page }) => {
-    const runtime = readRuntime();
-    await signIn(page, runtime);
-
-    // Wait for note list
-    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
-
-    // Open picker
-    await page.getByRole('button', { name: 'Generate from notes' }).first().click();
-    await expect(page.getByText('Recently edited').first()).toBeVisible({ timeout: 10_000 });
-
-    // Click "All in Biology"
-    await page.getByRole('button', { name: 'All in Biology' }).first().click();
-
-    // Both Biology notes' checkboxes should be checked
+    // Header "Select all" checkbox + per-note checkboxes appear
     await expect(
-      page.getByRole('checkbox', { name: NOTE_A_TITLE }).first(),
+      page.getByRole('checkbox', { name: 'Select all notes' }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole('checkbox', { name: `Select ${NOTE_A_TITLE}` }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ── 3. Library "Select all" checks every note ─────────────────────────────────
+
+  test('library Select all checks all notes and enables the generate button', async ({ page }) => {
+    const runtime = readRuntime();
+    await signIn(page, runtime);
+
+    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+
+    // Click the library "Select all notes" checkbox
+    await page.getByRole('checkbox', { name: 'Select all notes' }).first().click();
+
+    // All three per-note checkboxes should be checked
+    await expect(
+      page.getByRole('checkbox', { name: `Select ${NOTE_A_TITLE}` }).first(),
     ).toBeChecked({ timeout: 5_000 });
     await expect(
-      page.getByRole('checkbox', { name: NOTE_B_TITLE }).first(),
+      page.getByRole('checkbox', { name: `Select ${NOTE_B_TITLE}` }).first(),
     ).toBeChecked({ timeout: 5_000 });
-  });
-
-  // ── 5. Deselect removes chip ──────────────────────────────────────────────────
-
-  test('deselect removes chip', async ({ page }) => {
-    const runtime = readRuntime();
-    await signIn(page, runtime);
-
-    // Wait for note list
-    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
-
-    // Open picker
-    await page.getByRole('button', { name: 'Generate from notes' }).first().click();
-    await expect(page.getByText('Select notes').first()).toBeVisible({ timeout: 10_000 });
-
-    // Click the checkbox for NOTE_A
-    await page.getByRole('checkbox', { name: NOTE_A_TITLE }).first().click();
-
-    // Wait for chip to appear
     await expect(
-      page.getByRole('button', { name: `Remove ${NOTE_A_TITLE}` }).first(),
+      page.getByRole('checkbox', { name: `Select ${NOTE_C_TITLE}` }).first(),
+    ).toBeChecked({ timeout: 5_000 });
+
+    // The bottom CTA reflects the count
+    await expect(
+      page.getByRole('button', { name: 'Generate from 3 notes' }).first(),
     ).toBeVisible({ timeout: 5_000 });
+  });
 
-    // Click the X button on the chip
-    await page.getByRole('button', { name: `Remove ${NOTE_A_TITLE}` }).first().click();
+  // ── 4. "Generate from N notes" opens the picker at the format step ─────────────
 
-    // Chip should be gone
-    await expect(
-      page.getByRole('button', { name: `Remove ${NOTE_A_TITLE}` }).first(),
-    ).toBeHidden({ timeout: 5_000 });
+  test('Generate from N notes opens NoteSetPicker at the Choose format step', async ({ page }) => {
+    const runtime = readRuntime();
+    await signIn(page, runtime);
 
-    // Checkbox should be unchecked
-    await expect(
-      page.getByRole('checkbox', { name: NOTE_A_TITLE }).first(),
-    ).not.toBeChecked({ timeout: 5_000 });
+    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
+
+    // Enter selection mode and pick one note (click the card)
+    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+    await page.getByText(NOTE_A_TITLE).first().click();
+
+    // Open the picker — library flow jumps straight to the material-type step
+    await page.getByRole('button', { name: /Generate from/ }).first().click();
+    await expect(page.getByText('Choose format').first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ── 5. Picker search filters after stepping back to note selection ─────────────
+
+  test('picker search filters notes after stepping back to note selection', async ({ page }) => {
+    const runtime = readRuntime();
+    await signIn(page, runtime);
+
+    await expect(page.getByText(NOTE_A_TITLE).first()).toBeVisible({ timeout: 15_000 });
+
+    // Enter selection mode, select a note, open picker (lands on "Choose format")
+    await page.getByRole('button', { name: 'Generate Study Material' }).first().click();
+    await page.getByText(NOTE_A_TITLE).first().click();
+    await page.getByRole('button', { name: /Generate from/ }).first().click();
+    await expect(page.getByText('Choose format').first()).toBeVisible({ timeout: 10_000 });
+
+    // Step back to the note-selection step
+    await page.getByRole('button', { name: 'Back' }).first().click();
+    await expect(page.getByText('Select notes').first()).toBeVisible({ timeout: 10_000 });
+
+    // Search filters the note list
+    await page.getByLabel('Search notes').fill('French');
+    await expect(page.getByText(NOTE_C_TITLE).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(NOTE_A_TITLE).first()).toBeHidden({ timeout: 10_000 });
   });
 
   // ── Cleanup ──────────────────────────────────────────────────────────────────

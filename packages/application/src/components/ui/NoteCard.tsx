@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from './Card';
 import { Badge } from './Badge';
 import { Tag } from './Tag';
+import { Checkbox } from './Checkbox';
 
 export interface NoteCardProps {
   course?: string;
@@ -17,6 +18,10 @@ export interface NoteCardProps {
   className?: string;
   /** Optional line shown beneath the title, e.g. "Shared by Ana Ruiz · Portuguese 201" */
   sharedBy?: string;
+  /** When true, renders a checkbox at the start of the top row for selection mode. */
+  selectable?: boolean;
+  /** Whether this card is currently selected (only relevant when selectable=true). */
+  selected?: boolean;
 }
 
 export const NoteCard = function NoteCard({
@@ -32,11 +37,22 @@ export const NoteCard = function NoteCard({
   onClick,
   className,
   sharedBy,
+  selectable = false,
+  selected = false,
 }: NoteCardProps) {
   return (
     <Card variant={onClick ? 'interactive' : 'default'} onClick={onClick} className={className}>
       <div className="tmn-note">
         <div className="tmn-note__top">
+          {selectable && (
+            <Checkbox
+              checked={selected}
+              onChange={onClick}
+              aria-label={title ? `Select ${title}` : 'Select note'}
+              onClick={(e) => e.stopPropagation()}
+              style={{ marginRight: 4, flexShrink: 0 }}
+            />
+          )}
           {course ? <span className="tmn-note__course">{course}</span> : <span />}
           {status === 'original' ? (
             <Badge tone="warning" dot>

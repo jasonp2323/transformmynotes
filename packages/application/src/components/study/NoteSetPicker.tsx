@@ -48,6 +48,8 @@ export interface NoteSetPickerProps {
   onClose: () => void;
   initialSelectedIds?: string[];
   initialGroupId?: string;
+  /** Which step to start on when the picker opens. Defaults to 1. */
+  initialStep?: 1 | 2;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,6 +69,7 @@ export function NoteSetPicker({
   onClose,
   initialSelectedIds,
   initialGroupId,
+  initialStep,
 }: NoteSetPickerProps) {
   const router = useRouter();
 
@@ -102,7 +105,7 @@ export function NoteSetPicker({
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       // Transitioned from closed → open
-      setStep(1);
+      setStep(initialStep ?? 1);
       setSelectedType(null);
       setSearchInput('');
       setDebouncedQuery('');
@@ -211,24 +214,6 @@ export function NoteSetPicker({
     return total;
   }, [selectedNoteIds, allKnownNotes]);
 
-  // ── Distinct groupIds from recent notes ───────────────────────────────────
-
-  const distinctGroups = React.useMemo(() => {
-    const seen = new Set<string | undefined>();
-    const groups: Array<{ groupId: string | undefined; label: string }> = [];
-    for (const n of recentNotes) {
-      const key = n.groupId || undefined;
-      if (!seen.has(key)) {
-        seen.add(key);
-        groups.push({
-          groupId: key,
-          label: key ? `All in ${key}` : 'All in Ungrouped',
-        });
-      }
-    }
-    return groups;
-  }, [recentNotes]);
-
   // ── Toggle selection ──────────────────────────────────────────────────────
 
   const toggleNote = useCallback((noteId: string) => {
@@ -242,20 +227,6 @@ export function NoteSetPicker({
       return next;
     });
   }, []);
-
-  const selectGroup = useCallback(
-    (groupId: string | undefined) => {
-      const groupNoteIds = recentNotes
-        .filter((n) => (n.groupId || undefined) === groupId)
-        .map((n) => n.noteId);
-      setSelectedNoteIds((prev) => {
-        const next = new Set(prev);
-        for (const id of groupNoteIds) next.add(id);
-        return next;
-      });
-    },
-    [recentNotes],
-  );
 
   const removeNote = useCallback((noteId: string) => {
     setSelectedNoteIds((prev) => {
@@ -437,6 +408,31 @@ export function NoteSetPicker({
     setStep(1);
   }, [onClose]);
 
+  // ── Select All (visible notes) ────────────────────────────────────────────
+
+  const selectAllVisible = useCallback(() => {
+    const visibleNotes = debouncedQuery ? searchResults : recentNotes;
+    const allSelected =
+      visibleNotes.length > 0 &&
+      visibleNotes.every((n) => selectedNoteIds.has(n.noteId));
+    if (allSelected) {
+      // Deselect all visible
+      setSelectedNoteIds((prev) => {
+        const visibleIds = new Set(visibleNotes.map((n) => n.noteId));
+        const next = new Set(prev);
+        for (const id of visibleIds) next.delete(id);
+        return next;
+      });
+    } else {
+      // Select all visible
+      setSelectedNoteIds((prev) => {
+        const next = new Set(prev);
+        for (const n of visibleNotes) next.add(n.noteId);
+        return next;
+      });
+    }
+  }, [debouncedQuery, searchResults, recentNotes, selectedNoteIds]);
+
   // ── Render helpers ────────────────────────────────────────────────────────
 
   const displayNotes = debouncedQuery ? searchResults : recentNotes;
@@ -592,47 +588,35 @@ export function NoteSetPicker({
 
             {/* Recently edited section */}
             {!debouncedQuery && (
-              <>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-subtle)',
-                    marginBottom: 2,
-                  }}
-                >
-                  Recently edited
-                </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-subtle)',
+                  marginBottom: 2,
+                }}
+              >
+                Recently edited
+              </div>
+            )}
 
-                {/* Notebook quick-select buttons */}
-                {distinctGroups.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {distinctGroups.map(({ groupId, label }) => (
-                      <button
-                        key={groupId ?? '__ungrouped__'}
-                        type="button"
-                        onClick={() => selectGroup(groupId)}
-                        style={{
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 12,
-                          fontWeight: 500,
-                          padding: '4px 10px',
-                          borderRadius: 999,
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--surface-1)',
-                          cursor: 'pointer',
-                          color: 'var(--text-secondary)',
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+            {/* Select All checkbox */}
+            {displayNotes.length > 0 && (
+              <div style={{ padding: '4px 4px 0' }}>
+                <Checkbox
+                  checked={displayNotes.every((n) => selectedNoteIds.has(n.noteId))}
+                  indeterminate={
+                    displayNotes.some((n) => selectedNoteIds.has(n.noteId)) &&
+                    !displayNotes.every((n) => selectedNoteIds.has(n.noteId))
+                  }
+                  onChange={selectAllVisible}
+                  label="Select all"
+                  aria-label="Select all visible notes"
+                />
+              </div>
             )}
 
             {/* Note rows */}
