@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.79.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.78.0...transformmynotes-v1.79.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **core:** M21.1 — web-ingestion security foundations (SSRF hardening + prompt-injection mitigation) ([#631](https://github.com/jasonp2323/transformmynotes/issues/631)) ([afdce38](https://github.com/jasonp2323/transformmynotes/commit/afdce38f3f25a2b6ca80b1fb77259834e84ac55f))
+
 ## [1.78.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.77.0...transformmynotes-v1.78.0) (2026-06-18)
 
 
