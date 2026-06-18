@@ -13,6 +13,10 @@ export * from './db/transcription-jobs';
 export * from './db/uploads';
 export * from './db/ai-config';
 export * from './db/users';
+export * from './db/sources';
+
+// Source resolution (M20)
+export * from './sources/resolve';
 export * from './auth/invite';
 export * from './auth/profile';
 export * from './auth/access-request';
