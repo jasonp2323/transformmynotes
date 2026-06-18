@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.80.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.79.0...transformmynotes-v1.80.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **application:** M21.2 — from-url route, article extraction & abuse controls ([#633](https://github.com/jasonp2323/transformmynotes/issues/633)) ([a852cd6](https://github.com/jasonp2323/transformmynotes/commit/a852cd6773f7ce28e273ef4d9769384ad3a0da08))
+
 ## [1.79.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.78.0...transformmynotes-v1.79.0) (2026-06-18)
 
 
