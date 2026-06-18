@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.74.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.73.0...transformmynotes-v1.74.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **application:** M17.4 — centered + capture FAB, Generate pill beside it, sticky navbar ([#607](https://github.com/jasonp2323/transformmynotes/issues/607)) ([78df59c](https://github.com/jasonp2323/transformmynotes/commit/78df59c3cc28059e06ab032515af32f9dd7bb657))
+
 ## [1.73.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.72.0...transformmynotes-v1.73.0) (2026-06-17)
 
 
