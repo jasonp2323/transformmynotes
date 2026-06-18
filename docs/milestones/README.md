@@ -69,6 +69,7 @@ issue's "Status / Next steps / Gotchas" section + the **Transform My Notes** Pro
 | **M24** | Per-user study profile & AI environment — per-user "Learner context" prompt layer + profile/settings UI; generalizes the platform to "learn anything" | XL | M13 |
 | **M25** | Study Progress & Insights — per-user `/progress` dashboard; new `StudyEvents` table + rollup aggregator + nightly cron; lifetime counters + streak on the profile | L | M8, M13, M5, M6 (soft M15) |
 | **M26** | Multi-page note capture — capture-screen Single/Multi toggle + page tray; `POST /api/transcribe/batch` stitches pages into one note; pure `stitchPages()`; additive `originalImageS3Keys` | M | M4, M5 |
+| **M27** | Manual & explicit flashcard creation (explicit "Generate from highlights" button, manual `origin:'manual'` authoring, standalone deck-only cards; no new table/GSI/secret) | L | M8, M14 |
 
 ## Architecture summary
 

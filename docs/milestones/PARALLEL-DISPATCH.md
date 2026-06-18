@@ -27,9 +27,10 @@ by the **`Wave`** field to pull exactly the issues for the agents you're about t
 | **14** | **M21** — Web ingestion + AI security hardening | Jul 23–25 | Builds the URL-fetch path on M20's `SOURCE#` model + SSRF / prompt-injection guards. Security-sensitive — isolated wave keeps the review surface small. |
 | **15** | **M22** Offline/PWA ∥ **M23** Cost Breakdown ∥ **M24** Study profile ∥ **M26** Multi-page capture | Jul 26–29 | All four have their prerequisites already shipped and touch mutually-disjoint surfaces: M22 is a service-worker/Capacitor layer (no DB change), M23 adds a new `Usage` table + admin tab, M24 adds per-user profile fields + a generation prompt layer, M26 adds the capture toggle + a batch-transcribe route. No shared files. |
 | **16** | **M25** — Study Progress & Insights | Jul 30–Aug 1 | Runs alone: it adds a new `StudyEvents` table + stream aggregator (shares `infra/db.ts` / `infra/jobs.ts` with M23) **and** lifetime counters on the `UserProfile` item (shares that item with M24), so it lands after Wave 15 to keep those edits serialized. |
+| **17** | **M27** — Manual & explicit flashcards | Aug 2–4 | Leaf milestone on shipped foundations (M8 deck + M14 `origin`): touches only the cards routes + Review/NoteView UI, no schema change. Runs alone. |
 
 > **Critical path:** M0 → M1 → M2 → M4 → M5 → M6 → M8 → M10 → {M11 ∥ M12} → M13 → M15 → M17 → M20 → M21.
-> **M3, M9, M7, M14, M16, M18, M19, M22, M23, M24, M25, M26 have slack** (none of the post-M21 milestones are on the critical path).
+> **M3, M9, M7, M14, M16, M18, M19, M22, M23, M24, M25, M26, M27 have slack** (none of the post-M21 milestones are on the critical path).
 > Coupling to watch: when two parallel milestones each add a GSI to the same table, land one PR and
 > rebase the other to avoid SST's "index already exists" hazard (see ROADMAP.md).
 
@@ -64,10 +65,10 @@ by the **`Wave`** field to pull exactly the issues for the agents you're about t
 | M24 | Per-user study profile & AI environment | XL | 15 | Jul 26 | Jul 29 | M13 | M22, M23, M26 |
 | M26 | Multi-page note capture | M | 15 | Jul 26 | Jul 28 | M4, M5 | M22, M23, M24 |
 | M25 | Study Progress & Insights | L | 16 | Jul 30 | Aug 1 | M8, M13, M5, M6 (soft M15) | — |
+| M27 | Manual & explicit flashcard creation | L | 17 | Aug 2 | Aug 4 | M8, M14 | — |
 
 ## Post-M21 milestones — coupling notes
 
 - **M22 and M26 are fully isolated surfaces.** M22 is a service-worker / Capacitor layer with no DynamoDB schema changes. M26 adds a capture toggle and a batch-transcribe route that reuses M4's existing table shape. Neither touches any file the other three Wave 15 milestones write to.
 - **M23 and M25 each add a new dedicated table** (`Usage` and `StudyEvents` respectively), so there is no shared-GSI "index already exists" hazard between them. However, both append to `infra/db.ts` and `infra/jobs.ts` — a light merge coupling that is manageable when they run in different waves but would require careful rebase coordination if run together. This is exactly why M25 is held to its own Wave 16 rather than being folded into Wave 15.
 - **M24 and M25 both write the `UserData` / `UserProfile` item.** M24 adds per-user profile fields and a generation-prompt layer; M25 adds lifetime study counters to the same item. Keeping them in different waves (15 and 16) serializes those item edits and avoids a concurrent-write schema conflict on the `UserProfile` shape.
-- **Documentation gap — `docs/milestones/M22.md` does not yet exist.** The M22 epic issue #497 references it; this file needs to be authored before Wave 15 dispatch begins.
