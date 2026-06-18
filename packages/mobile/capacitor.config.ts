@@ -11,6 +11,7 @@ const config: CapacitorConfig = {
     cleartext: serverUrl.startsWith('http://'),
     androidScheme: 'https',
     allowNavigation: ['*.transformmynotes.com'],
+    errorPath: 'offline.html',
   },
   plugins: {
     SplashScreen: {
