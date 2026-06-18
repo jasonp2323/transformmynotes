@@ -175,6 +175,7 @@ describe('POST /api/sources/from-url', () => {
     expect(res.status).toBe(200);
     expect(typeof body.sourceId).toBe('string');
     expect(body.status).toBe('ready');
+    expect(body.title).toBe('T');
     expect(body.deduplicated).toBeUndefined();
 
     // S3 PutObject should have been called with the text key.
@@ -191,13 +192,14 @@ describe('POST /api/sources/from-url', () => {
   });
 
   it('dedup: returns 200 with deduplicated:true when an existing ready source is found', async () => {
-    findSourceByUrlHashMock.mockResolvedValueOnce({ sourceId: 'existing-id', status: 'ready' });
+    findSourceByUrlHashMock.mockResolvedValueOnce({ sourceId: 'existing-id', status: 'ready', title: 'Existing' });
 
     const res = await POST(makeRequest({ url: VALID_URL }));
     const body = (await res.json()) as Record<string, unknown>;
 
     expect(res.status).toBe(200);
     expect(body.sourceId).toBe('existing-id');
+    expect(body.title).toBe('Existing');
     expect(body.deduplicated).toBe(true);
     // safeFetch must NOT be called for deduplicated responses.
     expect(safeFetchMock).not.toHaveBeenCalled();

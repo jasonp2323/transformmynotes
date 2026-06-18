@@ -11,6 +11,7 @@ import { relativeTime } from '@/src/lib/library';
 import { formatBytes, uploadSource } from '@/src/lib/sources-upload';
 import { statusChipMeta, friendlyUploadError, isInFlight } from '@/src/lib/sources-ui';
 import { GenerateFromSource } from './GenerateFromSource';
+import { AddFromUrl } from './AddFromUrl';
 
 const ACCEPTED_TYPES = [
   '.pdf',
@@ -321,6 +322,9 @@ export function SourcesScreen() {
             onChange={handleInputChange}
           />
         </div>
+
+        {/* Add from URL */}
+        <AddFromUrl onSourceAdded={fetchSources} />
 
         {/* Loading */}
         {loading && (

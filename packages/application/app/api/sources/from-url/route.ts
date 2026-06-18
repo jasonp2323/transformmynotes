@@ -110,7 +110,7 @@ export async function POST(req: Request) {
   const urlHash = createHash('sha256').update(url).digest('hex');
   const existing = await findSourceByUrlHash(sub, urlHash);
   if (existing && existing.status === 'ready') {
-    return NextResponse.json({ sourceId: existing.sourceId, status: 'ready', deduplicated: true });
+    return NextResponse.json({ sourceId: existing.sourceId, status: 'ready', title: existing.title, deduplicated: true });
   }
 
   // 7. Write interim SOURCE# item (status='extracting').
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
       byteSize,
     });
 
-    return NextResponse.json({ sourceId, status: 'ready' });
+    return NextResponse.json({ sourceId, status: 'ready', title: article.title });
   } catch (err) {
     await markSourceFailed({ sub, sourceId, error: String(err) }).catch(() => {});
 
