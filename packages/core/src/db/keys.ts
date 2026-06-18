@@ -742,6 +742,37 @@ export const rateLimitKeys = {
 };
 
 /**
+ * Rate-limit counter keys for the source URL-fetch endpoints (M21.2.2).
+ * Stored in the UserData table alongside M11's rateLimitKeys.
+ *
+ * Two key shapes:
+ *  - fetchRateWindow: per-user, per 60-second window counter
+ *    (threshold 10; mirrors M11's shape but keyed on sub, not ip)
+ *  - fetchDailyCap: per-user, per-UTC-date counter
+ *    (threshold 50; TTL = next midnight UTC epoch seconds)
+ */
+export const sourceRateLimitKeys = {
+  /**
+   * Fixed-window counter key for the URL-fetch rate limit.
+   * PK = `RATELIMIT#sources/from-url`, SK = `USER#<sub>#WIN#<windowStart>`.
+   */
+  fetchRateWindow: (sub: string, windowStart: string | number) => ({
+    pk: 'RATELIMIT#sources/from-url',
+    sk: `USER#${sub}#WIN#${windowStart}`,
+  }),
+
+  /**
+   * Daily cap counter key.
+   * PK = `RATELIMIT#sources/daily`, SK = `USER#<sub>#DATE#<dateUtc>`.
+   * TTL is set to the next UTC midnight epoch seconds on item creation.
+   */
+  fetchDailyCap: (sub: string, dateUtc: string) => ({
+    pk: 'RATELIMIT#sources/daily',
+    sk: `USER#${sub}#DATE#${dateUtc}`,
+  }),
+};
+
+/**
  * `Notes` table keys for STUDYSET items (AI-generated study material, M13).
  *
  * STUDYSET items live in the same Notes table alongside note metadata, tag-index
@@ -953,6 +984,21 @@ export const sourceKeys = {
     KeyConditionExpression: 'gsi9pk = :gsi9pk',
     ExpressionAttributeValues: { ':gsi9pk': `USER#${sub}` },
     Select: 'COUNT' as const,
+  }),
+
+  /**
+   * Query parameters for finding a source by urlHash within a user's partition.
+   * Queries GSI9 (SourcesByUser) with a FilterExpression on the urlHash attribute.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  findByUrlHash: (sub: string, urlHash: string) => ({
+    IndexName: 'GSI9',
+    KeyConditionExpression: 'gsi9pk = :gsi9pk',
+    FilterExpression: 'urlHash = :h',
+    ExpressionAttributeValues: {
+      ':gsi9pk': `USER#${sub}`,
+      ':h': urlHash,
+    },
   }),
 };
 
