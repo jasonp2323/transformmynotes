@@ -22,6 +22,8 @@ const resolveAiConfigMock = vi.hoisted(() => vi.fn());
 const estimateTokensMock = vi.hoisted(() => vi.fn());
 const resolveContextLimitMock = vi.hoisted(() => vi.fn());
 const resolveMaxSourceNotesMock = vi.hoisted(() => vi.fn());
+const getSourceMock = vi.hoisted(() => vi.fn());
+const resolveSourceTextMock = vi.hoisted(() => vi.fn());
 
 const s3SendMock = vi.hoisted(() => vi.fn());
 vi.mock('@aws-sdk/client-s3', () => ({
@@ -44,6 +46,8 @@ vi.mock('@transformmynotes/core', () => ({
   estimateTokens: estimateTokensMock,
   resolveContextLimit: resolveContextLimitMock,
   resolveMaxSourceNotes: resolveMaxSourceNotesMock,
+  getSource: getSourceMock,
+  resolveSourceText: resolveSourceTextMock,
   MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'],
 }));
 
@@ -115,6 +119,13 @@ beforeEach(() => {
   s3SendMock.mockResolvedValue({
     Body: { transformToString: async () => 'note body content' },
   });
+  getSourceMock.mockResolvedValue({
+    sourceId: 'doc-1',
+    title: 'Doc One',
+    status: 'ready',
+    extractedTextS3Key: 'sources/users/user-sub-1/doc-1.md',
+  });
+  resolveSourceTextMock.mockResolvedValue({ text: 'doc text', provenanceLabel: 'Doc One' });
 });
 
 // ---------------------------------------------------------------------------
@@ -273,5 +284,72 @@ describe('POST /api/study/generate', () => {
     expect(body.error).toBe('too_many_notes');
     expect(body.max).toBe(50);
     expect(putStudySetMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M20.3 — document sources (route-level unit tests)
+// ---------------------------------------------------------------------------
+
+describe('document sources (M20.3)', () => {
+  it('POST with document-only sourceRefs enqueues and persists sourceRefs', async () => {
+    // No notes — document only; batchGetNotes returns [] for empty id list
+    batchGetNotesMock.mockResolvedValueOnce([]);
+
+    const res = await POST(
+      makeRequest({ sourceRefs: [{ type: 'document', id: 'doc-1' }], type: 'flashcards' }),
+    );
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(202);
+    expect(typeof body.studySetId).toBe('string');
+    expect(putStudySetMock).toHaveBeenCalledTimes(1);
+    expect(buildStudySetItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceRefs: expect.arrayContaining([{ type: 'document', id: 'doc-1' }]),
+      }),
+    );
+  });
+
+  it('returns 422 source_not_ready when the document source is still extracting', async () => {
+    batchGetNotesMock.mockResolvedValueOnce([]);
+    getSourceMock.mockResolvedValueOnce({ sourceId: 'doc-1', status: 'extracting' });
+
+    const res = await POST(
+      makeRequest({ sourceRefs: [{ type: 'document', id: 'doc-1' }], type: 'flashcards' }),
+    );
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(422);
+    expect(body.error).toBe('source_not_ready');
+  });
+
+  it('returns 404 when the document source is not found', async () => {
+    batchGetNotesMock.mockResolvedValueOnce([]);
+    getSourceMock.mockResolvedValueOnce(undefined);
+
+    const res = await POST(
+      makeRequest({ sourceRefs: [{ type: 'document', id: 'doc-1' }], type: 'flashcards' }),
+    );
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(404);
+    expect(body.error).toBe('Source not found.');
+  });
+
+  it('dryRun with a document ref calls resolveSourceText and reflects it in token estimate', async () => {
+    batchGetNotesMock.mockResolvedValueOnce([]);
+    // estimate > context limit → mapReduceNeeded = true
+    estimateTokensMock.mockReturnValueOnce(70000);
+    resolveContextLimitMock.mockReturnValueOnce(60000);
+
+    const res = await POST(
+      makeRequest({ sourceRefs: [{ type: 'document', id: 'doc-1' }], type: 'flashcards', dryRun: true }),
+    );
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.mapReduceNeeded).toBe(true);
+    expect(resolveSourceTextMock).toHaveBeenCalledWith('user-sub-1', { type: 'document', id: 'doc-1' });
   });
 });

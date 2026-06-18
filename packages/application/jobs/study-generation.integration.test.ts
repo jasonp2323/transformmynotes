@@ -132,6 +132,188 @@ describe('processStudyGeneration — provenance (M17.2.1)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// M20.3 — document sources
+// ---------------------------------------------------------------------------
+
+describe('processStudyGeneration — document sources (M20.3)', () => {
+  it('happy path: document-only sourceRefs resolves via getDocumentMarkdown', async () => {
+    const sub = `sub-doc-happy-${rand()}`;
+    const studySetId = `set-doc-happy-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: [],
+        sourceRefs: [{ type: 'document', id: 'doc-1' }],
+        type: 'flashcards',
+        title: 'Doc Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    const getDocumentMarkdownSpy = vi.fn().mockResolvedValue('# Document content');
+    const getNoteMarkdownSpy = vi.fn();
+
+    let capturedJson = '';
+    const putBodySpy = vi.fn(async (_s: string, _id: string, json: string) => {
+      capturedJson = json;
+    });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: getNoteMarkdownSpy,
+      getDocumentMarkdown: getDocumentMarkdownSpy,
+      generate: vi.fn().mockResolvedValue({
+        payload: { cards: [{ front: 'Q', back: 'A', sourceNoteIds: ['doc-1'] }] },
+        promptVersion: 'v1',
+      }),
+      putBody: putBodySpy,
+    });
+
+    expect(result.outcome).toBe('ready');
+    // getDocumentMarkdown called with the right args
+    expect(getDocumentMarkdownSpy).toHaveBeenCalledWith(sub, 'doc-1');
+    // getNoteMarkdown must NOT be called for a document-only set
+    expect(getNoteMarkdownSpy).not.toHaveBeenCalled();
+
+    // Provenance should use the doc id as the allowed id
+    const persisted = JSON.parse(capturedJson) as {
+      cards: Array<{ front: string; back: string; sourceNoteIds?: string[] }>;
+    };
+    expect(persisted.cards[0]!.sourceNoteIds).toContain('doc-1');
+  });
+
+  it('mixed note + document refs: both resolvers are called', async () => {
+    const sub = `sub-mixed-${rand()}`;
+    const studySetId = `set-mixed-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: ['n1'],
+        sourceRefs: [
+          { type: 'note', id: 'n1' },
+          { type: 'document', id: 'd1' },
+        ],
+        type: 'flashcards',
+        title: 'Mixed Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    const getNoteMarkdownSpy = vi.fn().mockResolvedValue('# Note body');
+    const getDocumentMarkdownSpy = vi.fn().mockResolvedValue('# Doc body');
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: getNoteMarkdownSpy,
+      getDocumentMarkdown: getDocumentMarkdownSpy,
+      generate: vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' }),
+      putBody: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(getNoteMarkdownSpy).toHaveBeenCalledOnce();
+    expect(getDocumentMarkdownSpy).toHaveBeenCalledOnce();
+  });
+
+  it('backward-compat: legacy sourceNoteIds (no sourceRefs) resolves via getNoteMarkdown only', async () => {
+    const sub = `sub-compat-${rand()}`;
+    const studySetId = `set-compat-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: ['n1'],
+        // no sourceRefs field — legacy path
+        type: 'flashcards',
+        title: 'Compat Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    const getNoteMarkdownSpy = vi.fn().mockResolvedValue('# Note body');
+    const getDocumentMarkdownSpy = vi.fn();
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: getNoteMarkdownSpy,
+      getDocumentMarkdown: getDocumentMarkdownSpy,
+      generate: vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' }),
+      putBody: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(getNoteMarkdownSpy).toHaveBeenCalledWith(sub, 'n1');
+    expect(getDocumentMarkdownSpy).not.toHaveBeenCalled();
+  });
+
+  it('large document → map-reduce branch when token limit is set low', async () => {
+    const sub = `sub-doc-mr-${rand()}`;
+    const studySetId = `set-doc-mr-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: [],
+        sourceRefs: [{ type: 'document', id: 'big' }],
+        type: 'flashcards',
+        title: 'Big Doc Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    // Drive map-reduce by setting a tiny context limit (100 tokens = 400 chars)
+    // and providing a document body exceeding that threshold but well below HARD_CAP.
+    const originalLimit = process.env.SST_RESOURCE_MULTI_NOTE_CONTEXT_LIMIT_value;
+    process.env.SST_RESOURCE_MULTI_NOTE_CONTEXT_LIMIT_value = '100'; // 100 tokens → 400 chars
+
+    // ~600 chars → ~150 tokens (> 100 limit, < 200_000 HARD_CAP)
+    const largeDocBody = 'A'.repeat(600);
+
+    const generateSpy = vi
+      .fn()
+      // MAP phase returns array candidates
+      .mockResolvedValueOnce({ payload: [{ text: 'c1' }], promptVersion: 'v1' })
+      // REDUCE phase returns final object
+      .mockResolvedValueOnce({ payload: { cards: [{ front: 'Q', back: 'A' }] }, promptVersion: 'v1' });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn(),
+      getDocumentMarkdown: vi.fn().mockResolvedValue(largeDocBody),
+      generate: generateSpy,
+      putBody: vi.fn().mockResolvedValue(undefined),
+    });
+
+    // Restore env
+    process.env.SST_RESOURCE_MULTI_NOTE_CONTEXT_LIMIT_value = originalLimit;
+
+    expect(result.outcome).toBe('ready');
+    // generate must have been called twice (map + reduce)
+    expect(generateSpy).toHaveBeenCalledTimes(2);
+    expect(generateSpy.mock.calls[0]![0]).toMatchObject({ phase: 'map' });
+    expect(generateSpy.mock.calls[1]![0]).toMatchObject({ phase: 'reduce' });
+
+    // Confirm mapReduce flag persisted in DynamoDB
+    const after = await getStudySet(sub, studySetId);
+    expect(after!.mapReduce).toBe(true);
+  });
+});
+
 describe('processStudyGeneration — failure', () => {
   it('marks the study set failed with a sanitised error', async () => {
     const sub = `sub-study-job-fail-${rand()}`;
