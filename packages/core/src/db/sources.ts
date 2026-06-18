@@ -1,4 +1,4 @@
-import { QueryCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { sourceKeys } from './keys.js';
 
@@ -164,4 +164,101 @@ export async function countSourcesByUser(sub: string): Promise<number> {
     }),
   );
   return result.Count ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Status-transition helpers (used by the extraction job)
+// ---------------------------------------------------------------------------
+
+/**
+ * Marks a source as currently being extracted: status → 'extracting'.
+ * Called at the start of the extraction job before parsing begins.
+ */
+export async function markSourceExtracting(
+  sub: string,
+  sourceId: string,
+  updatedAt?: string,
+): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: sourceKeys.item(sub, sourceId),
+      UpdateExpression: 'SET #status = :status, updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':status': 'extracting',
+        ':updatedAt': updatedAt ?? new Date().toISOString(),
+      },
+    }),
+  );
+}
+
+/**
+ * Marks a source as successfully extracted: status → 'ready'.
+ *
+ * Also clears any stale `error` attribute from a previous failed attempt via
+ * `REMOVE #error` so retried sources don't surface a stale error message.
+ */
+export async function markSourceReady(input: {
+  sub: string;
+  sourceId: string;
+  extractedTextS3Key: string;
+  wordCount: number;
+  pageCount?: number;
+  updatedAt?: string;
+}): Promise<void> {
+  const updatedAt = input.updatedAt ?? new Date().toISOString();
+
+  const setClauses = [
+    '#status = :status',
+    'extractedTextS3Key = :extractedTextS3Key',
+    'wordCount = :wordCount',
+    'updatedAt = :updatedAt',
+  ];
+  const expressionValues: Record<string, unknown> = {
+    ':status': 'ready',
+    ':extractedTextS3Key': input.extractedTextS3Key,
+    ':wordCount': input.wordCount,
+    ':updatedAt': updatedAt,
+  };
+
+  if (input.pageCount !== undefined) {
+    setClauses.push('pageCount = :pageCount');
+    expressionValues[':pageCount'] = input.pageCount;
+  }
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: sourceKeys.item(input.sub, input.sourceId),
+      UpdateExpression: `SET ${setClauses.join(', ')} REMOVE #error`,
+      ExpressionAttributeNames: { '#status': 'status', '#error': 'error' },
+      ExpressionAttributeValues: expressionValues,
+    }),
+  );
+}
+
+/**
+ * Marks a source as failed: status → 'failed' with an error message.
+ * Called by the extraction job when parsing fails or the word-count cap is exceeded.
+ */
+export async function markSourceFailed(input: {
+  sub: string;
+  sourceId: string;
+  error: string;
+  updatedAt?: string;
+}): Promise<void> {
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.Notes,
+      Key: sourceKeys.item(input.sub, input.sourceId),
+      UpdateExpression: 'SET #status = :status, #error = :error, updatedAt = :updatedAt',
+      ExpressionAttributeNames: { '#status': 'status', '#error': 'error' },
+      ExpressionAttributeValues: {
+        ':status': 'failed',
+        ':error': input.error,
+        ':updatedAt': input.updatedAt ?? new Date().toISOString(),
+      },
+    }),
+  );
 }
