@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.78.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.77.0...transformmynotes-v1.78.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **application:** M20.4 — sources library, upload UI & generate-from-source ([#629](https://github.com/jasonp2323/transformmynotes/issues/629)) ([d3b1d46](https://github.com/jasonp2323/transformmynotes/commit/d3b1d464ed2e642eb933b7bb6c210e474cfdce8c))
+
 ## [1.77.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.76.0...transformmynotes-v1.77.0) (2026-06-18)
 
 
