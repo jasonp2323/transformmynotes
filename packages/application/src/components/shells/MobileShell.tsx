@@ -34,15 +34,18 @@ export function MobileShell({ active, fab, children, className }: MobileShellPro
       <a href="#main-content" className="tmn-skip-nav">Skip to main content</a>
 
       {/* scrollable content */}
-      <main id="main-content" className="tmn-shell__content tmn-scroll">
+      <main
+        id="main-content"
+        className={cn('tmn-shell__content tmn-scroll', (fab != null || active === 'library') && 'tmn-shell__content--actions')}
+      >
         {children}
       </main>
 
       {/* FAB slot — rendered when a fab is provided or on the library tab */}
       {(fab != null || active === 'library') && (
         <div className="tmn-shell__fab" aria-label="Quick actions">
-          {active === 'library' && <StudySelectNavButton />}
           {fab}
+          {active === 'library' && <StudySelectNavButton />}
         </div>
       )}
 
