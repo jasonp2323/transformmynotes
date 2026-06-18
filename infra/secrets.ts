@@ -66,3 +66,10 @@ export const multiNoteContextLimit = new sst.Secret("MULTI_NOTE_CONTEXT_LIMIT", 
 // deploy for every stage; the empty default avoids that. Seed the real value in
 // both Console envs if you need a different cap.
 export const maxSourceNotes = new sst.Secret("MAX_SOURCE_NOTES", "");
+
+// M20 document sources. REQUIRED — declared with NO default so a missing value
+// fails loud at deploy (SecretMissingError) per CLAUDE.md. Seed real values in
+// BOTH Console environments (production + the fallback env used by pr-<N>):
+//   MAX_SOURCE_FILE_BYTES e.g. 52428800 (50 MB), MAX_SOURCES_PER_USER e.g. 100.
+export const maxSourceFileBytes = new sst.Secret("MAX_SOURCE_FILE_BYTES");
+export const maxSourcesPerUser = new sst.Secret("MAX_SOURCES_PER_USER");
