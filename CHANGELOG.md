@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.81.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.80.0...transformmynotes-v1.81.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **application:** M21.3 — "Add from URL" UI in the Sources flow ([#635](https://github.com/jasonp2323/transformmynotes/issues/635)) ([b258419](https://github.com/jasonp2323/transformmynotes/commit/b2584195429541d2be51860eadfb62bbb2d13e53))
+
 ## [1.80.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.79.0...transformmynotes-v1.80.0) (2026-06-18)
 
 
