@@ -5,6 +5,7 @@ import {
   putStudySet, countInFlightStudySets, buildStudySetItem, getSource,
   MATERIAL_TYPES, type StudyMaterialType, type StudyLanguage, type NoteItem,
   resolveAiConfig, estimateTokens, resolveContextLimit, resolveMaxSourceNotes,
+  resolveSourceText,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -241,6 +242,12 @@ export async function POST(req: Request) {
     // ── dryRun: estimate tokens, return without writing anything ─────────────
     if (dryRun === true) {
       const bodies = await Promise.all(notes.map((n) => readNoteBody(n)));
+      // Include extracted text from document sources so the estimate is accurate
+      // for mixed note+document requests and the mapReduceNeeded flag is correct.
+      for (const id of documentSourceIds) {
+        const resolved = await resolveSourceText(sub, { type: 'document', id });
+        bodies.push(resolved.text);
+      }
       const estimatedTokens = estimateTokens(bodies);
       const estimatedCostUsd = estimatedTokens * 0.000003;
       const mapReduceNeeded = estimatedTokens > resolveContextLimit();

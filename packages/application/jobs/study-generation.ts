@@ -25,6 +25,7 @@ import {
   chunkNotes,
   deduplicateCandidates,
   applyProvenance,
+  resolveSourceText,
   type StudySetItem,
   type StudyMaterialType,
   type StudyLanguage,
@@ -78,6 +79,11 @@ export interface ProcessStudyDeps {
    */
   getNoteMarkdown: (sub: string, noteId: string) => Promise<string>;
   /**
+   * Fetch a document source's extracted text.
+   * Default: calls `resolveSourceText(sub, { type: 'document', id })` from core.
+   */
+  getDocumentMarkdown: (sub: string, sourceId: string) => Promise<string>;
+  /**
    * Generate the study material payload.
    * Default: `generateStudyMaterial` from `@transformmynotes/core`.
    */
@@ -110,6 +116,11 @@ async function defaultGetNoteMarkdown(sub: string, noteId: string): Promise<stri
   return response.Body!.transformToString();
 }
 
+async function defaultGetDocumentMarkdown(sub: string, sourceId: string): Promise<string> {
+  const resolved = await resolveSourceText(sub, { type: 'document', id: sourceId });
+  return resolved.text;
+}
+
 async function defaultPutBody(sub: string, studySetId: string, json: string): Promise<void> {
   const s3 = new S3Client({});
   await s3.send(
@@ -128,6 +139,7 @@ const DEFAULT_DEPS: ProcessStudyDeps = {
   markReady: markStudySetReady,
   markFailed: markStudySetFailed,
   getNoteMarkdown: defaultGetNoteMarkdown,
+  getDocumentMarkdown: defaultGetDocumentMarkdown,
   generate: generateStudyMaterial,
   putBody: defaultPutBody,
 };
@@ -161,7 +173,7 @@ export async function processStudyGeneration(
   studySetId: string,
   deps: Partial<ProcessStudyDeps> = {},
 ): Promise<{ outcome: 'ready' | 'failed' | 'skipped' | 'not_found' | 'too_large' }> {
-  const { getStudySet: _getStudySet, claim, markReady, markFailed, getNoteMarkdown, generate, putBody } = {
+  const { getStudySet: _getStudySet, claim, markReady, markFailed, getNoteMarkdown, getDocumentMarkdown, generate, putBody } = {
     ...DEFAULT_DEPS,
     ...deps,
   };
@@ -181,13 +193,32 @@ export async function processStudyGeneration(
   }
 
   try {
-    // Fetch all source note bodies in parallel.
+    // Derive the effective source ref list. If `sourceRefs` is present (M20+),
+    // use it directly. Otherwise fall back to legacy `sourceNoteIds` so sets
+    // created before M20 continue to work exactly as before.
+    const refs: { type: 'note' | 'document' | 'web'; id: string }[] =
+      studySet.sourceRefs && studySet.sourceRefs.length > 0
+        ? studySet.sourceRefs
+        : studySet.sourceNoteIds.map((id) => ({ type: 'note' as const, id }));
+
+    // Resolve each ref to its text body in parallel.
+    // - note → getNoteMarkdown (existing dep)
+    // - document → getDocumentMarkdown (new dep, resolves extractedText from S3)
+    // - web → reserved for M21; throw immediately so it surfaces cleanly
     const noteBodies = await Promise.all(
-      studySet.sourceNoteIds.map(async (noteId) => ({
-        noteId,
-        body: await getNoteMarkdown(sub, noteId),
-      })),
+      refs.map(async (ref) => {
+        if (ref.type === 'note') {
+          return { noteId: ref.id, body: await getNoteMarkdown(sub, ref.id) };
+        }
+        if (ref.type === 'document') {
+          return { noteId: ref.id, body: await getDocumentMarkdown(sub, ref.id) };
+        }
+        throw new Error('web sources are not supported yet');
+      }),
     );
+
+    // Allowed ids for provenance: the ref ids (note or document) in resolved order.
+    const allowedIds = refs.map((r) => r.id);
 
     const est = estimateTokens(noteBodies.map((n) => n.body));
     const directLimit = resolveContextLimit();
@@ -201,7 +232,7 @@ export async function processStudyGeneration(
 
     // ── Branch: direct single-pass ───────────────────────────────────────────
     if (est <= directLimit) {
-      // Stitch all note bodies together with separators for clear provenance.
+      // Stitch all source bodies together with separators for clear provenance.
       let combined = noteBodies
         .map((n) => `\n---\n${n.noteId}\n---\n${n.body}`)
         .join('');
@@ -220,14 +251,14 @@ export async function processStudyGeneration(
         noteTitle: studySet.title,
         language: studySet.language,
       });
-      const withProvenance = applyProvenance(studySet.type, result.payload, studySet.sourceNoteIds);
+      const withProvenance = applyProvenance(studySet.type, result.payload, allowedIds);
       await putBody(sub, studySetId, JSON.stringify(withProvenance));
       await markReady({
         sub,
         studySetId,
         bodyS3Key,
         promptVersion: result.promptVersion,
-        inputNoteCount: studySet.sourceNoteIds.length,
+        inputNoteCount: refs.length,
       });
       return { outcome: 'ready' };
     }
@@ -273,7 +304,7 @@ export async function processStudyGeneration(
       candidates: deduped,
     });
 
-    const reducedWithProvenance = applyProvenance(studySet.type, reduced.payload, studySet.sourceNoteIds);
+    const reducedWithProvenance = applyProvenance(studySet.type, reduced.payload, allowedIds);
     await putBody(sub, studySetId, JSON.stringify(reducedWithProvenance));
     await markReady({
       sub,
@@ -282,7 +313,7 @@ export async function processStudyGeneration(
       promptVersion: reduced.promptVersion,
       mapReduce: true,
       chunkCount: chunks.length,
-      inputNoteCount: studySet.sourceNoteIds.length,
+      inputNoteCount: refs.length,
     });
     return { outcome: 'ready' };
   } catch (err) {
