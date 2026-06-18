@@ -1,6 +1,6 @@
 # TransformMyNotes — Delivery Roadmap
 
-AI-paced schedule for the 29 milestones. Durations are compressed for agent-driven
+AI-paced schedule for the 28 milestones. Durations are compressed for agent-driven
 implementation (an `L` milestone is planned at ~3 days, `XL` at ~4, `M` at ~2), not the weeks a
 human team would take. Where milestones don't depend on each other they are scheduled **in
 parallel** and tagged with the same **Wave** — those can be dispatched to separate agents at the
