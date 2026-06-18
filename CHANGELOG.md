@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.76.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.75.0...transformmynotes-v1.76.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **application:** M20.2 — document upload, multi-format parsers & async extraction ([#625](https://github.com/jasonp2323/transformmynotes/issues/625)) ([9d212b1](https://github.com/jasonp2323/transformmynotes/commit/9d212b19cd0bcc2bd61fa1b164f70578e2272ddd))
+
 ## [1.75.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.74.0...transformmynotes-v1.75.0) (2026-06-18)
 
 
