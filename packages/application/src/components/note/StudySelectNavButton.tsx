@@ -16,15 +16,23 @@ export function StudySelectNavButton() {
   return (
     <button
       type="button"
-      className="tmn-bottomnav__item"
       onClick={handleClick}
       aria-label="Select notes to generate study material"
-      style={{ background: 'transparent', border: 'none', cursor: 'pointer', font: 'inherit' }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 56,
+        height: 56,
+        borderRadius: '50%',
+        background: 'var(--surface-card)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: '0 8px 20px rgba(0,0,0,0.10)',
+        cursor: 'pointer',
+        padding: 0,
+      }}
     >
-      <span className="tmn-bottomnav__icon-wrap">
-        <Icon name="sparkles" size={23} stroke={2} />
-      </span>
-      <span className="tmn-bottomnav__label">Generate</span>
+      <Icon name="sparkles" size={24} color="var(--brand-strong)" />
     </button>
   );
 }

@@ -441,7 +441,7 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
 /* ---- MobileShell ---- */
 .tmn-shell--mobile {
   display: flex; flex-direction: column;
-  height: 100dvh; height: 100%; /* dvh for mobile, % as fallback */
+  height: 100%; height: 100dvh; /* % fallback, dvh wins on modern browsers */
   background: var(--surface-app);
   font-family: var(--font-sans);
   position: relative;
@@ -455,13 +455,23 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   -webkit-overflow-scrolling: touch;
 }
 
-/* FAB slot — absolutely positioned above the bottom nav, on the right */
+/* Extra bottom padding when the floating action row is present so the last card scrolls clear of it */
+.tmn-shell--mobile .tmn-shell__content--actions { padding-bottom: 100px; }
+
+/* FAB slot — absolutely positioned above the bottom nav, centered, as a flex row */
 .tmn-shell__fab {
   position: absolute;
-  right: 20px;
-  bottom: calc(64px + 16px); /* clear the bottom nav (~64px) + 16px gap */
+  left: 0;
+  right: 0;
+  bottom: calc(64px + 28px); /* clear the ~64px bottom nav + 28px gap */
   z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none; /* let taps fall through the empty gutter… */
 }
+.tmn-shell__fab > * { pointer-events: auto; } /* …but keep the buttons tappable */
 
 /* Bottom navigation bar */
 .tmn-bottomnav {
@@ -474,6 +484,9 @@ dialog.tmn-dialog-native::backdrop { background: rgba(33, 30, 23, 0.42); backdro
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--border-subtle);
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
 }
 
 /* Individual bottom nav item */

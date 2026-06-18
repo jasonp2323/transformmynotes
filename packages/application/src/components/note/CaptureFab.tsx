@@ -25,7 +25,7 @@ export function CaptureFab() {
         cursor: 'pointer',
       }}
     >
-      <Icon name="scan-line" size={26} color="#fff" />
+      <Icon name="plus" size={28} color="#fff" />
     </a>
   );
 }
