@@ -112,11 +112,14 @@ async function parseEpub(buffer: Buffer): Promise<string> {
         const text = html
           .replace(/<[^>]+>/g, ' ')
           .replace(/&nbsp;/g, ' ')
-          .replace(/&amp;/g, '&')
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
+          // Unescape &amp; LAST so a literal "&amp;lt;" is not double-unescaped
+          // into "<" (the other entity replacements run before this). Flagged by
+          // CodeQL "Double escaping or unescaping".
+          .replace(/&amp;/g, '&')
           .replace(/\s+/g, ' ')
           .trim();
         if (text) {
