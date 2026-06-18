@@ -6,14 +6,14 @@ import { LogoutButton } from './LogoutButton';
 import { StudySelectNavButton } from '@/src/components/note/StudySelectNavButton';
 
 export interface MobileShellProps {
-  active?: 'library' | 'search' | 'review' | 'study' | 'profile';
+  active?: 'library' | 'search' | 'review' | 'study' | 'sources' | 'profile';
   fab?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }
 
 interface BottomNavItem {
-  id: 'library' | 'search' | 'review' | 'study' | 'profile';
+  id: 'library' | 'search' | 'review' | 'study' | 'sources' | 'profile';
   icon: string;
   label: string;
   href: string;
@@ -24,6 +24,7 @@ const NAV_ITEMS: BottomNavItem[] = [
   { id: 'search',  icon: 'search',    label: 'Search',  href: '/search' },
   { id: 'review',  icon: 'layers',         label: 'Review',  href: '/review' },
   { id: 'study',   icon: 'graduation-cap', label: 'Study',   href: '/study' },
+  { id: 'sources', icon: 'file-text',      label: 'Sources', href: '/sources' },
   { id: 'profile', icon: 'user',           label: 'You',     href: '/account' },
 ];
 
