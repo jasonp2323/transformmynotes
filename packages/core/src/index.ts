@@ -18,6 +18,7 @@ export * from './db/sources';
 // Source resolution (M20)
 export * from './sources/resolve';
 export * from './sources/guardrails';
+export * from './sources/parse';
 export * from './auth/invite';
 export * from './auth/profile';
 export * from './auth/access-request';

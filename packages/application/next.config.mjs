@@ -35,6 +35,12 @@ const applicationCsp = [
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@transformmynotes/core'],
+  // PDF/DOCX/EPUB parser libs must be required at runtime, not webpack-bundled.
+  // Next 14 uses experimental.serverComponentsExternalPackages; Next ≥15 promotes
+  // this to top-level serverExternalPackages.
+  experimental: {
+    serverComponentsExternalPackages: ['unpdf', 'mammoth', 'epub2'],
+  },
   webpack: (config) => {
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js'],

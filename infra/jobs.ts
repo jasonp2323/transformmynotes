@@ -86,3 +86,48 @@ notes.subscribe("StudyGenerationConsumerSubscription", studyGenerationConsumer.a
     { eventName: ["INSERT"], dynamodb: { NewImage: { sk: { S: [{ prefix: "STUDYSET#" }] } } } },
   ],
 });
+
+// M20.2 source-extraction stream consumer. The upload route marks a SOURCE item
+// status → 'extracting'; this Lambda runs the actual text extraction (parse +
+// S3 write + status update) off the DynamoDB stream.
+export const sourceExtractionConsumer = new sst.aws.Function("SourceExtractionConsumer", {
+  handler: "packages/application/jobs/source-extraction.handler",
+  link: [notes, notesBucket],
+  environment: {
+    SST_RESOURCE_Notes_name: notes.name,
+    SST_RESOURCE_NotesBucket_name: notesBucket.name,
+  },
+  permissions: [
+    {
+      actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+      resources: [notes.arn],
+    },
+    // Least privilege: read original upload files from sources/users/*
+    {
+      actions: ["s3:GetObject"],
+      resources: [$interpolate`arn:aws:s3:::${notesBucket.name}/sources/users/*`],
+    },
+    // Write extracted Markdown text back to sources/users/*
+    {
+      actions: ["s3:PutObject"],
+      resources: [$interpolate`arn:aws:s3:::${notesBucket.name}/sources/users/*`],
+    },
+  ],
+});
+
+// Subscribe the source-extraction consumer to the Notes table stream, filtered
+// to SOURCE items in 'extracting' status (INSERT when large-file async path
+// creates directly as extracting; MODIFY when the upload route flips status).
+notes.subscribe("SourceExtractionConsumerSubscription", sourceExtractionConsumer.arn, {
+  filters: [
+    {
+      eventName: ["INSERT", "MODIFY"],
+      dynamodb: {
+        NewImage: {
+          sk: { S: [{ prefix: "SOURCE#" }] },
+          status: { S: ["extracting"] },
+        },
+      },
+    },
+  ],
+});
