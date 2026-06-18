@@ -19,6 +19,7 @@ export * from './db/sources';
 export * from './sources/resolve';
 export * from './sources/guardrails';
 export * from './sources/parse';
+export * from './sources/safe-fetch';
 export * from './auth/invite';
 export * from './auth/profile';
 export * from './auth/access-request';
