@@ -24,6 +24,10 @@ export interface Source {
   error?: string;
   createdAt: string;
   updatedAt: string;
+  sourceUrl?: string;
+  urlHash?: string;
+  fetchedAt?: string;
+  fetchedBy?: string;
 }
 
 /** Full DynamoDB item shape for a SOURCE (includes PK/SK and GSI9 keys). */
@@ -54,6 +58,10 @@ export interface BuildSourceItemInput {
   error?: string;
   createdAt: string;
   updatedAt?: string;
+  sourceUrl?: string;
+  urlHash?: string;
+  fetchedAt?: string;
+  fetchedBy?: string;
 }
 
 /**
@@ -96,6 +104,18 @@ export function buildSourceItem(input: BuildSourceItemInput): SourceItem {
   }
   if (input.error !== undefined) {
     item.error = input.error;
+  }
+  if (input.sourceUrl !== undefined) {
+    item.sourceUrl = input.sourceUrl;
+  }
+  if (input.urlHash !== undefined) {
+    item.urlHash = input.urlHash;
+  }
+  if (input.fetchedAt !== undefined) {
+    item.fetchedAt = input.fetchedAt;
+  }
+  if (input.fetchedBy !== undefined) {
+    item.fetchedBy = input.fetchedBy;
   }
 
   return item;
@@ -206,6 +226,8 @@ export async function markSourceReady(input: {
   wordCount: number;
   pageCount?: number;
   updatedAt?: string;
+  title?: string;
+  byteSize?: number;
 }): Promise<void> {
   const updatedAt = input.updatedAt ?? new Date().toISOString();
 
@@ -225,6 +247,14 @@ export async function markSourceReady(input: {
   if (input.pageCount !== undefined) {
     setClauses.push('pageCount = :pageCount');
     expressionValues[':pageCount'] = input.pageCount;
+  }
+  if (input.title !== undefined) {
+    setClauses.push('title = :title');
+    expressionValues[':title'] = input.title;
+  }
+  if (input.byteSize !== undefined) {
+    setClauses.push('byteSize = :byteSize');
+    expressionValues[':byteSize'] = input.byteSize;
   }
 
   await ddb.send(
@@ -261,4 +291,24 @@ export async function markSourceFailed(input: {
       },
     }),
   );
+}
+
+/**
+ * Finds a source by urlHash within a user's partition by querying GSI9
+ * with a FilterExpression on the urlHash attribute.
+ *
+ * Returns the first matching SourceItem or undefined if not found.
+ * This is used for URL deduplication in the from-url route (M21.2.2).
+ */
+export async function findSourceByUrlHash(
+  sub: string,
+  urlHash: string,
+): Promise<SourceItem | undefined> {
+  const { Items } = await ddb.send(
+    new QueryCommand({
+      TableName: TableNames.Notes,
+      ...sourceKeys.findByUrlHash(sub, urlHash),
+    }),
+  );
+  return (Items?.[0] as SourceItem | undefined);
 }

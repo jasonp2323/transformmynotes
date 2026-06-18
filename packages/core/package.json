@@ -28,13 +28,17 @@
     "@tiptap/starter-kit": "^3.26.1",
     "epub2": "^3.0.2",
     "mammoth": "^1.8.0",
+    "@mozilla/readability": "^0.6.0",
     "ip-range-check": "^0.2.0",
+    "linkedom": "^0.18.12",
+    "turndown": "^7.2.4",
     "ulid": "^3.0.2",
     "unpdf": "^1.6.2"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
     "@types/node": "^22.19.20",
+    "@types/turndown": "^5.0.6",
     "dynalite": "^4.0.0",
     "pdfkit": "^0.19.1"
   }
