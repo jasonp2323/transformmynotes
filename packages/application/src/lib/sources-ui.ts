@@ -63,3 +63,16 @@ export function friendlyUploadError(key: string): string {
 export function isInFlight(status: SourceStatus): boolean {
   return status === 'uploading' || status === 'extracting';
 }
+
+// ── URL fetch error messages ──────────────────────────────────────────────────
+
+/**
+ * Map an HTTP status from POST /api/sources/from-url to user-facing copy.
+ */
+export function friendlyFromUrlError(status: number): string {
+  switch (status) {
+    case 400: return 'This URL cannot be fetched (blocked or invalid).';
+    case 429: return 'Too many requests — try again later.';
+    default:  return 'Something went wrong. Please try again.';
+  }
+}

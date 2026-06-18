@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { statusChipMeta, friendlyUploadError, isInFlight } from '../sources-ui';
+import { statusChipMeta, friendlyUploadError, isInFlight, friendlyFromUrlError } from '../sources-ui';
 
 // ── statusChipMeta ─────────────────────────────────────────────────────────────
 
@@ -50,6 +50,26 @@ describe('friendlyUploadError', () => {
 
   it('empty string falls back to default message', () => {
     expect(friendlyUploadError('')).toBe('Upload failed. Please try again.');
+  });
+});
+
+// ── friendlyFromUrlError ──────────────────────────────────────────────────────
+
+describe('friendlyFromUrlError', () => {
+  it('400 → blocked/invalid copy', () => {
+    expect(friendlyFromUrlError(400)).toBe('This URL cannot be fetched (blocked or invalid).');
+  });
+
+  it('429 → rate limit copy', () => {
+    expect(friendlyFromUrlError(429)).toBe('Too many requests — try again later.');
+  });
+
+  it('500 → default copy', () => {
+    expect(friendlyFromUrlError(500)).toBe('Something went wrong. Please try again.');
+  });
+
+  it('418 → default copy', () => {
+    expect(friendlyFromUrlError(418)).toBe('Something went wrong. Please try again.');
   });
 });
 
