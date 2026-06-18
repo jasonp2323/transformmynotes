@@ -140,7 +140,7 @@ export default async function setup() {
   // Mirror infra/db.ts: Notes table — pk/sk primary + GSI1 (UserNotesByTime, ALL) +
   // GSI2 (NotesByTag, KEYS_ONLY) + GSI3 (ByToken, KEYS_ONLY) + GSI4 (ByRecipient, ALL) +
   // GSI5 (ByDue, ALL) + GSI6 (StudySetsByUser, ALL) + GSI7 (StudySetsByNote, ALL) +
-  // GSI8 (ByQuizAttempt, ALL).
+  // GSI8 (ByQuizAttempt, ALL) + GSI9 (SourcesByUser, ALL).
   // No StreamSpecification — notes has no stream.
   await ddbAdmin.send(
     new CreateTableCommand({
@@ -164,6 +164,8 @@ export default async function setup() {
         { AttributeName: 'gsi7sk', AttributeType: 'S' },
         { AttributeName: 'gsi8pk', AttributeType: 'S' },
         { AttributeName: 'gsi8sk', AttributeType: 'S' },
+        { AttributeName: 'gsi9pk', AttributeType: 'S' },
+        { AttributeName: 'gsi9sk', AttributeType: 'S' },
       ],
       KeySchema: [
         { AttributeName: 'pk', KeyType: 'HASH' },
@@ -231,6 +233,14 @@ export default async function setup() {
           KeySchema: [
             { AttributeName: 'gsi8pk', KeyType: 'HASH' },
             { AttributeName: 'gsi8sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'GSI9',
+          KeySchema: [
+            { AttributeName: 'gsi9pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi9sk', KeyType: 'RANGE' },
           ],
           Projection: { ProjectionType: 'ALL' },
         },

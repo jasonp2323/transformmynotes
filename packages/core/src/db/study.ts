@@ -27,6 +27,8 @@ export interface StudySet {
   chunkCount?: number;
   /** length of sourceNoteIds at dispatch time (M17). */
   inputNoteCount?: number;
+  /** M20: generalised source refs (note or document) used to generate this study set. */
+  sourceRefs?: { type: 'note' | 'document' | 'web'; id: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -58,6 +60,8 @@ export interface BuildStudySetItemInput {
   promptVersion?: string;
   error?: string;
   bodyS3Key?: string;
+  /** M20: generalised source refs (note or document) used to generate this study set. */
+  sourceRefs?: { type: 'note' | 'document' | 'web'; id: string }[];
   createdAt: string;
   updatedAt?: string;
 }
@@ -101,6 +105,10 @@ export function buildStudySetItem(input: BuildStudySetItemInput): StudySetItem {
 
   if (input.bodyS3Key !== undefined) {
     item.bodyS3Key = input.bodyS3Key;
+  }
+
+  if (input.sourceRefs !== undefined) {
+    item.sourceRefs = input.sourceRefs;
   }
 
   return item;

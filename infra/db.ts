@@ -48,6 +48,8 @@ export const notes = new sst.aws.Dynamo("Notes", {
     gsi7sk: "string",
     gsi8pk: "string",
     gsi8sk: "string",
+    gsi9pk: "string",
+    gsi9sk: "string",
   },
   primaryIndex: { hashKey: "pk", rangeKey: "sk" },
   globalIndexes: {
@@ -59,6 +61,7 @@ export const notes = new sst.aws.Dynamo("Notes", {
     GSI6: { hashKey: "gsi6pk", rangeKey: "gsi6sk", projection: "all" },
     GSI7: { hashKey: "gsi7pk", rangeKey: "gsi7sk", projection: "all" },
     GSI8: { hashKey: "gsi8pk", rangeKey: "gsi8sk", projection: "all" },
+    GSI9: { hashKey: "gsi9pk", rangeKey: "gsi9sk", projection: "all" },
   },
   stream: "new-and-old-images",
 });

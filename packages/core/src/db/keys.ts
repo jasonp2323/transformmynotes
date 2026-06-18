@@ -195,15 +195,19 @@ export const jobKeys = {
 /**
  * S3 object key builders for note assets. User-scoped prefixes keep IAM
  * conditions simple and prevent cross-user reads.
- *   images/users/<sub>/<id>.jpg       — original photo (presigned PUT)
- *   markdown/users/<sub>/<id>.md      — transcription output (written server-side)
- *   study/users/<sub>/<id>.json       — generated study-set body (M13)
+ *   images/users/<sub>/<id>.jpg           — original photo (presigned PUT)
+ *   markdown/users/<sub>/<id>.md          — transcription output (written server-side)
+ *   study/users/<sub>/<id>.json           — generated study-set body (M13)
+ *   sources/users/<sub>/<id>.<ext>        — uploaded source original (M20)
+ *   sources/users/<sub>/<id>.md           — extracted text (M20)
  */
 export const storageKeys = {
   originalImage: (sub: string, id: string) => `images/users/${sub}/${id}.jpg`,
   noteMarkdown: (sub: string, id: string) => `markdown/users/${sub}/${id}.md`,
   studySetBody: (sub: string, studySetId: string) => `study/users/${sub}/${studySetId}.json`,
   audioMp3: (sub: string, hash: string) => `audio/users/${sub}/${hash}.mp3`, // M18
+  sourceOriginal: (sub: string, id: string, ext: string) => `sources/users/${sub}/${id}.${ext}`, // M20
+  sourceText: (sub: string, id: string) => `sources/users/${sub}/${id}.md`, // M20
 };
 
 /**
@@ -879,6 +883,77 @@ export const studySetKeys = {
     }
     return { studySetId: match[1] };
   },
+};
+
+/**
+ * `Notes` table keys for SOURCE items (uploaded documents for AI generation, M20).
+ *
+ * SOURCE items live in the same Notes table alongside note metadata and other items.
+ * They are distinguished by an SK prefix of `SOURCE#`, keeping them out of every
+ * other existing index query.
+ *
+ * Item shape:
+ *   PK  = `USER#<cognitoSub>`        — owner's partition (same as note items)
+ *   SK  = `SOURCE#<sourceId>`        — sourceId is a ULID generated at upload time
+ *   attrs: see SourceItem in sources.ts
+ *
+ * GSI9 (`SourcesByUser`, projection ALL):
+ *   gsi9pk = `USER#<cognitoSub>`, gsi9sk = `SOURCE#<sourceId>`
+ *   — list a user's sources newest-first. ULID sort keys are
+ *     lexicographically sortable; `ScanIndexForward: false` gives newest first.
+ *     Projection ALL means full attributes are returned without a follow-up GetItem.
+ *
+ * SOURCE items carry ONLY the gsi9 keys — they deliberately omit all other GSI
+ * keys so they stay out of all other indexes (sparse index pattern).
+ */
+export const sourceKeys = {
+  /**
+   * Full primary key for a source item.
+   * PK = `USER#<cognitoSub>`, SK = `SOURCE#<sourceId>`.
+   */
+  item: (sub: string, sourceId: string) => ({
+    pk: `USER#${sub}`,
+    sk: `SOURCE#${sourceId}`,
+  }),
+
+  /**
+   * GSI9 partition key for a source item (`USER#<cognitoSub>`).
+   * Scopes the recency index to a single user's sources.
+   */
+  gsi9pk: (sub: string) => `USER#${sub}`,
+
+  /**
+   * GSI9 sort key for a source item (`SOURCE#<sourceId>`).
+   * ULID sort keys are lexicographically sortable so `ScanIndexForward: false`
+   * returns newest-first.
+   */
+  gsi9sk: (sourceId: string) => `SOURCE#${sourceId}`,
+
+  /**
+   * Query parameters for listing all sources for a user via GSI9
+   * (`SourcesByUser`), newest-first (ScanIndexForward: false so descending
+   * ULID order = newest first), capped at `limit` (default 50).
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  listByUser: (sub: string, limit = 50) => ({
+    IndexName: 'GSI9',
+    KeyConditionExpression: 'gsi9pk = :gsi9pk',
+    ExpressionAttributeValues: { ':gsi9pk': `USER#${sub}` },
+    ScanIndexForward: false,
+    Limit: limit,
+  }),
+
+  /**
+   * Count query for the per-user source cap (Select COUNT).
+   * Queries GSI9 with Select: COUNT — returns only the count, no items.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  countByUser: (sub: string) => ({
+    IndexName: 'GSI9',
+    KeyConditionExpression: 'gsi9pk = :gsi9pk',
+    ExpressionAttributeValues: { ':gsi9pk': `USER#${sub}` },
+    Select: 'COUNT' as const,
+  }),
 };
 
 /**

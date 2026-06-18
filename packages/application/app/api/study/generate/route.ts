@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ulid } from 'ulid';
 import {
   batchGetNotes, listNotesByGroup,
-  putStudySet, countInFlightStudySets, buildStudySetItem,
+  putStudySet, countInFlightStudySets, buildStudySetItem, getSource,
   MATERIAL_TYPES, type StudyMaterialType, type StudyLanguage, type NoteItem,
   resolveAiConfig, estimateTokens, resolveContextLimit, resolveMaxSourceNotes,
 } from '@transformmynotes/core';
@@ -64,14 +64,41 @@ export async function POST(req: Request) {
     type,
     language,
     dryRun,
+    sourceRefs: rawSourceRefs,
   } = (body ?? {}) as Record<string, unknown>;
 
-  // ── Resolve sourceNoteIds ─────────────────────────────────────────────────
+  // ── Resolve source refs (M20) + legacy note ids ──────────────────────────
+  // Explicit `sourceRefs` (M20) take precedence and may include document refs.
+  // Otherwise fall back to the legacy note-resolution path (notebookId /
+  // sourceNoteIds / sourceNoteId / noteId) and synthesize note-only refs below.
+  const hasExplicitRefs = Array.isArray(rawSourceRefs) && rawSourceRefs.length > 0;
 
   let resolvedNoteIds: string[];
   let fromNotebook = false;
+  let documentSourceIds: string[] = [];
+  let resolvedSourceRefs: { type: 'note' | 'document'; id: string }[] = [];
 
-  if (typeof notebookId === 'string' && notebookId) {
+  if (hasExplicitRefs) {
+    // Validate each ref shape, then split into note + document refs.
+    const parsed: { type: 'note' | 'document'; id: string }[] = [];
+    for (const r of rawSourceRefs as unknown[]) {
+      const ref = r as { type?: unknown; id?: unknown };
+      if (
+        (ref.type !== 'note' && ref.type !== 'document') ||
+        typeof ref.id !== 'string' ||
+        !ref.id
+      ) {
+        return NextResponse.json(
+          { ok: false, error: 'Invalid sourceRefs.' },
+          { status: 400 },
+        );
+      }
+      parsed.push({ type: ref.type, id: ref.id });
+    }
+    resolvedSourceRefs = parsed;
+    resolvedNoteIds = parsed.filter((r) => r.type === 'note').map((r) => r.id);
+    documentSourceIds = parsed.filter((r) => r.type === 'document').map((r) => r.id);
+  } else if (typeof notebookId === 'string' && notebookId) {
     // 1. notebookId: resolve via listNotesByGroup server-side.
     try {
       const notebookNotes = await listNotesByGroup(sub, notebookId);
@@ -106,7 +133,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Validate: non-empty array of non-empty strings. De-duplicate preserving order.
+  // Validate note ids: non-empty strings. De-duplicate preserving order.
   const seen = new Set<string>();
   const deduped: string[] = [];
   for (const id of resolvedNoteIds) {
@@ -121,11 +148,17 @@ export async function POST(req: Request) {
       deduped.push(id);
     }
   }
-  if (deduped.length === 0) {
+  // At least one source (note or document) is required.
+  if (deduped.length === 0 && documentSourceIds.length === 0) {
     return NextResponse.json(
       { ok: false, error: 'Missing or invalid sourceNoteId.' },
       { status: 400 },
     );
+  }
+
+  // When not using explicit refs, synthesize note-only sourceRefs from deduped.
+  if (!hasExplicitRefs) {
+    resolvedSourceRefs = deduped.map((id) => ({ type: 'note' as const, id }));
   }
 
   // ── Note cap enforcement ────────────────────────────────────────────────
@@ -181,6 +214,28 @@ export async function POST(req: Request) {
         { ok: false, error: 'One or more notes not found.' },
         { status: 404 },
       );
+    }
+
+    // ── Document source validation (M20) ─────────────────────────────────────
+    // Consumer-side document text resolution and generation land in M20.3.
+    // Here we validate document sources exist and are ready, collect their
+    // titles for the study-set title, then persist sourceRefs.
+    const documentTitles: string[] = [];
+    for (const docId of documentSourceIds) {
+      const src = await getSource(sub, docId);
+      if (!src) {
+        return NextResponse.json(
+          { ok: false, error: 'Source not found.' },
+          { status: 404 },
+        );
+      }
+      if (src.status !== 'ready') {
+        return NextResponse.json(
+          { error: 'source_not_ready' },
+          { status: 422 },
+        );
+      }
+      documentTitles.push(src.title);
     }
 
     // ── dryRun: estimate tokens, return without writing anything ─────────────
@@ -243,14 +298,19 @@ export async function POST(req: Request) {
     const studySetId = ulid();
     const now = new Date().toISOString();
 
-    // Build title: 1 note → "{Type} – {title}"; multiple → "{Type} – {title} +N more"
+    // Build title from all source provenance labels (note titles first, in
+    // deduped order, then document titles): 1 source → "{Type} – {title}";
+    // multiple → "{Type} – {title} +N more". At least one source is guaranteed.
     // notes is returned by batchGetNotes in arbitrary order — sort by deduped order
     const noteMap = new Map(notes.map((n) => [n.noteId, n]));
-    const orderedNotes = deduped.map((id) => noteMap.get(id)!);
+    const sourceTitles = [
+      ...deduped.map((id) => noteMap.get(id)!.title),
+      ...documentTitles,
+    ];
     const title =
-      orderedNotes.length === 1
-        ? `${TYPE_LABELS[materialType]} – ${orderedNotes[0].title}`
-        : `${TYPE_LABELS[materialType]} – ${orderedNotes[0].title} +${orderedNotes.length - 1} more`;
+      sourceTitles.length === 1
+        ? `${TYPE_LABELS[materialType]} – ${sourceTitles[0]}`
+        : `${TYPE_LABELS[materialType]} – ${sourceTitles[0]} +${sourceTitles.length - 1} more`;
 
     const item = buildStudySetItem({
       sub,
@@ -262,6 +322,7 @@ export async function POST(req: Request) {
       language: resolvedLanguage,
       model,
       createdAt: now,
+      sourceRefs: resolvedSourceRefs,
     });
     await putStudySet(item);
 
