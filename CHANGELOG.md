@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.74.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.74.0...transformmynotes-v1.74.1) (2026-06-18)
+
+
+### 📝 Documentation
+
+* **M28:** spec for AI Activity UI milestone ([#620](https://github.com/jasonp2323/transformmynotes/issues/620)) ([09ca4b2](https://github.com/jasonp2323/transformmynotes/commit/09ca4b211220a6f4ab12d166acad47981ddd9307)), closes [#597](https://github.com/jasonp2323/transformmynotes/issues/597)
+* **milestones:** sync milestone docs with board — add M27, author M22.md ([#621](https://github.com/jasonp2323/transformmynotes/issues/621)) ([a62043f](https://github.com/jasonp2323/transformmynotes/commit/a62043f318520ca75a9880cef886c957c3c88c81))
+
 ## [1.74.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.73.0...transformmynotes-v1.74.0) (2026-06-18)
 
 
