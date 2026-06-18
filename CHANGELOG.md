@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.77.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.76.0...transformmynotes-v1.77.0) (2026-06-18)
+
+
+### 🚀 Features
+
+* **application:** M20.3 — generate-from-source wiring (document sources) ([#627](https://github.com/jasonp2323/transformmynotes/issues/627)) ([c5912e9](https://github.com/jasonp2323/transformmynotes/commit/c5912e9b780dda072dab8dfe5edef5ba884e3367)), closes [#291](https://github.com/jasonp2323/transformmynotes/issues/291)
+
 ## [1.76.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.75.0...transformmynotes-v1.76.0) (2026-06-18)
 
 
