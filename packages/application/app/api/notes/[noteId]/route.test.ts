@@ -17,6 +17,7 @@ const deleteNoteRecordMock = vi.hoisted(() => vi.fn());
 const tokeniseMock = vi.hoisted(() => vi.fn());
 const authoriseNoteReadMock = vi.hoisted(() => vi.fn());
 const revokeAllSharesForNoteMock = vi.hoisted(() => vi.fn());
+const putStorageDeltaEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -48,6 +49,7 @@ vi.mock('@transformmynotes/core', () => {
     tokenise: tokeniseMock,
     authoriseNoteRead: authoriseNoteReadMock,
     revokeAllSharesForNote: revokeAllSharesForNoteMock,
+    putStorageDeltaEvent: putStorageDeltaEventMock,
   };
 });
 
@@ -56,6 +58,7 @@ vi.mock('@aws-sdk/client-s3', () => ({
   PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
   GetObjectCommand: vi.fn((input) => ({ kind: 'GetObject', input })),
   DeleteObjectCommand: vi.fn((input) => ({ kind: 'DeleteObject', input })),
+  HeadObjectCommand: vi.fn((input) => ({ kind: 'HeadObject', input })),
 }));
 
 // ---------------------------------------------------------------------------
@@ -160,6 +163,7 @@ beforeEach(() => {
   tokeniseMock.mockReturnValue(['hello', 'world']);
   authoriseNoteReadMock.mockResolvedValue(true);
   revokeAllSharesForNoteMock.mockResolvedValue(0);
+  putStorageDeltaEventMock.mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -731,12 +735,14 @@ describe('DELETE /api/notes/[noteId]', () => {
   });
 
   it('still returns { ok: true } if S3 DeleteObject fails', async () => {
-    // First send is GetObject (for token reconstruction) — succeeds with default mock.
-    // Subsequent sends (DeleteObject calls) fail.
+    // Send sequence: (1) GetObject (token reconstruction) succeeds,
+    // (2) HeadObject (image size for metering) succeeds,
+    // (3) & (4) DeleteObject calls fail.
     s3SendMock
-      .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } })
-      .mockRejectedValueOnce(new Error('S3 access denied'))
-      .mockRejectedValueOnce(new Error('S3 access denied'));
+      .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } }) // GetObject
+      .mockResolvedValueOnce({ ContentLength: 123 }) // HeadObject (image size) — new
+      .mockRejectedValueOnce(new Error('S3 access denied')) // DeleteObject body
+      .mockRejectedValueOnce(new Error('S3 access denied')); // DeleteObject image
 
     const [req, ctx] = makeDeleteRequest();
     const res = await DELETE(req, ctx);

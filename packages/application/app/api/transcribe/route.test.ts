@@ -9,6 +9,7 @@ const getTranscriptionJobMock = vi.hoisted(() => vi.fn());
 const updateTranscriptionJobStatusMock = vi.hoisted(() => vi.fn());
 const transcribeImageMock = vi.hoisted(() => vi.fn());
 const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
+const putUsageEventMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
@@ -20,6 +21,7 @@ vi.mock('@transformmynotes/core', () => ({
   updateTranscriptionJobStatus: updateTranscriptionJobStatusMock,
   transcribeImage: transcribeImageMock,
   postprocessMarkdown: postprocessMarkdownMock,
+  putUsageEvent: putUsageEventMock,
   // shouldSkipTranscription is used by process-job.ts
   shouldSkipTranscription: (status: string) => status === 'done' || status === 'processing',
   storageKeys: {
@@ -78,6 +80,7 @@ beforeEach(() => {
   getTranscriptionJobMock.mockResolvedValue(PENDING_JOB);
   updateTranscriptionJobStatusMock.mockResolvedValue(undefined);
   transcribeImageMock.mockResolvedValue({ rawText: '## Notes' });
+  putUsageEventMock.mockResolvedValue(undefined);
   postprocessMarkdownMock.mockReturnValue({
     markdown: '## Notes',
     wordCount: 1,

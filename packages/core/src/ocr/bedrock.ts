@@ -10,6 +10,7 @@ export const SYSTEM_PROMPT =
 
 export interface BedrockResult {
   rawText: string;
+  model: string;
   usage?: { inputTokens?: number; outputTokens?: number };
 }
 
@@ -57,6 +58,7 @@ export async function transcribeImage(imageBytes: Uint8Array): Promise<BedrockRe
 
   return {
     rawText,
+    model: modelId,
     usage: {
       inputTokens: response.usage?.inputTokens,
       outputTokens: response.usage?.outputTokens,

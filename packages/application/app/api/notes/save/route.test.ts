@@ -14,6 +14,7 @@ const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
 const countHighlightsMock = vi.hoisted(() => vi.fn());
 const syncCardsForNoteMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
+const putStorageDeltaEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -28,6 +29,7 @@ vi.mock('@transformmynotes/core', () => ({
   postprocessMarkdown: postprocessMarkdownMock,
   countHighlights: countHighlightsMock,
   syncCardsForNote: syncCardsForNoteMock,
+  putStorageDeltaEvent: putStorageDeltaEventMock,
   storageKeys: {
     originalImage: (s: string, i: string) => `images/users/${s}/${i}.jpg`,
     noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,
@@ -37,6 +39,7 @@ vi.mock('@transformmynotes/core', () => ({
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn(() => ({ send: s3SendMock })),
   PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
+  HeadObjectCommand: vi.fn((input) => ({ kind: 'HeadObject', input })),
 }));
 
 // ---------------------------------------------------------------------------
@@ -100,6 +103,7 @@ beforeEach(() => {
   });
   countHighlightsMock.mockReturnValue(0);
   s3SendMock.mockResolvedValue({});
+  putStorageDeltaEventMock.mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
