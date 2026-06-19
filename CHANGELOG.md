@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.88.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.87.0...transformmynotes-v1.88.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M24.2 — thread per-user learner context into study generation ([#661](https://github.com/jasonp2323/transformmynotes/issues/661)) ([fd0fc7b](https://github.com/jasonp2323/transformmynotes/commit/fd0fc7bb9868085b2d37e2e924f98e2655f6f973)), closes [#535](https://github.com/jasonp2323/transformmynotes/issues/535)
+
 ## [1.87.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.86.0...transformmynotes-v1.87.0) (2026-06-19)
 
 
