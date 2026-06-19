@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.84.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.83.0...transformmynotes-v1.84.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M22.3 — offline mutations & sync (queue, conflict resolution, capture) ([#652](https://github.com/jasonp2323/transformmynotes/issues/652)) ([598996a](https://github.com/jasonp2323/transformmynotes/commit/598996a533db9fd5e7dca94cb0c36d53d34401ac))
+* **core:** M23.1 — metering foundation (Usage table, keys, price book, cost math) ([#654](https://github.com/jasonp2323/transformmynotes/issues/654)) ([3514e17](https://github.com/jasonp2323/transformmynotes/commit/3514e17b48e7b991ab9d3ebb6961b649d68ec886)), closes [#512](https://github.com/jasonp2323/transformmynotes/issues/512)
+
 ## [1.83.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.82.0...transformmynotes-v1.83.0) (2026-06-19)
 
 
