@@ -1,3 +1,5 @@
+import withSerwistInit from '@serwist/next';
+
 /** @type {import('next').NextConfig} */
 
 // Content-Security-Policy for the application package.
@@ -30,6 +32,8 @@ const applicationCsp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
 ].join('; ');
 
 const nextConfig = {
@@ -85,4 +89,15 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const withSerwist = withSerwistInit({
+  swSrc: 'app/sw.ts',
+  swDest: 'public/sw.js',
+  // We register the SW ourselves and drive the update prompt (M22.1.3),
+  // so disable Serwist's auto-registration and auto-reload.
+  register: false,
+  reloadOnOnline: false,
+  // Don't run the SW in dev — avoids confusing caching during `next dev`.
+  disable: process.env.NODE_ENV === 'development',
+});
+
+export default withSerwist(nextConfig);
