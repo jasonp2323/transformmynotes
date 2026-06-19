@@ -57,3 +57,9 @@ export * from './study/tokenBudget';
 export * from './study/chunk';
 export * from './study/dedup';
 export * from './study/provenance';
+
+// Usage metering — pure cost math + price book (M23)
+export * from './usage/types';
+export * from './usage/price-book';
+export * from './usage/cost';
+export * from './usage/reducers';

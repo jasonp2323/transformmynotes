@@ -14,3 +14,4 @@ export const USER_DATA_TABLE = 'UserData';
 export const INVITES_TABLE = 'Invites';
 export const GROUPS_TABLE = 'Groups';
 export const NOTES_TABLE = 'Notes';
+export const USAGE_TABLE = 'Usage';
