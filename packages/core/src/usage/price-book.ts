@@ -87,3 +87,106 @@ export function priceForModel(
   }
   return { price: priceBook.defaultModel, unpriced: true };
 }
+
+// ---------------------------------------------------------------------------
+// Price-book input validation (M23.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates and sanitises a raw `unknown` value as a `PriceBook`.
+ *
+ * Returns `{ ok: true, value }` on success (with unknown top-level keys stripped),
+ * or `{ ok: false, error }` with a human-readable message on failure.
+ *
+ * Rules:
+ * - `models` must be an object; every value must be a valid `ModelPrice`
+ *   (finite numbers >= 0); every key must be a non-empty string.
+ * - `defaultModel` must be a valid `ModelPrice` (finite numbers >= 0).
+ * - `s3PerGbMonth` must be a finite number >= 0.
+ * - NaN, Infinity, negative, or missing values are rejected.
+ * - Extra top-level keys are stripped (the returned value is a clean `PriceBook`).
+ * - An empty `models` map `{}` is valid.
+ */
+export type ValidatePriceBookResult =
+  | { ok: true; value: PriceBook }
+  | { ok: false; error: string };
+
+function isValidModelPrice(v: unknown, label: string): string | null {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    return `${label} must be an object with inputPer1k and outputPer1k.`;
+  }
+  const obj = v as Record<string, unknown>;
+  for (const field of ['inputPer1k', 'outputPer1k'] as const) {
+    const val = obj[field];
+    if (typeof val !== 'number') {
+      return `${label}.${field} must be a number.`;
+    }
+    if (!isFinite(val)) {
+      return `${label}.${field} must be a finite number (got ${val}).`;
+    }
+    if (val < 0) {
+      return `${label}.${field} must be >= 0 (got ${val}).`;
+    }
+  }
+  return null; // valid
+}
+
+export function validatePriceBookInput(body: unknown): ValidatePriceBookResult {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return { ok: false, error: 'Price book must be a JSON object.' };
+  }
+  const obj = body as Record<string, unknown>;
+
+  // Validate models.
+  if (!('models' in obj)) {
+    return { ok: false, error: 'Missing required field: models.' };
+  }
+  const models = obj['models'];
+  if (typeof models !== 'object' || models === null || Array.isArray(models)) {
+    return { ok: false, error: 'models must be an object.' };
+  }
+  const modelsObj = models as Record<string, unknown>;
+  const validatedModels: Record<string, ModelPrice> = {};
+  for (const [key, val] of Object.entries(modelsObj)) {
+    if (!key) {
+      return { ok: false, error: 'Model id keys must be non-empty strings.' };
+    }
+    const err = isValidModelPrice(val, `models["${key}"]`);
+    if (err) return { ok: false, error: err };
+    const mp = val as Record<string, number>;
+    validatedModels[key] = { inputPer1k: mp['inputPer1k'], outputPer1k: mp['outputPer1k'] };
+  }
+
+  // Validate defaultModel.
+  if (!('defaultModel' in obj)) {
+    return { ok: false, error: 'Missing required field: defaultModel.' };
+  }
+  const dmErr = isValidModelPrice(obj['defaultModel'], 'defaultModel');
+  if (dmErr) return { ok: false, error: dmErr };
+  const dm = obj['defaultModel'] as Record<string, number>;
+
+  // Validate s3PerGbMonth.
+  if (!('s3PerGbMonth' in obj)) {
+    return { ok: false, error: 'Missing required field: s3PerGbMonth.' };
+  }
+  const s3Rate = obj['s3PerGbMonth'];
+  if (typeof s3Rate !== 'number') {
+    return { ok: false, error: 's3PerGbMonth must be a number.' };
+  }
+  if (!isFinite(s3Rate)) {
+    return { ok: false, error: `s3PerGbMonth must be a finite number (got ${s3Rate}).` };
+  }
+  if (s3Rate < 0) {
+    return { ok: false, error: `s3PerGbMonth must be >= 0 (got ${s3Rate}).` };
+  }
+
+  // Return clean PriceBook (unknown top-level keys stripped).
+  return {
+    ok: true,
+    value: {
+      models: validatedModels,
+      defaultModel: { inputPer1k: dm['inputPer1k'], outputPer1k: dm['outputPer1k'] },
+      s3PerGbMonth: s3Rate,
+    },
+  };
+}

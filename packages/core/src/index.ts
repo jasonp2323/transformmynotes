@@ -66,3 +66,5 @@ export * from './usage/price-book';
 export * from './usage/cost';
 export * from './usage/reducers';
 export * from './usage/capture';
+export * from './usage/range';
+export * from './db/usage';
