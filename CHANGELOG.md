@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.85.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.84.0...transformmynotes-v1.85.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M24.1 — per-user aiProfile schema + GET/PUT API ([#655](https://github.com/jasonp2323/transformmynotes/issues/655)) ([60a749f](https://github.com/jasonp2323/transformmynotes/commit/60a749f030d53cc09b492906af2d2d25a08d9d74)), closes [#534](https://github.com/jasonp2323/transformmynotes/issues/534)
+
 ## [1.84.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.83.0...transformmynotes-v1.84.0) (2026-06-19)
 
 
