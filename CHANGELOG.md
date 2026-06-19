@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.87.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.86.0...transformmynotes-v1.87.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M23.2 — hot-path usage event capture (OCR tokens + storage deltas) ([#656](https://github.com/jasonp2323/transformmynotes/issues/656)) ([3f28c06](https://github.com/jasonp2323/transformmynotes/commit/3f28c064794cdca9afdb883a38f89ea184e2d08d)), closes [#513](https://github.com/jasonp2323/transformmynotes/issues/513)
+
 ## [1.86.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.85.0...transformmynotes-v1.86.0) (2026-06-19)
 
 
