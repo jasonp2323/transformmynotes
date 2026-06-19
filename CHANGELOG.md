@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.91.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.90.0...transformmynotes-v1.91.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M23.4 — admin cost-breakdown aggregation API ([#668](https://github.com/jasonp2323/transformmynotes/issues/668)) ([26ce1ed](https://github.com/jasonp2323/transformmynotes/commit/26ce1edafa2e5bef376b18b9181b33b932f4375e))
+
+
+### 🧰 Maintenance
+
+* **commands:** watch the production deploy in merge-and-close skills ([#667](https://github.com/jasonp2323/transformmynotes/issues/667)) ([c379393](https://github.com/jasonp2323/transformmynotes/commit/c37939362e5ed104f289dfcaf1ffb054967ccc6a))
+
 ## [1.90.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.89.0...transformmynotes-v1.90.0) (2026-06-19)
 
 
