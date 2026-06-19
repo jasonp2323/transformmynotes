@@ -270,3 +270,28 @@ describe('usageKeys.listUserAggregatesByRange', () => {
     expect(params.ExpressionAttributeValues[':to']).toBe('DAY#2026-06-19#￿');
   });
 });
+
+// ─── storageProcessedMarker ───────────────────────────────────────────────────
+
+describe('usageKeys.storageProcessedMarker', () => {
+  it('builds the correct pk and sk', () => {
+    expect(usageKeys.storageProcessedMarker('sub-999', '01HWXYZABC')).toEqual({
+      pk: 'USER#sub-999',
+      sk: 'STORAGEPROC#01HWXYZABC',
+    });
+  });
+
+  it('uses the literal STORAGEPROC# prefix', () => {
+    const key = usageKeys.storageProcessedMarker('sub-abc', '01HWXYZ');
+    expect(key.sk.startsWith('STORAGEPROC#')).toBe(true);
+  });
+
+  it('encodes a ulid containing only alphanumeric chars unchanged', () => {
+    const ulid = '01JYK5P0000000000000000000';
+    const key = usageKeys.storageProcessedMarker('sub-safe', ulid);
+    expect(key).toEqual({
+      pk: 'USER#sub-safe',
+      sk: `STORAGEPROC#${ulid}`,
+    });
+  });
+});
