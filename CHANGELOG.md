@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.83.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.82.0...transformmynotes-v1.83.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M22.2 — offline read cache (notes &amp; library) ([#639](https://github.com/jasonp2323/transformmynotes/issues/639)) ([607fc8a](https://github.com/jasonp2323/transformmynotes/commit/607fc8aa8c566985f698963f7a0805e32f6ad3be))
+
 ## [1.82.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.81.0...transformmynotes-v1.82.0) (2026-06-19)
 
 
