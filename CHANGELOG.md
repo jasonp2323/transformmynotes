@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.89.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.88.0...transformmynotes-v1.89.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M23.3 — usage-stream aggregator + daily storage-snapshot cron ([#663](https://github.com/jasonp2323/transformmynotes/issues/663)) ([c5233e1](https://github.com/jasonp2323/transformmynotes/commit/c5233e117afac5002e0b11f3da903fbfea35147a))
+
 ## [1.88.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.87.0...transformmynotes-v1.88.0) (2026-06-19)
 
 
