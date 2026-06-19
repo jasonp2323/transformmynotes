@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import {
   storageKeys,
   getNote,
@@ -14,6 +14,7 @@ import {
   authoriseNoteRead,
   revokeAllSharesForNote,
   syncCardsForNote,
+  putStorageDeltaEvent,
   type NoteItem,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -356,6 +357,20 @@ export async function DELETE(
 
     // Delete S3 objects best-effort (DynamoDB delete is the source of truth).
     const s3 = new S3Client({});
+
+    // M23.2.2: emit a negative storage delta for the freed bytes (best-effort, never breaks delete).
+    const markdownBytes = Buffer.byteLength(body);
+    let imageBytes = 0;
+    if (existing.originalImageS3Key) {
+      try {
+        const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: existing.originalImageS3Key }));
+        imageBytes = head.ContentLength ?? 0;
+      } catch {
+        // image may be absent — treat as 0
+      }
+    }
+    await putStorageDeltaEvent({ sub, bytesDelta: -(markdownBytes + imageBytes) });
+
     try {
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: existing.bodyS3Key }));
     } catch (e) {

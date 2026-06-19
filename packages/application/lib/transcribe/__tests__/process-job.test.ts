@@ -49,6 +49,7 @@ function makeHappyPathDeps() {
     getImageBytes: vi.fn().mockResolvedValue(IMAGE_BYTES),
     transcribe: vi.fn().mockResolvedValue({ rawText: RAW_TEXT }),
     putMarkdown: vi.fn().mockResolvedValue(undefined),
+    emitUsage: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -100,6 +101,52 @@ describe('processTranscriptionJob — happy path', () => {
     expect(putSub).toBe('sub-123');
     expect(putJobId).toBe('job-abc');
     expect(typeof putMd).toBe('string');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AI usage metering (M23.2.1)
+// ---------------------------------------------------------------------------
+
+describe('processTranscriptionJob — AI usage metering', () => {
+  it('emits one "ocr" usage event with the model + token counts from transcribe', async () => {
+    const deps = {
+      ...makeHappyPathDeps(),
+      transcribe: vi
+        .fn()
+        .mockResolvedValue({ rawText: '# hi', usage: { inputTokens: 123, outputTokens: 45 }, model: 'my-model' }),
+    };
+
+    const result = await processTranscriptionJob('sub-123', 'job-abc', deps);
+
+    expect(result.outcome).toBe('success');
+    expect(deps.emitUsage).toHaveBeenCalledOnce();
+    expect(deps.emitUsage).toHaveBeenCalledWith({
+      sub: 'sub-123',
+      feature: 'ocr',
+      model: 'my-model',
+      inputTokens: 123,
+      outputTokens: 45,
+    });
+  });
+
+  it('falls back to model "unknown" and zero tokens when usage/model are undefined', async () => {
+    const deps = {
+      ...makeHappyPathDeps(),
+      transcribe: vi.fn().mockResolvedValue({ rawText: '# hi' }),
+    };
+
+    const result = await processTranscriptionJob('sub-123', 'job-abc', deps);
+
+    expect(result.outcome).toBe('success');
+    expect(deps.emitUsage).toHaveBeenCalledOnce();
+    expect(deps.emitUsage).toHaveBeenCalledWith({
+      sub: 'sub-123',
+      feature: 'ocr',
+      model: 'unknown',
+      inputTokens: 0,
+      outputTokens: 0,
+    });
   });
 });
 

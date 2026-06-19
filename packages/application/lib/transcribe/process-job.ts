@@ -15,6 +15,7 @@ import {
   updateTranscriptionJobStatus,
   transcribeImage,
   postprocessMarkdown,
+  putUsageEvent,
   storageKeys,
   type TranscriptionJobItem,
 } from '@transformmynotes/core';
@@ -64,12 +65,26 @@ export interface ProcessJobDeps {
    * Run OCR on the image bytes.
    * Default: `transcribeImage` from `@transformmynotes/core`.
    */
-  transcribe: (imageBytes: Uint8Array) => Promise<{ rawText: string }>;
+  transcribe: (
+    imageBytes: Uint8Array,
+  ) => Promise<{
+    rawText: string;
+    usage?: { inputTokens?: number; outputTokens?: number };
+    model?: string;
+  }>;
   /**
    * Persist the processed markdown output.
    * Default: writes to S3 via PutObjectCommand.
    */
   putMarkdown: (sub: string, jobId: string, markdown: string) => Promise<void>;
+  /** Fire-and-forget metering of the OCR call. Default: putUsageEvent from core. */
+  emitUsage: (input: {
+    sub: string;
+    feature: 'ocr';
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+  }) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,6 +132,7 @@ const DEFAULT_DEPS: ProcessJobDeps = {
   getImageBytes: defaultGetImageBytes,
   transcribe: transcribeImage,
   putMarkdown: defaultPutMarkdown,
+  emitUsage: putUsageEvent,
 };
 
 // ---------------------------------------------------------------------------
@@ -145,7 +161,7 @@ export async function processTranscriptionJob(
   jobId: string,
   deps: Partial<ProcessJobDeps> = {},
 ): Promise<ProcessJobResult> {
-  const { getJob, updateStatus, getImageBytes, transcribe, putMarkdown } = {
+  const { getJob, updateStatus, getImageBytes, transcribe, putMarkdown, emitUsage } = {
     ...DEFAULT_DEPS,
     ...deps,
   };
@@ -169,7 +185,18 @@ export async function processTranscriptionJob(
   try {
     // Step 4: fetch image, run OCR, post-process.
     const imageBytes = await getImageBytes(sub, jobId);
-    const { rawText } = await transcribe(imageBytes);
+    const { rawText, usage, model } = await transcribe(imageBytes);
+
+    // Meter the OCR call. Fire-and-forget — `emitUsage`/`putUsageEvent` never
+    // throws, so it can never break the job.
+    await emitUsage({
+      sub,
+      feature: 'ocr',
+      model: model ?? 'unknown',
+      inputTokens: usage?.inputTokens ?? 0,
+      outputTokens: usage?.outputTokens ?? 0,
+    });
+
     const processed = postprocessMarkdown(rawText);
 
     // Step 5: persist markdown output.
