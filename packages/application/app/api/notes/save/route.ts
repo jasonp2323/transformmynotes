@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { jobId, title, markdown, tags } = (body ?? {}) as Record<string, unknown>;
+  const { jobId, title, markdown, tags, originalImageS3Keys } = (body ?? {}) as Record<string, unknown>;
 
   // Validate jobId.
   if (typeof jobId !== 'string' || !jobId) {
@@ -92,6 +92,24 @@ export async function POST(req: Request) {
     }
   }
 
+  // Validate originalImageS3Keys (optional).
+  let resolvedImageKeys: string[] | undefined;
+  if (originalImageS3Keys !== undefined) {
+    const sentinelKey = storageKeys.originalImage(sub, '__id__');
+    const imagePrefix = sentinelKey.slice(0, sentinelKey.lastIndexOf('/') + 1);
+    if (
+      !Array.isArray(originalImageS3Keys) ||
+      !(originalImageS3Keys as unknown[]).every((k) => typeof k === 'string') ||
+      !(originalImageS3Keys as string[]).every((k) => k.startsWith(imagePrefix))
+    ) {
+      return NextResponse.json(
+        { ok: false, error: 'Invalid originalImageS3Keys.' },
+        { status: 400 },
+      );
+    }
+    resolvedImageKeys = originalImageS3Keys as string[];
+  }
+
   try {
     // Resolve required env var — fail loudly if unset.
     const bucket = requireBucketName();
@@ -133,6 +151,7 @@ export async function POST(req: Request) {
       ocrConfidence: meta.ocrConfidence,
       bodyS3Key: storageKeys.noteMarkdown(sub, noteId),
       originalImageS3Key: storageKeys.originalImage(sub, noteId),
+      originalImageS3Keys: resolvedImageKeys,
     });
 
     // Index tokens for full-text search.
