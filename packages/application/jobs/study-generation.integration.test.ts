@@ -345,3 +345,76 @@ describe('processStudyGeneration — failure', () => {
     expect(typeof after!.error === 'string' && after!.error.length > 0).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M24.2 — learnerContext threading from studySet item into generate()
+// ---------------------------------------------------------------------------
+
+describe('processStudyGeneration — M24.2 learnerContext threading', () => {
+  it('passes learnerContext from the studySet item to the generate dep (single-pass)', async () => {
+    const sub = `sub-lc-${rand()}`;
+    const studySetId = `set-lc-${rand()}`;
+    const learnerContext = 'Learner context (user-provided preferences …): focus: Math; level: Advanced';
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: ['note-lc-1'],
+        type: 'flashcards',
+        title: 'Learner Context Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+        learnerContext,
+      }),
+    );
+
+    const generateSpy = vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
+      generate: generateSpy,
+      putBody: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(generateSpy).toHaveBeenCalledOnce();
+    // The generate dep must receive the learnerContext snapshot from the studySet item.
+    expect(generateSpy.mock.calls[0]![0]).toMatchObject({ learnerContext });
+  });
+
+  it('learnerContext is undefined in generate() when studySet has no learnerContext', async () => {
+    const sub = `sub-lc-absent-${rand()}`;
+    const studySetId = `set-lc-absent-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: ['note-lc-absent'],
+        type: 'flashcards',
+        title: 'No Learner Context Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+        // no learnerContext
+      }),
+    );
+
+    const generateSpy = vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
+      generate: generateSpy,
+      putBody: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(generateSpy).toHaveBeenCalledOnce();
+    // learnerContext must be absent / undefined — not a stale string.
+    expect(generateSpy.mock.calls[0]![0].learnerContext).toBeUndefined();
+  });
+});

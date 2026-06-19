@@ -350,6 +350,68 @@ describe('getStudySet — write / status update / GetItem round-trip', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Integration: M24.2 — learnerContext round-trip (write / read)
+// ---------------------------------------------------------------------------
+
+describe('M24.2 learnerContext — buildStudySetItem / getStudySet round-trip', () => {
+  const SUB = 'sub-study-lc-m24';
+
+  const WITH_LC = {
+    studySetId: 'lc-with-001',
+    sourceNoteIds: ['note-lc-001'],
+    type: 'flashcards' as const,
+    title: 'LC present set',
+    status: 'queued' as const,
+    language: 'auto' as const,
+    model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    promptVersion: '',
+    createdAt: '2024-07-10T00:00:00.000Z',
+    learnerContext: 'Learner context (user-provided preferences …): focus: Math; level: Advanced',
+  };
+
+  const WITHOUT_LC = {
+    studySetId: 'lc-without-001',
+    sourceNoteIds: ['note-lc-002'],
+    type: 'quiz' as const,
+    title: 'LC absent set',
+    status: 'queued' as const,
+    language: 'auto' as const,
+    model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    promptVersion: '',
+    createdAt: '2024-07-10T00:00:00.000Z',
+    // no learnerContext
+  };
+
+  it('setup: writes two study sets (one with learnerContext, one without)', async () => {
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.Notes,
+        Item: buildStudySetItem({ sub: SUB, ...WITH_LC }),
+      }),
+    );
+    await ddb.send(
+      new PutCommand({
+        TableName: TableNames.Notes,
+        Item: buildStudySetItem({ sub: SUB, ...WITHOUT_LC }),
+      }),
+    );
+  });
+
+  it('getStudySet returns learnerContext when it was persisted', async () => {
+    const item = await getStudySet(SUB, WITH_LC.studySetId);
+    expect(item).toBeDefined();
+    expect(item!.learnerContext).toBe(WITH_LC.learnerContext);
+  });
+
+  it('getStudySet has learnerContext attribute ABSENT when not provided at write time', async () => {
+    const item = await getStudySet(SUB, WITHOUT_LC.studySetId);
+    expect(item).toBeDefined();
+    // The attribute must be completely absent — not stored as null or empty string.
+    expect('learnerContext' in item!).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Integration: deleteStudySet — write / delete / verify-gone round-trip
 // ---------------------------------------------------------------------------
 
