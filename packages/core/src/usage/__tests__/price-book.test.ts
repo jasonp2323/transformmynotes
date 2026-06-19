@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_PRICE_BOOK, priceForModel } from '../price-book.js';
+import { DEFAULT_PRICE_BOOK, priceForModel, validatePriceBookInput } from '../price-book.js';
 
 // ---------------------------------------------------------------------------
 // DEFAULT_PRICE_BOOK shape
@@ -96,5 +96,159 @@ describe('priceForModel — unknown model (fallback)', () => {
     expect(result.price.inputPer1k).toBeCloseTo(0.1, 5);
     expect(result.price.outputPer1k).toBeCloseTo(0.2, 5);
     expect(result.unpriced).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validatePriceBookInput (M23.4)
+// ---------------------------------------------------------------------------
+
+describe('validatePriceBookInput — valid inputs', () => {
+  it('accepts a well-formed PriceBook and returns ok:true', () => {
+    const input = {
+      models: {
+        'model-a': { inputPer1k: 0.003, outputPer1k: 0.015 },
+      },
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: 0.023,
+      extraKey: 'should be stripped',
+    };
+    const result = validatePriceBookInput(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Extra top-level keys are stripped.
+    expect(result.value).not.toHaveProperty('extraKey');
+    expect(result.value.models['model-a']).toEqual({ inputPer1k: 0.003, outputPer1k: 0.015 });
+  });
+
+  it('accepts an empty models map', () => {
+    const input = {
+      models: {},
+      defaultModel: { inputPer1k: 0.001, outputPer1k: 0.002 },
+      s3PerGbMonth: 0.0,
+    };
+    const result = validatePriceBookInput(input);
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts zero rates (free tier)', () => {
+    const input = {
+      models: { 'free-model': { inputPer1k: 0, outputPer1k: 0 } },
+      defaultModel: { inputPer1k: 0, outputPer1k: 0 },
+      s3PerGbMonth: 0,
+    };
+    const result = validatePriceBookInput(input);
+    expect(result.ok).toBe(true);
+  });
+
+  it('strips unknown top-level keys', () => {
+    const input = {
+      models: {},
+      defaultModel: { inputPer1k: 0.001, outputPer1k: 0.002 },
+      s3PerGbMonth: 0.023,
+      foo: 'bar',
+      extra: 42,
+    };
+    const result = validatePriceBookInput(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const keys = Object.keys(result.value);
+    expect(keys).toEqual(expect.arrayContaining(['models', 'defaultModel', 's3PerGbMonth']));
+    expect(keys).not.toContain('foo');
+    expect(keys).not.toContain('extra');
+  });
+});
+
+describe('validatePriceBookInput — invalid inputs', () => {
+  it('rejects null', () => {
+    expect(validatePriceBookInput(null).ok).toBe(false);
+  });
+
+  it('rejects a string', () => {
+    expect(validatePriceBookInput('{}').ok).toBe(false);
+  });
+
+  it('rejects an array', () => {
+    expect(validatePriceBookInput([]).ok).toBe(false);
+  });
+
+  it('rejects missing models field', () => {
+    const result = validatePriceBookInput({
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: 0.023,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects missing defaultModel field', () => {
+    const result = validatePriceBookInput({
+      models: {},
+      s3PerGbMonth: 0.023,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects missing s3PerGbMonth field', () => {
+    const result = validatePriceBookInput({
+      models: {},
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects negative s3PerGbMonth', () => {
+    const result = validatePriceBookInput({
+      models: {},
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: -0.001,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/>= 0/);
+  });
+
+  it('rejects Infinity in s3PerGbMonth', () => {
+    const result = validatePriceBookInput({
+      models: {},
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: Infinity,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects NaN in s3PerGbMonth', () => {
+    const result = validatePriceBookInput({
+      models: {},
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: NaN,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a negative inputPer1k in a model entry', () => {
+    const result = validatePriceBookInput({
+      models: { 'bad-model': { inputPer1k: -0.001, outputPer1k: 0.015 } },
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: 0.023,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a non-number outputPer1k in defaultModel', () => {
+    const result = validatePriceBookInput({
+      models: {},
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 'free' },
+      s3PerGbMonth: 0.023,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects models as an array', () => {
+    const result = validatePriceBookInput({
+      models: [{ inputPer1k: 0.003, outputPer1k: 0.015 }],
+      defaultModel: { inputPer1k: 0.003, outputPer1k: 0.015 },
+      s3PerGbMonth: 0.023,
+    });
+    expect(result.ok).toBe(false);
   });
 });

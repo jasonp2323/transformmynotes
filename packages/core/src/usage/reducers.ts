@@ -10,9 +10,9 @@
  * deterministic output across all callers and tests.
  */
 
-import type { DailyAiAggregate, PriceBook } from './types.js';
+import type { DailyAiAggregate, DailyStorageAggregate, PriceBook } from './types.js';
 import { priceForModel } from './price-book.js';
-import { aiTokensToUsd } from './cost.js';
+import { aiTokensToUsd, averageBytes, gbMonths, storageUsd } from './cost.js';
 
 // ---------------------------------------------------------------------------
 // Output shape
@@ -236,4 +236,172 @@ export function totalCost(
   }
 
   return { inputTokens, outputTokens, calls, usd, unpriced };
+}
+
+// ---------------------------------------------------------------------------
+// Storage reducers (M23.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * A per-user storage cost row produced by `reduceStorageByUser`.
+ */
+export interface StorageRow {
+  /** Cognito sub of the user. */
+  sub: string;
+  /** Mean bytes stored per day across snapshot days in the period. */
+  avgBytes: number;
+  /** Number of snapshot days in the period (used as periodDays). */
+  snapshotDays: number;
+  /** GB-months: (avgBytes / 1e9) * (snapshotDays / 30). */
+  gbMonths: number;
+  /** Derived USD cost. */
+  usd: number;
+}
+
+/**
+ * Groups storage daily aggregates by user, computes per-user GB-months and USD.
+ *
+ * Using `snapshotDays` as `periodDays` ensures per-user USD reconciles exactly
+ * with the sum of per-day storage costs in `buildDailyTrend`.
+ *
+ * Sorted by usd descending, then sub ascending.
+ */
+export function reduceStorageByUser(
+  storageAggs: DailyStorageAggregate[],
+  s3PerGbMonth: number,
+): StorageRow[] {
+  const snapsByUser = new Map<string, number[]>();
+  for (const agg of storageAggs) {
+    let snaps = snapsByUser.get(agg.sub);
+    if (!snaps) {
+      snaps = [];
+      snapsByUser.set(agg.sub, snaps);
+    }
+    snaps.push(agg.byteDayBytes);
+  }
+
+  const rows: StorageRow[] = [];
+  for (const [sub, snaps] of snapsByUser) {
+    const avg = averageBytes(snaps);
+    const gbm = gbMonths(avg, snaps.length);
+    const usd = storageUsd(gbm, s3PerGbMonth);
+    rows.push({ sub, avgBytes: avg, snapshotDays: snaps.length, gbMonths: gbm, usd });
+  }
+
+  return rows.slice().sort((a, b) => {
+    if (b.usd !== a.usd) return b.usd - a.usd;
+    return a.sub < b.sub ? -1 : a.sub > b.sub ? 1 : 0;
+  });
+}
+
+/**
+ * Computes account-wide storage totals across all users.
+ *
+ * Derives from `reduceStorageByUser` so the numbers reconcile.
+ */
+export function totalStorageCost(
+  storageAggs: DailyStorageAggregate[],
+  s3PerGbMonth: number,
+): { avgBytes: number; gbMonths: number; usd: number; users: number } {
+  const rows = reduceStorageByUser(storageAggs, s3PerGbMonth);
+  let sumAvgBytes = 0;
+  let sumGbMonths = 0;
+  let sumUsd = 0;
+  for (const r of rows) {
+    sumAvgBytes += r.avgBytes;
+    sumGbMonths += r.gbMonths;
+    sumUsd += r.usd;
+  }
+  return { avgBytes: sumAvgBytes, gbMonths: sumGbMonths, usd: sumUsd, users: rows.length };
+}
+
+/**
+ * A single daily cost point for the trend chart.
+ */
+export interface TrendPoint {
+  /** The UTC date string YYYY-MM-DD. */
+  day: string;
+  /** AI cost in USD for this day. */
+  aiUsd: number;
+  /** Storage cost in USD for this day (single-day pro-rate). */
+  storageUsd: number;
+  /** Total USD (aiUsd + storageUsd). */
+  usd: number;
+  /** Total input tokens across all AI calls on this day. */
+  inputTokens: number;
+  /** Total output tokens across all AI calls on this day. */
+  outputTokens: number;
+  /** Total AI API calls on this day. */
+  calls: number;
+  /** Total bytes across all users' storage snapshots for this day. */
+  bytes: number;
+}
+
+/**
+ * Builds a daily cost trend across the given `days` list.
+ *
+ * Every day in `days` emits a point — days with no data emit zeros.
+ * AI USD is computed per-record using model-specific rates.
+ * Storage USD per day = storageUsd(gbMonths(bytes, 1), rate) —
+ * i.e., one day of that aggregate storage footprint as a fraction of a 30-day month.
+ */
+export function buildDailyTrend(
+  days: string[],
+  aiAggs: DailyAiAggregate[],
+  storageAggs: DailyStorageAggregate[],
+  priceBook: PriceBook,
+): TrendPoint[] {
+  // Index AI aggs by day.
+  const aiByDay = new Map<string, DailyAiAggregate[]>();
+  for (const agg of aiAggs) {
+    let list = aiByDay.get(agg.day);
+    if (!list) {
+      list = [];
+      aiByDay.set(agg.day, list);
+    }
+    list.push(agg);
+  }
+
+  // Index storage aggs by day.
+  const storageByDay = new Map<string, DailyStorageAggregate[]>();
+  for (const agg of storageAggs) {
+    let list = storageByDay.get(agg.day);
+    if (!list) {
+      list = [];
+      storageByDay.set(agg.day, list);
+    }
+    list.push(agg);
+  }
+
+  return days.map((day) => {
+    const aiDayAggs = aiByDay.get(day) ?? [];
+    const storageDayAggs = storageByDay.get(day) ?? [];
+
+    let aiUsd = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let calls = 0;
+    for (const agg of aiDayAggs) {
+      const { price } = priceForModel(priceBook, agg.model);
+      aiUsd += aiTokensToUsd({ inputTokens: agg.inputTokens, outputTokens: agg.outputTokens }, price);
+      inputTokens += agg.inputTokens;
+      outputTokens += agg.outputTokens;
+      calls += agg.calls;
+    }
+
+    const bytes = storageDayAggs.reduce((sum, a) => sum + a.byteDayBytes, 0);
+    // storageUsd for a single day: gbMonths(bytes, 1) is (bytes/1e9)*(1/30)
+    const dayStorageUsd = storageUsd(gbMonths(bytes, 1), priceBook.s3PerGbMonth);
+
+    return {
+      day,
+      aiUsd,
+      storageUsd: dayStorageUsd,
+      usd: aiUsd + dayStorageUsd,
+      inputTokens,
+      outputTokens,
+      calls,
+      bytes,
+    };
+  });
 }
