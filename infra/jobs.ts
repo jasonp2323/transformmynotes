@@ -1,5 +1,5 @@
 /// <reference path="../.sst/platform/config.d.ts" />
-import { notes, userData } from "./db";
+import { notes, userData, usage } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
@@ -130,4 +130,67 @@ notes.subscribe("SourceExtractionConsumerSubscription", sourceExtractionConsumer
       },
     },
   ],
+});
+
+// M23.3.1 usage-stream aggregator. Consumes the Usage table stream and
+// materialises daily AI aggregates (idempotent recompute-and-PUT) and maintains
+// the per-user STORAGE#CURRENT gauge (processed-marker dedupe). Only EVT# INSERT
+// records are processed; the aggregator's own writes (DAY#/STORAGE#/STORAGEPROC#)
+// don't match the EVT# filter, so there is no re-trigger loop. See
+// packages/application/jobs/usage-aggregator.ts.
+export const usageAggregatorConsumer = new sst.aws.Function("UsageAggregatorConsumer", {
+  handler: "packages/application/jobs/usage-aggregator.handler",
+  link: [usage],
+  environment: {
+    SST_RESOURCE_Usage_name: usage.name,
+  },
+  permissions: [
+    {
+      // Base-table only: Query (re-sum raw events), Get/Put (aggregate + marker),
+      // Update (storage gauge ADD). No GSI access needed.
+      actions: [
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+      ],
+      resources: [usage.arn],
+    },
+  ],
+});
+
+// Subscribe to the Usage stream, filtered to raw-event INSERTs only
+// (sk begins_with "EVT#"). Storage deltas and AI events share the EVT# prefix.
+usage.subscribe("UsageAggregatorConsumerSubscription", usageAggregatorConsumer.arn, {
+  filters: [
+    { eventName: ["INSERT"], dynamodb: { NewImage: { sk: { S: [{ prefix: "EVT#" }] } } } },
+  ],
+});
+
+// M23.3.2 daily storage-snapshot cron. Once per day, enumerates active users
+// (UserData GSI1 STATUS#active) and samples each one's STORAGE#CURRENT gauge
+// into a DAY#<date>#storage aggregate, so GB-month can be derived as an average
+// of daily byte snapshots. See packages/application/jobs/storage-snapshot.ts.
+export const storageSnapshotCron = new sst.aws.Cron("StorageSnapshotCron", {
+  schedule: "rate(1 day)",
+  function: {
+    handler: "packages/application/jobs/storage-snapshot.handler",
+    link: [userData, usage],
+    environment: {
+      SST_RESOURCE_UserData_name: userData.name,
+      SST_RESOURCE_Usage_name: usage.name,
+    },
+    permissions: [
+      {
+        // Active-user enumeration runs on UserData GSI1.
+        actions: ["dynamodb:Query"],
+        resources: [userData.arn, $interpolate`${userData.arn}/index/*`],
+      },
+      {
+        // Read each user's storage gauge; write the daily storage aggregate.
+        actions: ["dynamodb:GetItem", "dynamodb:PutItem"],
+        resources: [usage.arn],
+      },
+    ],
+  },
 });

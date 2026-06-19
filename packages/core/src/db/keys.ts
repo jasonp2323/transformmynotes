@@ -1060,7 +1060,7 @@ export const aiConfigKeys = {
 export type UsageFeature = 'ocr' | 'study' | 'storage' | (string & {});
 
 /**
- * `Usage` table keys (M23). Four item shapes share a single table:
+ * `Usage` table keys (M23). Five item shapes share a single table:
  *
  * 1. **Raw event** (immutable, TTL'd) — AI and storage-delta events:
  *      PK = `USER#<sub>`, SK = `EVT#<YYYY-MM-DD>#<ulid>`
@@ -1078,6 +1078,11 @@ export type UsageFeature = 'ocr' | 'study' | 'storage' | (string & {});
  *
  * 4. **Price-book config** (admin-editable):
  *      PK = `CONFIG`, SK = `PRICING` — no GSI.
+ *
+ * 5. **Storage-delta processed marker** (dedupe guard, TTL'd):
+ *      PK = `USER#<sub>`, SK = `STORAGEPROC#<ulid>`
+ *    Written conditionally (attribute_not_exists) before applying a storage-gauge ADD
+ *    to guard against at-least-once stream redelivery. TTL'd via `expiresAt`.
  *
  * GSI1 `UsageByDay` (projection ALL):
  *   gsi1pk = `DAY#<YYYY-MM-DD>`, gsi1sk = `USER#<sub>#<feature>#<model>` (or `#storage`)
@@ -1220,5 +1225,18 @@ export const usageKeys = {
       ':from': `DAY#${fromDay}`,
       ':to': `DAY#${toDay}#￿`,
     },
+  }),
+
+  /**
+   * Primary key for a storage-delta processed marker.
+   * PK = `USER#<sub>`, SK = `STORAGEPROC#<ulid>`.
+   *
+   * Written conditionally (`attribute_not_exists(pk)`) by the aggregator before
+   * applying a storage-gauge ADD, guarding against at-least-once stream redelivery.
+   * TTL'd via `expiresAt` (same 90-day window as the raw event it guards).
+   */
+  storageProcessedMarker: (sub: string, ulid: string) => ({
+    pk: `USER#${sub}`,
+    sk: `STORAGEPROC#${ulid}`,
   }),
 };
