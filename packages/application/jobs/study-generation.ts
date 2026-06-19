@@ -92,6 +92,7 @@ export interface ProcessStudyDeps {
     noteMarkdown: string;
     noteTitle: string;
     language: StudyLanguage;
+    learnerContext?: string;
     phase?: 'map' | 'reduce';
     candidates?: RawCandidate[];
     maxTokensOverride?: number;
@@ -250,6 +251,7 @@ export async function processStudyGeneration(
         noteMarkdown: combined,
         noteTitle: studySet.title,
         language: studySet.language,
+        learnerContext: studySet.learnerContext,
       });
       const withProvenance = applyProvenance(studySet.type, result.payload, allowedIds);
       await putBody(sub, studySetId, JSON.stringify(withProvenance));
@@ -274,6 +276,7 @@ export async function processStudyGeneration(
         noteMarkdown: chunk.body,
         noteTitle: studySet.title,
         language: studySet.language,
+        learnerContext: studySet.learnerContext,
         phase: 'map',
         maxTokensOverride: 2048,
       });
@@ -300,6 +303,7 @@ export async function processStudyGeneration(
       noteMarkdown: '',
       noteTitle: studySet.title,
       language: studySet.language,
+      learnerContext: studySet.learnerContext,
       phase: 'reduce',
       candidates: deduped,
     });

@@ -53,6 +53,13 @@ export interface GenerateStudyMaterialInput {
    * injectionGuard to the system prompt.
    */
   contentTrust?: 'user-authored' | 'web-fetched';
+  /**
+   * M24: per-user learner context (assembled from the caller's aiProfile by the
+   * route and snapshotted on the STUDYSET). Inserted as a prompt layer between
+   * the TYPE prompt and the LANGUAGE directive. Framed as user preferences, never
+   * instructions — see assembleLearnerContext.
+   */
+  learnerContext?: string;
 }
 
 export interface GenerateStudyMaterialResult {
@@ -250,9 +257,15 @@ const client = new BedrockRuntimeClient({});
  *
  * Pure helper — no I/O, exported for unit testing.
  *
- * - Single-pass (phase undefined): base + type override + language directive.
+ * Layer order: base → TYPE prompt → [LEARNER CONTEXT] → LANGUAGE directive
+ * → [PHASE suffix] → [injectionGuard]
+ *
+ * - Single-pass (phase undefined): base + type override + [learner context] + language directive.
  * - Map phase: adds MAP_PHASE_INSTRUCTION as a final paragraph.
  * - Reduce phase: adds REDUCE_PHASE_INSTRUCTION as a final paragraph.
+ *
+ * `learnerContext` is an optional trailing param (M24) so existing positional
+ * call sites — which only pass up to `injectGuard` — remain valid without change.
  */
 export function buildPhaseSystemPrompt(
   base: string,
@@ -260,10 +273,12 @@ export function buildPhaseSystemPrompt(
   languageDirective: string,
   phase?: 'map' | 'reduce',
   injectGuard?: boolean,
+  learnerContext?: string,
 ): string {
   const combined =
     base +
     (typePrompt ? '\n\n' + typePrompt : '') +
+    (learnerContext ? '\n\n' + learnerContext : '') +
     '\n\n' +
     languageDirective;
 
@@ -380,6 +395,7 @@ export async function generateStudyMaterial(
       languageDirective,
       'map',
       webFetched,
+      input.learnerContext,
     );
 
     const promptVersion = createHash('sha256')
@@ -430,6 +446,7 @@ export async function generateStudyMaterial(
       languageDirective,
       'reduce',
       webFetched,
+      input.learnerContext,
     );
 
     const promptVersion = createHash('sha256')
@@ -464,6 +481,7 @@ export async function generateStudyMaterial(
     // phase is undefined → no suffix appended
     undefined,
     webFetched,
+    input.learnerContext,
   );
 
   const promptVersion = createHash('sha256')
