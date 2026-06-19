@@ -1,7 +1,7 @@
 ---
-description: Like /merge-and-close, but injects an [E2E] tag into the squash commit so the default-branch deploy also runs the opt-in authed application E2E suite. Merges the PR, deletes the branch, marks the task Done + stamps cycle time, then stops.
+description: Like /merge-and-close, but injects an [E2E] tag into the squash commit so the default-branch deploy also runs the opt-in authed application E2E suite. Merges the PR, deletes the branch, marks the task Done + stamps cycle time, watches the resulting production deploy (incl. the authed E2E run) and fixes failures if necessary, then stops.
 argument-hint: "[pr-or-issue-number]  (optional — defaults to the open PR for the current branch)"
-allowed-tools: Bash(git branch:*), Bash(git checkout:*), Bash(git switch:*), Bash(git pull:*), Bash(git fetch:*), Bash(gh api:*), Bash(gh pr view:*), Bash(gh pr checks:*), Bash(gh project item-list:*), Bash(gh project item-edit:*), Bash(gh issue view:*), Bash(gh issue close:*), Bash(npm run:*), mcp__github__pull_request_read, mcp__github__merge_pull_request, mcp__github__issue_read, mcp__github__issue_write
+allowed-tools: Bash(git branch:*), Bash(git checkout:*), Bash(git switch:*), Bash(git pull:*), Bash(git fetch:*), Bash(gh api:*), Bash(gh pr view:*), Bash(gh pr checks:*), Bash(gh project item-list:*), Bash(gh project item-edit:*), Bash(gh issue view:*), Bash(gh issue close:*), Bash(npm run:*), mcp__github__pull_request_read, mcp__github__merge_pull_request, mcp__github__issue_read, mcp__github__issue_write, mcp__github__actions_list, mcp__github__get_job_logs
 ---
 
 You are wrapping up a finished piece of work **and** opting this merge into the authed
@@ -84,12 +84,40 @@ For the resolved issue number:
 - **Stamp cycle time:** `npm run -s stamp --prefix packages/scripts -- <issue> done`.
 - If the issue is a **phase of an epic**, tick its checkbox in the epic issue body.
 
-## 5. Finish — then stop
+## 5. Watch the production deploy — you opted into `[E2E]`, so see it through
+The squash-merge pushed to `master` with the `[E2E]` tag, so the **Deploy** workflow
+(`.github/workflows/deploy.yml`) runs the **authed application E2E suite**
+(`npm run test:e2e:application`) **before** AWS credentials are configured — meaning a single failing
+spec **gates (blocks) the `production` deploy**. You asked for this run, so watch it to a terminal state
+and drive it green before you stop.
+
+- **Find the run.** It's the `Deploy` run for the **merge commit** on `master`. Resolve the merge SHA
+  (`gh api repos/jasonp2323/transformmynotes/commits/master --jq .sha`), then list recent master push
+  runs with `mcp__github__actions_list` (`method: list_workflow_runs`, `resource_id: deploy.yml`,
+  filter `branch: master`, `event: push`) and pick the run whose `head_sha` matches.
+- **Wait for it.** The authed E2E run + deploy takes several minutes. Re-check the run's status
+  periodically (every minute or two) — do **not** spin in a tight `sleep` loop. (`gh run watch` may not
+  resolve the repo's remote in this environment; the MCP `actions_list` / `get_job_logs` tools and
+  `gh api` with an explicit repo path always work.)
+- **If the "Application E2E tests (authed, offline)" step fails:** open the failing job's logs
+  (`mcp__github__get_job_logs`, `failed_only: true`, `return_content: true`) and identify which specs
+  failed. Then:
+  - If the failure is in the **spec(s) for the change you just merged**, fix them on a **new** branch + PR
+    (never push to `master` directly) so the next deploy is green, and tell the user.
+  - If the failures are **unrelated pre-existing breakage** in other specs (the authed suite is opt-in
+    precisely because it is heavy/flaky), say so explicitly — the production deploy is blocked by tests
+    that aren't yours. Recommend either fixing those specs or re-deploying via a clean (no-`[E2E]`) master
+    push, and let the user decide; don't force-push master.
+  - **Flaky / infra** failure → re-run the run and re-watch.
+  - If the fix is ambiguous or large, **stop and report the diagnosis** instead of guessing.
+- **If it's green:** note that the authed E2E passed and `production` deployed successfully.
+
+## 6. Finish — then stop
 Print a short summary and stop (end the turn; don't pick up new work):
 - PR merged with `[E2E]` tag — link `https://github.com/jasonp2323/transformmynotes/pull/<pr#>`
-- Authed application E2E will run on the `master` deploy (watch the Deploy workflow run)
 - Branch `<branch>` deleted (local + remote)
 - Issue #<n> closed · Project Status = Done · cycle time stamped
+- Production deploy (incl. authed E2E): green ✅ (or: the failure diagnosis + what you did / what's blocked)
 
 In headless `claude -p` mode the process exits here. In an interactive session the conversation
 just goes idle — close it with `/exit` (or the tab) when you're ready.
