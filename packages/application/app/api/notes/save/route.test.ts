@@ -375,6 +375,28 @@ describe('POST /api/notes/save', () => {
     });
   });
 
+  describe('originalImageS3Keys', () => {
+    it('passes valid keys through to putNote', async () => {
+      const keys = [`images/users/${SUB}/01AAA.jpg`, `images/users/${SUB}/01BBB.jpg`];
+      await POST(makeRequest({ ...DEFAULT_BODY, originalImageS3Keys: keys }));
+      expect(putNoteMock).toHaveBeenCalledWith(expect.objectContaining({ originalImageS3Keys: keys }));
+    });
+
+    it('omitted field → putNote called WITHOUT originalImageS3Keys (undefined)', async () => {
+      await POST(makeRequest(DEFAULT_BODY));
+      const arg = putNoteMock.mock.calls[0][0] as Record<string, unknown>;
+      expect(arg.originalImageS3Keys).toBeUndefined();
+    });
+
+    it('returns 400 when a key is outside the caller\'s prefix', async () => {
+      const res = await POST(makeRequest({ ...DEFAULT_BODY, originalImageS3Keys: [`images/users/other-sub/01AAA.jpg`] }));
+      const body = await res.json() as Record<string, unknown>;
+      expect(res.status).toBe(400);
+      expect(body.error).toBe('Invalid originalImageS3Keys.');
+      expect(putNoteMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('best-effort job status', () => {
     it('returns 200 even if updateTranscriptionJobStatus rejects', async () => {
       updateTranscriptionJobStatusMock.mockRejectedValueOnce(
