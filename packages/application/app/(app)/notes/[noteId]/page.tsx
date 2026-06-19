@@ -131,6 +131,7 @@ export default async function NoteViewPage({
       isOwner={isOwner}
       groupId={note.groupId}
       ownerSub={ownerSub}
+      updatedAt={note.updatedAt}
     />
   );
 }
