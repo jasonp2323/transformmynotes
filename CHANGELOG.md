@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.90.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.89.0...transformmynotes-v1.90.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M26.2 — capture Single/Multi toggle + page tray UI ([#664](https://github.com/jasonp2323/transformmynotes/issues/664)) ([58d1a68](https://github.com/jasonp2323/transformmynotes/commit/58d1a684a82ecb0ae6bdc40ec716ae095080f701))
+
 ## [1.89.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.88.0...transformmynotes-v1.89.0) (2026-06-19)
 
 
