@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.82.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.81.0...transformmynotes-v1.82.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M22.1 — PWA app shell, offline fallback & update prompt ([#637](https://github.com/jasonp2323/transformmynotes/issues/637)) ([2f0361b](https://github.com/jasonp2323/transformmynotes/commit/2f0361b8a4577489a67ac038b292203a6fd20569))
+
 ## [1.81.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.80.0...transformmynotes-v1.81.0) (2026-06-18)
 
 
