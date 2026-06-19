@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.86.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.85.0...transformmynotes-v1.86.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* M26.1 — multi-page capture backend (stitchPages, batch transcribe, note image keys) ([#658](https://github.com/jasonp2323/transformmynotes/issues/658)) ([6cc2b14](https://github.com/jasonp2323/transformmynotes/commit/6cc2b14be0d56493de3454d9205524bc6ed27960))
+
 ## [1.85.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.84.0...transformmynotes-v1.85.0) (2026-06-19)
 
 
