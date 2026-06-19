@@ -14,6 +14,7 @@ import {
 } from '@/src/components/ui';
 import { relativeTime, filterNotesByTab } from '@/src/lib/library';
 import type { NoteMetadata, LibraryTab } from '@/src/lib/library';
+import { getCurrentUserSub, cacheNoteList, readNoteList } from '@/src/lib/offline';
 import { SharedNotes } from './SharedNotes';
 import { NoteSetPicker } from '@/src/components/study/NoteSetPicker';
 
@@ -184,6 +185,12 @@ export function LibraryNotes() {
   // AbortController ref to cancel stale in-flight requests
   const abortRef = useRef<AbortController | null>(null);
 
+  // Cached user sub — resolved once on mount, reused for cache reads/writes
+  const userSubRef = useRef<string | null>(null);
+
+  // Whether the current note list is served from the offline cache (not a live fetch)
+  const [servedFromCache, setServedFromCache] = useState(false);
+
   // ── Online/offline detection ───────────────────────────────────────────────
   useEffect(() => {
     // Sync to actual browser value after mount (avoids SSR mismatch)
@@ -204,6 +211,17 @@ export function LibraryNotes() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  // ── Resolve user sub once on mount ────────────────────────────────────────
+  useEffect(() => {
+    getCurrentUserSub()
+      .then((sub) => {
+        userSubRef.current = sub;
+      })
+      .catch(() => {
+        // leave null — caching will be silently skipped
+      });
   }, []);
 
   // ── Debounce search input (300 ms) ────────────────────────────────────────
@@ -234,11 +252,42 @@ export function LibraryNotes() {
       })
       .then((data) => {
         setNotes(data.notes);
+        setServedFromCache(false);
         setLoading(false);
         setInitialLoadDone(true);
+
+        // Persist the unfiltered recent list so it's available offline.
+        // Only cache the empty-query (recent) list — not search results.
+        if (!query) {
+          const sub = userSubRef.current;
+          if (sub) {
+            cacheNoteList(sub, data.notes).catch(() => {});
+          }
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof Error && err.name === 'AbortError') return;
+
+        // On network failure while offline, try to serve from the local cache.
+        if (!navigator.onLine) {
+          const sub = userSubRef.current;
+          if (sub) {
+            readNoteList(sub)
+              .then((cached) => {
+                if (cached) {
+                  setNotes(cached.notes);
+                  setServedFromCache(true);
+                }
+              })
+              .catch(() => {})
+              .finally(() => {
+                setLoading(false);
+                setInitialLoadDone(true);
+              });
+            return;
+          }
+        }
+
         setLoading(false);
         setInitialLoadDone(true);
       });
@@ -368,6 +417,20 @@ export function LibraryNotes() {
               }}
             >
               {eyebrow}
+            </div>
+          )}
+
+          {/* Cached-list indicator — shown when the list came from IndexedDB */}
+          {servedFromCache && (
+            <div
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 12,
+                color: 'var(--text-subtle)',
+                margin: '-4px 0 12px',
+              }}
+            >
+              Showing your saved notes
             </div>
           )}
 

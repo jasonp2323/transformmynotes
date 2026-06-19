@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import NoteEditor from '@/src/components/editor/NoteEditor';
 import type { NoteEditorHandle } from '@/src/components/editor/NoteEditor';
@@ -15,6 +15,8 @@ import {
   Tag,
   Toast,
 } from '@/src/components/ui';
+import { getCurrentUserSub, cacheNote } from '@/src/lib/offline';
+import type { NoteMetadata } from '@/src/lib/library';
 import { ShareSheet } from './ShareSheet';
 import { GenerateStudyMaterial } from './GenerateStudyMaterial';
 import { StudySetsForNote } from './StudySetsForNote';
@@ -69,6 +71,52 @@ export function NoteViewScreen({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [studyRefreshNonce, setStudyRefreshNonce] = useState(0);
   const [multiPickerOpen, setMultiPickerOpen] = useState(false);
+
+  // Initialize to true (online) to avoid SSR/hydration mismatch; corrected on mount.
+  const [isOnline, setIsOnline] = useState(true);
+
+  // ── Online/offline detection ───────────────────────────────────────────────
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+
+    function handleOnline() { setIsOnline(true); }
+    function handleOffline() { setIsOnline(false); }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // ── Persist note to IndexedDB read store on mount ─────────────────────────
+  // Runs once per noteId. Authoritative metadata lives in the library list
+  // cache (LibraryNotes); this snapshot exists so the note BODY is available
+  // offline and to seed future offline editing (M22.3).
+  useEffect(() => {
+    getCurrentUserSub()
+      .then((sub) => {
+        if (!sub) return;
+        const snapshot: NoteMetadata = {
+          noteId,
+          title,
+          tags,
+          words,
+          langPair,
+          ocrConfidence,
+          status: 'clean',   // safe default — authoritative value is in the list cache
+          highlights: 0,     // safe default
+          createdAt: '',     // safe default
+          updatedAt: '',     // safe default
+          groupId,
+        };
+        return cacheNote(sub, noteId, snapshot, initialMarkdown);
+      })
+      .catch(() => {});
+    // Deps are stable for the lifetime of a single note view; re-cache if noteId changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId]);
 
   // ── Save handler ──────────────────────────────────────────────────────────
 
@@ -156,6 +204,33 @@ export function NoteViewScreen({
 
   return (
     <div className="tmn-note-screen">
+      {/* ── Offline indicator ── */}
+      {!isOnline && (
+        <div
+          role="status"
+          style={{
+            margin: '0 0 0',
+            padding: '10px 14px',
+            background: 'var(--warning-50)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <Icon name="cloud-off" size={18} color="var(--warning-500)" />
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--stone-700)',
+              lineHeight: 1.4,
+            }}
+          >
+            You&rsquo;re offline — showing your saved copy.
+          </span>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div className="tmn-note-header">
         <IconButton
