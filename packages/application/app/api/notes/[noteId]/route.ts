@@ -129,7 +129,7 @@ export async function PATCH(
     );
   }
 
-  const { markdown, tags, title } = (body ?? {}) as Record<string, unknown>;
+  const { markdown, tags, title, baseUpdatedAt } = (body ?? {}) as Record<string, unknown>;
 
   // Validate markdown.
   if (typeof markdown !== 'string') {
@@ -156,6 +156,14 @@ export async function PATCH(
   if (dedupedTags.length > 20) {
     return NextResponse.json(
       { ok: false, error: 'A note may have at most 20 tags.' },
+      { status: 400 },
+    );
+  }
+
+  // Validate baseUpdatedAt: if provided it must be a string.
+  if (baseUpdatedAt !== undefined && typeof baseUpdatedAt !== 'string') {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid baseUpdatedAt.' },
       { status: 400 },
     );
   }
@@ -188,17 +196,16 @@ export async function PATCH(
     }
     const oldTokens = tokenise((existing.title ?? '') + ' ' + oldBody);
 
-    // Write markdown to S3.
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: storageKeys.noteMarkdown(sub, noteId),
-        Body: markdown,
-        ContentType: 'text/markdown',
-      }),
-    );
+    // Determine the optimistic-lock baseline.
+    // When the client supplies a non-empty baseUpdatedAt, use that (real stale-client guard).
+    // Otherwise fall back to existing.updatedAt (backward-compat for callers that don't send it).
+    const expectedUpdatedAt =
+      typeof baseUpdatedAt === 'string' && baseUpdatedAt !== ''
+        ? baseUpdatedAt
+        : existing.updatedAt;
 
-    // Update note in DynamoDB (with optimistic lock).
+    // Update note in DynamoDB FIRST (optimistic lock) — before any destructive S3 write.
+    // If the lock fails (NoteConflictError), we return 409 without clobbering S3.
     let updatedNote;
     try {
       updatedNote = await updateNote({
@@ -217,17 +224,66 @@ export async function PATCH(
         groupId: existing.groupId,
         addedTags: added,
         removedTags: removed,
-        expectedUpdatedAt: existing.updatedAt,
+        expectedUpdatedAt,
       });
     } catch (err) {
       if (err instanceof NoteConflictError || (err as { name?: string })?.name === 'NoteConflictError') {
+        // Re-fetch current server state so the client can show "keep mine / use server".
+        let serverNote;
+        let serverMarkdown = '';
+        try {
+          serverNote = await getNote(sub, noteId);
+          if (serverNote) {
+            try {
+              const serverRes = await s3.send(
+                new GetObjectCommand({ Bucket: bucket, Key: serverNote.bodyS3Key }),
+              );
+              serverMarkdown = await (
+                serverRes.Body as { transformToString(): Promise<string> }
+              ).transformToString();
+            } catch {
+              // best-effort — body unavailable
+            }
+          }
+        } catch {
+          // best-effort — if getNote also fails, return minimal 409
+        }
+
         return NextResponse.json(
-          { ok: false, error: 'Note was modified concurrently. Reload and try again.' },
+          {
+            ok: false,
+            conflict: true,
+            error: 'This note was changed elsewhere since you started editing.',
+            ...(serverNote
+              ? {
+                  server: {
+                    updatedAt: serverNote.updatedAt,
+                    title: serverNote.title,
+                    tags: serverNote.tags,
+                    markdown: serverMarkdown,
+                    words: serverNote.words,
+                    highlights: serverNote.highlights,
+                    langPair: serverNote.langPair,
+                    ocrConfidence: serverNote.ocrConfidence,
+                  },
+                }
+              : {}),
+          },
           { status: 409 },
         );
       }
       throw err;
     }
+
+    // DynamoDB update succeeded — now write the new markdown body to S3.
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: storageKeys.noteMarkdown(sub, noteId),
+        Body: markdown,
+        ContentType: 'text/markdown',
+      }),
+    );
 
     // Sync token index.
     const newTokens = tokenise((title || 'Untitled note') + ' ' + markdown);

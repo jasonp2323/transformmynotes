@@ -15,7 +15,7 @@ import {
   Tag,
   Toast,
 } from '@/src/components/ui';
-import { getCurrentUserSub, cacheNote } from '@/src/lib/offline';
+import { getCurrentUserSub, cacheNote, enqueueMutation } from '@/src/lib/offline';
 import type { NoteMetadata } from '@/src/lib/library';
 import { ShareSheet } from './ShareSheet';
 import { GenerateStudyMaterial } from './GenerateStudyMaterial';
@@ -36,6 +36,7 @@ export interface NoteViewScreenProps {
   isOwner: boolean;
   groupId?: string;
   ownerSub: string;
+  updatedAt: string;
 }
 
 type ViewTab = 'original' | 'clean';
@@ -58,6 +59,7 @@ export function NoteViewScreen({
   originalImageUrl,
   isOwner,
   groupId,
+  updatedAt,
 }: NoteViewScreenProps) {
   const router = useRouter();
   const editorRef = useRef<NoteEditorHandle>(null);
@@ -74,6 +76,22 @@ export function NoteViewScreen({
 
   // Initialize to true (online) to avoid SSR/hydration mismatch; corrected on mount.
   const [isOnline, setIsOnline] = useState(true);
+
+  const [baseUpdatedAt, setBaseUpdatedAt] = useState(updatedAt);
+
+  interface ConflictState {
+    server: {
+      updatedAt: string;
+      title: string;
+      tags: string[];
+      markdown: string;
+      words: number;
+      highlights: number;
+      langPair: string;
+      ocrConfidence: number;
+    };
+  }
+  const [conflict, setConflict] = useState<ConflictState | null>(null);
 
   // ── Online/offline detection ───────────────────────────────────────────────
   useEffect(() => {
@@ -108,7 +126,7 @@ export function NoteViewScreen({
           status: 'clean',   // safe default — authoritative value is in the list cache
           highlights: 0,     // safe default
           createdAt: '',     // safe default
-          updatedAt: '',     // safe default
+          updatedAt: baseUpdatedAt,
           groupId,
         };
         return cacheNote(sub, noteId, snapshot, initialMarkdown);
@@ -125,24 +143,135 @@ export function NoteViewScreen({
     try {
       const markdown = editorRef.current?.getMarkdown() ?? initialMarkdown;
 
-      const res = await fetch('/api/notes/' + noteId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown, title, tags }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      // ── Offline path ──────────────────────────────────────────────────────
+      if (!navigator.onLine) {
+        const sub = await getCurrentUserSub();
+        if (!sub) {
+          setToast({ tone: 'danger', title: "Couldn't save — try again" });
+          return;
+        }
+        try {
+          await enqueueMutation({ sub, noteId, payload: { markdown, title, tags, baseUpdatedAt } });
+          // Refresh offline read-store with the user's pending edit
+          await cacheNote(sub, noteId, {
+            noteId, title, tags, words, langPair, ocrConfidence,
+            status: 'clean', highlights: 0, createdAt: '', updatedAt: baseUpdatedAt, groupId,
+          }, markdown);
+          setEditing(false);
+          setToast({ tone: 'neutral', title: "Saved offline — will sync when you're back online." });
+          // Best-effort Background Sync registration
+          navigator.serviceWorker?.ready
+            .then((r) => (r.sync as { register?: (tag: string) => Promise<void> } | undefined)?.register?.('tmn-sync'))
+            .catch(() => {});
+        } catch {
+          setToast({ tone: 'danger', title: "Couldn't save — try again" });
+        }
+        return;
       }
 
-      setEditing(false);
-      setToast({ tone: 'success', title: 'Note saved' });
+      // ── Online path ───────────────────────────────────────────────────────
+      let res: Response;
+      try {
+        res = await fetch('/api/notes/' + noteId, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markdown, title, tags, baseUpdatedAt }),
+        });
+      } catch {
+        // Network error — treat as offline
+        const sub = await getCurrentUserSub();
+        if (!sub) {
+          setToast({ tone: 'danger', title: "Couldn't save — try again" });
+          return;
+        }
+        try {
+          await enqueueMutation({ sub, noteId, payload: { markdown, title, tags, baseUpdatedAt } });
+          await cacheNote(sub, noteId, {
+            noteId, title, tags, words, langPair, ocrConfidence,
+            status: 'clean', highlights: 0, createdAt: '', updatedAt: baseUpdatedAt, groupId,
+          }, markdown);
+          setEditing(false);
+          setToast({ tone: 'neutral', title: "Saved offline — will sync when you're back online." });
+          navigator.serviceWorker?.ready
+            .then((r) => (r.sync as { register?: (tag: string) => Promise<void> } | undefined)?.register?.('tmn-sync'))
+            .catch(() => {});
+        } catch {
+          setToast({ tone: 'danger', title: "Couldn't save — try again" });
+        }
+        return;
+      }
+
+      if (res.ok) {
+        const data = (await res.json()) as { updatedAt: string };
+        setBaseUpdatedAt(data.updatedAt);
+        setEditing(false);
+        setToast({ tone: 'success', title: 'Note saved' });
+        // Refresh offline read-store with the authoritative copy
+        const sub = await getCurrentUserSub();
+        if (sub) {
+          await cacheNote(sub, noteId, {
+            noteId, title, tags, words, langPair, ocrConfidence,
+            status: 'clean', highlights: 0, createdAt: '', updatedAt: data.updatedAt, groupId,
+          }, markdown).catch(() => {});
+        }
+        return;
+      }
+
+      if (res.status === 409) {
+        const body = (await res.json()) as {
+          conflict: true;
+          server: ConflictState['server'];
+        };
+        setConflict({ server: body.server });
+        return;
+      }
+
+      // Other errors (400/401/404/500)
+      setToast({ tone: 'danger', title: "Couldn't save — try again" });
     } catch {
       setToast({ tone: 'danger', title: "Couldn't save — try again" });
     } finally {
       setSaving(false);
     }
-  }, [noteId, initialMarkdown, title, tags]);
+  }, [noteId, initialMarkdown, title, tags, baseUpdatedAt, words, langPair, ocrConfidence, groupId]);
+
+  // ── Conflict resolution handlers ──────────────────────────────────────────
+
+  const handleKeepMine = useCallback(async () => {
+    if (!conflict) return;
+    setSaving(true);
+    try {
+      const markdown = editorRef.current?.getMarkdown() ?? initialMarkdown;
+      const res = await fetch('/api/notes/' + noteId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown, title, tags, baseUpdatedAt: conflict.server.updatedAt }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { updatedAt: string };
+        setBaseUpdatedAt(data.updatedAt);
+        setConflict(null);
+        setEditing(false);
+        setToast({ tone: 'success', title: 'Note saved' });
+      } else {
+        setToast({ tone: 'danger', title: "Couldn't save — try again" });
+      }
+    } catch {
+      setToast({ tone: 'danger', title: "Couldn't save — try again" });
+    } finally {
+      setSaving(false);
+    }
+  }, [conflict, noteId, initialMarkdown, title, tags]);
+
+  const handleUseServer = useCallback(() => {
+    if (!conflict) return;
+    // Replace editor content with server's version
+    editorRef.current?.setMarkdown(conflict.server.markdown);
+    setBaseUpdatedAt(conflict.server.updatedAt);
+    setConflict(null);
+    setEditing(false);
+    router.refresh();
+  }, [conflict, router]);
 
   // ── Toggle edit / done ────────────────────────────────────────────────────
 
@@ -228,6 +357,65 @@ export function NoteViewScreen({
           >
             You&rsquo;re offline — showing your saved copy.
           </span>
+        </div>
+      )}
+
+      {/* ── Conflict resolution banner ── */}
+      {conflict && (
+        <div
+          role="alertdialog"
+          aria-modal="false"
+          aria-label="Edit conflict"
+          style={{
+            margin: '0',
+            padding: '14px 16px',
+            background: 'var(--warning-50)',
+            borderBottom: '1px solid var(--warning-200)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="alert-triangle" size={18} color="var(--warning-500)" />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'var(--stone-900)',
+              }}
+            >
+              Edit conflict
+            </span>
+          </div>
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--stone-700)',
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            Someone else updated this note while you were editing. Choose which version to keep.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button
+              variant="primary"
+              onClick={() => void handleKeepMine()}
+              disabled={saving}
+            >
+              Keep my version
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleUseServer}
+              disabled={saving}
+            >
+              Use server&apos;s version
+            </Button>
+          </div>
         </div>
       )}
 

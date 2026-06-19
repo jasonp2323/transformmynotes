@@ -5,7 +5,9 @@
  */
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { deleteDB } from 'idb';
 import type { NoteMetadata } from '@/src/lib/library';
+import { OFFLINE_DB_NAME } from '../constants';
 import {
   cacheNote,
   cacheNoteList,
@@ -36,9 +38,11 @@ function makeNote(overrides: Partial<NoteMetadata> = {}): NoteMetadata {
 const SUB_A = 'sub-user-a';
 const SUB_B = 'sub-user-b';
 
-// Reset the DB singleton (and re-open fresh) between tests so stores are clean.
-beforeEach(() => {
+// Reset the DB singleton and wipe the underlying fake-indexeddb store between
+// tests so each test starts with clean stores.
+beforeEach(async () => {
   _resetDBForTests();
+  await deleteDB(OFFLINE_DB_NAME);
 });
 
 // ─── Note list ────────────────────────────────────────────────────────────────

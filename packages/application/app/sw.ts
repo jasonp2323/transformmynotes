@@ -78,4 +78,22 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Background Sync — when the browser fires the registered 'tmn-sync' tag,
+// forward it to all open windows so the page's replayMutations/replayCaptures
+// runs in the auth-bearing page context (Amplify lives there, not here).
+self.addEventListener('sync', (event) => {
+  const syncEvent = event as SyncEvent;
+  if (syncEvent.tag === 'tmn-sync') {
+    syncEvent.waitUntil(
+      self.clients
+        .matchAll({ type: 'window' })
+        .then((clientList) => {
+          for (const client of clientList) {
+            client.postMessage({ type: 'REPLAY_SYNC' });
+          }
+        }),
+    );
+  }
+});
+
 serwist.addEventListeners();

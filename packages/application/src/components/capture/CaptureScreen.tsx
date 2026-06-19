@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
 import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage, readCameraCapabilities, clampZoom, normalizeFocusPoint, buildFocusConstraints, buildZoomConstraints, buildZoomPresets } from '@/lib/capture';
 import type { ZoomRange } from '@/lib/capture';
+import { enqueueCapture, getCurrentUserSub } from '@/src/lib/offline';
 import { ProcessingScreen } from './ProcessingScreen';
 
 // ---------------------------------------------------------------------------
@@ -11,7 +12,34 @@ import { ProcessingScreen } from './ProcessingScreen';
 // ---------------------------------------------------------------------------
 
 type FacingMode = 'environment' | 'user';
-type UploadStatus = 'idle' | 'processing' | 'done' | 'error';
+type UploadStatus = 'idle' | 'processing' | 'done' | 'error' | 'queued';
+
+// ---------------------------------------------------------------------------
+// Pure helper — determines whether a failed upload should be queued offline
+// rather than surfaced as an error. Exported for unit testing.
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when we should silently queue the capture instead of showing
+ * the error overlay:
+ *   - The browser is now offline, AND
+ *   - The error (if any) is a CaptureUploadError from a network phase
+ *     (presign or put) — not a local failure like resize or transcribe.
+ *
+ * When called for an up-front offline check (no error yet), pass `undefined`
+ * for `err` and the function still returns true if `isOnline` is false.
+ */
+export function shouldQueueCapture(err: unknown, isOnline: boolean): boolean {
+  if (isOnline) return false;
+  // If there's no error (called before attempting upload), queue it.
+  if (err === undefined || err === null) return true;
+  // For a CaptureUploadError, only queue network-phase failures.
+  if (err instanceof CaptureUploadError) {
+    return err.phase === 'presign' || err.phase === 'put';
+  }
+  // For any other error type while offline, treat as a network failure and queue.
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // CircBtn — circular icon button matching the design's header controls
@@ -342,12 +370,34 @@ export function CaptureScreen() {
   // ---------------------------------------------------------------------------
 
   const runUpload = useCallback(async (blob: Blob) => {
+    pendingBlobRef.current = blob;
+
+    // ── Offline up-front check ──────────────────────────────────────────────
+    // If the device has no connection, skip the network pipeline entirely and
+    // queue the capture for replay on reconnect.
+    if (shouldQueueCapture(undefined, navigator.onLine)) {
+      const sub = await getCurrentUserSub();
+      if (!sub) {
+        // Can't identify the user — surface the error so they know.
+        setUploadError('You appear to be offline and we could not identify your account. Please sign in and try again.');
+        setUploadStatus('error');
+        return;
+      }
+      await enqueueCapture({ sub, blob, contentType: blob.type || 'image/jpeg' });
+      // Best-effort Background Sync registration so the SW drains the queue on reconnect.
+      navigator.serviceWorker?.ready
+        .then((r) => (r.sync as { register?: (tag: string) => Promise<void> } | undefined)?.register?.('tmn-sync'))
+        .catch(() => {});
+      setUploadStatus('queued');
+      return;
+    }
+
+    // ── Online path ─────────────────────────────────────────────────────────
     setUploadStatus('processing');
     setUploadError(null);
     setUploadProgress(0);
     setIsRetrying(false);
     setResizedInfo(null);
-    pendingBlobRef.current = blob;
 
     try {
       const { jobId } = await uploadImageForTranscription(blob, {
@@ -361,6 +411,22 @@ export function CaptureScreen() {
       setCapturedJobId(jobId);
       setUploadStatus('done');
     } catch (err) {
+      // ── Mid-upload offline detection ───────────────────────────────────────
+      // If a network-phase failure occurred and we're now offline, queue the
+      // capture rather than surfacing an error.
+      if (shouldQueueCapture(err, navigator.onLine)) {
+        const sub = await getCurrentUserSub();
+        if (sub) {
+          await enqueueCapture({ sub, blob, contentType: blob.type || 'image/jpeg' });
+          navigator.serviceWorker?.ready
+            .then((r) => (r.sync as { register?: (tag: string) => Promise<void> } | undefined)?.register?.('tmn-sync'))
+            .catch(() => {});
+          setUploadStatus('queued');
+          return;
+        }
+        // If we couldn't get a sub, fall through to the normal error overlay.
+      }
+
       let msg = 'Something went wrong. Please try again.';
       if (err instanceof CaptureUploadError) {
         if (err.phase === 'resize') {
@@ -968,6 +1034,56 @@ export function CaptureScreen() {
           >
             Opening review…
           </p>
+        </div>
+      )}
+
+      {uploadStatus === 'queued' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10,32,35,0.95)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            zIndex: 10,
+            padding: '0 32px',
+          }}
+        >
+          <Icon name="cloud-off" size={48} color="var(--gold-400)" />
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 17,
+              color: '#fff',
+              margin: 0,
+              fontWeight: 600,
+              textAlign: 'center',
+            }}
+          >
+            Saved — we&apos;ll process this when you&apos;re back online
+          </p>
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'rgba(255,255,255,0.65)',
+              margin: 0,
+              textAlign: 'center',
+            }}
+          >
+            Your photo is stored on this device and will upload automatically on reconnect.
+          </p>
+          <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            <Button variant="accent" size="md" onClick={() => router.push('/dashboard')}>
+              Done
+            </Button>
+            <Button variant="ghost" size="md" onClick={handleRetake}>
+              Capture another
+            </Button>
+          </div>
         </div>
       )}
     </div>
