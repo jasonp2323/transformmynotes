@@ -14,7 +14,7 @@
 import dynalite from 'dynalite';
 import { DynamoDBClient, CreateTableCommand } from '@aws-sdk/client-dynamodb';
 import type { Server } from 'node:http';
-import { DYNALITE_PORT, DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE } from './dynalite-config.js';
+import { DYNALITE_PORT, DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE, USAGE_TABLE } from './dynalite-config.js';
 
 function startServer(server: Server, port: number): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -246,6 +246,39 @@ export default async function setup() {
         },
       ],
       BillingMode: 'PAY_PER_REQUEST',
+    }),
+  );
+
+  // Mirror infra/db.ts: Usage table (M23 metering) — pk/sk primary + GSI1 (UsageByDay, ALL).
+  // Streams enabled for future aggregator Lambda (M23.3). TTL is omitted — dynalite ignores it.
+  await ddbAdmin.send(
+    new CreateTableCommand({
+      TableName: USAGE_TABLE,
+      AttributeDefinitions: [
+        { AttributeName: 'pk', AttributeType: 'S' },
+        { AttributeName: 'sk', AttributeType: 'S' },
+        { AttributeName: 'gsi1pk', AttributeType: 'S' },
+        { AttributeName: 'gsi1sk', AttributeType: 'S' },
+      ],
+      KeySchema: [
+        { AttributeName: 'pk', KeyType: 'HASH' },
+        { AttributeName: 'sk', KeyType: 'RANGE' },
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'GSI1',
+          KeySchema: [
+            { AttributeName: 'gsi1pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi1sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      StreamSpecification: {
+        StreamEnabled: true,
+        StreamViewType: 'NEW_AND_OLD_IMAGES',
+      },
     }),
   );
 

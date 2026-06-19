@@ -1051,3 +1051,174 @@ export const aiConfigKeys = {
     return { seq: Number(match[1]) };
   },
 };
+
+/**
+ * Extensible union for known Usage feature identifiers.
+ * Literal members provide autocompletion; `(string & {})` keeps the type open
+ * for future features without requiring a schema change.
+ */
+export type UsageFeature = 'ocr' | 'study' | 'storage' | (string & {});
+
+/**
+ * `Usage` table keys (M23). Four item shapes share a single table:
+ *
+ * 1. **Raw event** (immutable, TTL'd) — AI and storage-delta events:
+ *      PK = `USER#<sub>`, SK = `EVT#<YYYY-MM-DD>#<ulid>`
+ *    Sparse on GSI1 (no gsi1 keys) so raw events never appear in the by-day index.
+ *
+ * 2. **Storage gauge** (mutable running counter):
+ *      PK = `USER#<sub>`, SK = `STORAGE#CURRENT`
+ *
+ * 3. **Daily aggregate** (permanent, written by aggregator):
+ *      AI features:      SK = `DAY#<YYYY-MM-DD>#<feature>#<model>`,
+ *                    gsi1sk = `USER#<sub>#<feature>#<model>`
+ *      Storage snapshot: SK = `DAY#<YYYY-MM-DD>#storage`,
+ *                    gsi1sk = `USER#<sub>#storage`
+ *    Always: PK = `USER#<sub>`, gsi1pk = `DAY#<YYYY-MM-DD>`.
+ *
+ * 4. **Price-book config** (admin-editable):
+ *      PK = `CONFIG`, SK = `PRICING` — no GSI.
+ *
+ * GSI1 `UsageByDay` (projection ALL):
+ *   gsi1pk = `DAY#<YYYY-MM-DD>`, gsi1sk = `USER#<sub>#<feature>#<model>` (or `#storage`)
+ *   — allows an aggregator to query all users' aggregates for a given day in a
+ *     single index scan, then fan out per-user cost rollups.
+ */
+export const usageKeys = {
+  /**
+   * Primary key for a raw usage event (AI or storage delta).
+   * PK = `USER#<sub>`, SK = `EVT#<day>#<ulid>`.
+   * Raw events are sparse on GSI1 — carry no gsi1 keys.
+   */
+  rawEvent: (sub: string, day: string, ulid: string) => ({
+    pk: `USER#${sub}`,
+    sk: `EVT#${day}#${ulid}`,
+  }),
+
+  /**
+   * Parses a raw-event sort key (`EVT#<YYYY-MM-DD>#<ulid>`) back into its parts.
+   * Throws on a malformed key.
+   */
+  parseRawEventSk: (sk: string): { day: string; ulid: string } => {
+    const match = /^EVT#(\d{4}-\d{2}-\d{2})#(.+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`usageKeys.parseRawEventSk: malformed sort key "${sk}"`);
+    }
+    return { day: match[1], ulid: match[2] };
+  },
+
+  /**
+   * Primary key for the mutable storage gauge item.
+   * PK = `USER#<sub>`, SK = `STORAGE#CURRENT`.
+   */
+  storageGauge: (sub: string) => ({
+    pk: `USER#${sub}`,
+    sk: 'STORAGE#CURRENT' as const,
+  }),
+
+  /**
+   * All key attributes for a daily aggregate item.
+   * When `model` is provided (AI feature):
+   *   SK      = `DAY#<day>#<feature>#<model>`
+   *   gsi1sk  = `USER#<sub>#<feature>#<model>`
+   * When `model` is omitted (storage snapshot, feature='storage'):
+   *   SK      = `DAY#<day>#<feature>`
+   *   gsi1sk  = `USER#<sub>#<feature>`
+   * Always:
+   *   PK      = `USER#<sub>`
+   *   gsi1pk  = `DAY#<day>`
+   */
+  dailyAggregate: (
+    sub: string,
+    day: string,
+    feature: UsageFeature,
+    model?: string,
+  ) => {
+    const skSuffix = model ? `${feature}#${model}` : feature;
+    const gsi1skSuffix = model ? `${feature}#${model}` : feature;
+    return {
+      pk: `USER#${sub}`,
+      sk: `DAY#${day}#${skSuffix}`,
+      gsi1pk: `DAY#${day}`,
+      gsi1sk: `USER#${sub}#${gsi1skSuffix}`,
+    };
+  },
+
+  /**
+   * Parses a daily-aggregate sort key back into its parts.
+   * Accepts `DAY#<day>#<feature>` (storage) or `DAY#<day>#<feature>#<model>` (AI).
+   * Model ids may contain `:` and `.` but NOT `#`, so splitting on `#` is safe.
+   * Throws on a malformed key.
+   */
+  parseDailyAggregateSk: (sk: string): { day: string; feature: string; model?: string } => {
+    const parts = sk.split('#');
+    // Minimum: ['DAY', '<day>', '<feature>'] = 3 parts
+    // With model: ['DAY', '<day>', '<feature>', '<model>'] = 4 parts
+    // Note: day is YYYY-MM-DD (no #); feature has no #; model may have : and . but not #
+    if (parts.length < 3 || parts[0] !== 'DAY') {
+      throw new Error(`usageKeys.parseDailyAggregateSk: malformed sort key "${sk}"`);
+    }
+    const day = parts[1];
+    const feature = parts[2];
+    if (!day || !feature) {
+      throw new Error(`usageKeys.parseDailyAggregateSk: malformed sort key "${sk}"`);
+    }
+    const model = parts.length === 4 ? parts[3] : undefined;
+    return { day, feature, model };
+  },
+
+  /**
+   * Parses a GSI1 sort key for the `UsageByDay` index back into its parts.
+   * Accepts `USER#<sub>#<feature>` (storage) or `USER#<sub>#<feature>#<model>` (AI).
+   * Note: `<sub>` is a Cognito UUID which may contain `-` but not `#`.
+   * Throws on a malformed key.
+   */
+  parseUsageByDayGsi1sk: (gsi1sk: string): { sub: string; feature: string; model?: string } => {
+    const parts = gsi1sk.split('#');
+    // Minimum: ['USER', '<sub>', '<feature>'] = 3 parts
+    // With model: ['USER', '<sub>', '<feature>', '<model>'] = 4 parts
+    if (parts.length < 3 || parts[0] !== 'USER') {
+      throw new Error(`usageKeys.parseUsageByDayGsi1sk: malformed GSI1 sort key "${gsi1sk}"`);
+    }
+    const sub = parts[1];
+    const feature = parts[2];
+    if (!sub || !feature) {
+      throw new Error(`usageKeys.parseUsageByDayGsi1sk: malformed GSI1 sort key "${gsi1sk}"`);
+    }
+    const model = parts.length === 4 ? parts[3] : undefined;
+    return { sub, feature, model };
+  },
+
+  /**
+   * Primary key for the admin-editable price-book config item.
+   * PK = `CONFIG`, SK = `PRICING`. No GSI.
+   */
+  priceBook: () => ({ pk: 'CONFIG' as const, sk: 'PRICING' as const }),
+
+  /**
+   * QueryCommand params for GSI1 (`UsageByDay`) scoped to a single calendar day.
+   * Returns all daily aggregate items across all users for `day`.
+   * Spread directly into QueryCommand params.
+   */
+  byDayQuery: (day: string) => ({
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'gsi1pk = :gsi1pk',
+    ExpressionAttributeValues: { ':gsi1pk': `DAY#${day}` },
+  }),
+
+  /**
+   * QueryCommand params for the base table scoped to a single user's daily
+   * aggregates within the inclusive date range `[fromDay, toDay]`.
+   * The `#￿` upper bound makes `toDay` inclusive of all its `#feature#model`
+   * suffixes, since `￿` (U+FFFF) sorts after any real character.
+   * Spread directly into QueryCommand params.
+   */
+  listUserAggregatesByRange: (sub: string, fromDay: string, toDay: string) => ({
+    KeyConditionExpression: 'pk = :pk AND sk BETWEEN :from AND :to',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':from': `DAY#${fromDay}`,
+      ':to': `DAY#${toDay}#￿`,
+    },
+  }),
+};

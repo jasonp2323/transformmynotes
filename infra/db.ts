@@ -66,4 +66,15 @@ export const notes = new sst.aws.Dynamo("Notes", {
   stream: "new-and-old-images",
 });
 
-export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes };
+// M23 metering table: raw usage events (TTL'd) + daily aggregates + storage gauge + price-book config.
+export const usage = new sst.aws.Dynamo("Usage", {
+  fields: { pk: "string", sk: "string", gsi1pk: "string", gsi1sk: "string" },
+  primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+  globalIndexes: {
+    GSI1: { hashKey: "gsi1pk", rangeKey: "gsi1sk", projection: "all" },
+  },
+  stream: "new-and-old-images",
+  ttl: "expiresAt",
+});
+
+export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes, Usage: usage };
