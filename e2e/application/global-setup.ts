@@ -37,6 +37,7 @@ import {
   buildAccessRequestItem,
   buildGroupMetaItem,
   buildGroupMemberItem,
+  usageKeys,
 } from '@transformmynotes/core';
 
 const DYNALITE_PORT = 4570; // distinct from integration harness port (4569)
@@ -277,6 +278,38 @@ async function createDynaliteTables(port: number) {
   await client.send(
     new CreateTableCommand({
       TableName: 'Groups',
+      AttributeDefinitions: [
+        { AttributeName: 'pk', AttributeType: 'S' },
+        { AttributeName: 'sk', AttributeType: 'S' },
+        { AttributeName: 'gsi1pk', AttributeType: 'S' },
+        { AttributeName: 'gsi1sk', AttributeType: 'S' },
+      ],
+      KeySchema: [
+        { AttributeName: 'pk', KeyType: 'HASH' },
+        { AttributeName: 'sk', KeyType: 'RANGE' },
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: 'GSI1',
+          KeySchema: [
+            { AttributeName: 'gsi1pk', KeyType: 'HASH' },
+            { AttributeName: 'gsi1sk', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      StreamSpecification: {
+        StreamEnabled: true,
+        StreamViewType: 'NEW_AND_OLD_IMAGES',
+      },
+    }),
+  );
+
+  // Usage table (M23 — daily aggregates + raw events + price book)
+  await client.send(
+    new CreateTableCommand({
+      TableName: 'Usage',
       AttributeDefinitions: [
         { AttributeName: 'pk', AttributeType: 'S' },
         { AttributeName: 'sk', AttributeType: 'S' },
@@ -884,6 +917,67 @@ async function seedShareGroup(
   dynamoClient.destroy();
 }
 
+async function seedUsage(port: number, adminSub: string) {
+  const dynamoClient = new DynamoDBClient({
+    endpoint: `http://127.0.0.1:${port}`,
+    region: 'us-east-1',
+    credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+  });
+  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+  function utcDay(daysBack: number): string {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - daysBack);
+    return d.toISOString().slice(0, 10);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    const day = utcDay(i);
+
+    // AI aggregate: ocr feature
+    await docClient.send(
+      new PutCommand({
+        TableName: 'Usage',
+        Item: {
+          ...usageKeys.dailyAggregate(adminSub, day, 'ocr', 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'),
+          inputTokens: 12000 + i * 500,
+          outputTokens: 3000 + i * 100,
+          calls: 5 + i,
+        },
+      }),
+    );
+
+    // On day index 0 (today), also write an AI aggregate for feature='study'
+    if (i === 0) {
+      await docClient.send(
+        new PutCommand({
+          TableName: 'Usage',
+          Item: {
+            ...usageKeys.dailyAggregate(adminSub, day, 'study', 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'),
+            inputTokens: 8000,
+            outputTokens: 2000,
+            calls: 3,
+          },
+        }),
+      );
+    }
+
+    // Storage aggregate
+    await docClient.send(
+      new PutCommand({
+        TableName: 'Usage',
+        Item: {
+          ...usageKeys.dailyAggregate(adminSub, day, 'storage'),
+          byteDayBytes: 500_000_000 + i * 10_000_000,
+        },
+      }),
+    );
+  }
+
+  docClient.destroy();
+  dynamoClient.destroy();
+}
+
 // ── next dev ──────────────────────────────────────────────────────────────────
 
 function spawnNextDev(
@@ -966,6 +1060,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   // 3c. Seed admin profile (role:'admin', status:'active')
   await seedAdminProfile(DYNALITE_PORT, adminUserSub, ADMIN_USERNAME);
 
+  // 3c-ii. Seed Usage table with 5 days of daily aggregates for the admin user (M23.5.4)
+  await seedUsage(DYNALITE_PORT, adminUserSub);
+
   // 3d. Seed access requests (status:'new') for the pending-queue admin tests.
   // The /admin/pending page fetches /api/admin/access-requests?status=new, which
   // queries UserData GSI1 for gsi1pk = 'ACCESSREQ_STATUS#new'. The old harness
@@ -994,6 +1091,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     SST_RESOURCE_Invites_name: 'Invites',
     SST_RESOURCE_Groups_name: 'Groups',
     SST_RESOURCE_Notes_name: 'Notes',
+    SST_RESOURCE_Usage_name: 'Usage',
     SST_RESOURCE_NotesBucket_name: NOTES_BUCKET,
     // Point the S3Client at s3rver. AWS SDK v3 uses path-style automatically
     // when a custom endpoint is set (bucket in path, not hostname).
