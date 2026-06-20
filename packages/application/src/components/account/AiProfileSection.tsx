@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { PREFERRED_LANGUAGES } from '@transformmynotes/core';
 import { Button, Input, Select, Textarea, Toast } from '@/src/components/ui';
 import {
   CUSTOM_INSTRUCTIONS_MAX,
   FOCUS_MAX,
   GOALS_MAX,
   LEVEL_MAX,
+  PREFERRED_LANGUAGES,
 } from '@/src/lib/ai-profile-schema';
 import {
   buildPutBody,
