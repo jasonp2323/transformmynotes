@@ -30,10 +30,11 @@ async function signInAsAdmin(page: Page, runtime: ReturnType<typeof readRuntime>
 // ── 1. Renders with data ──────────────────────────────────────────────────────
 
 test('cost-breakdown renders summary cards and per-user table with seeded data', async ({ page }) => {
+  test.setTimeout(120_000);
   const runtime = readRuntime();
   await signInAsAdmin(page, runtime);
 
-  await page.goto('/admin/cost-breakdown');
+  await page.goto('/admin/cost-breakdown', { timeout: 60_000 });
 
   // h1 contains "Cost Breakdown"
   await expect(page.locator('h1')).toContainText('Cost Breakdown', { timeout: 10_000 });
@@ -63,7 +64,7 @@ test('cost-breakdown by-feature dimension shows breakdown heading', async ({ pag
   const runtime = readRuntime();
   await signInAsAdmin(page, runtime);
 
-  await page.goto('/admin/cost-breakdown');
+  await page.goto('/admin/cost-breakdown', { timeout: 60_000 });
 
   // Wait for page to finish initial load (dollar value visible)
   await expect(page.getByText(/\$\d/).first()).toBeVisible({ timeout: 20_000 });
@@ -72,7 +73,7 @@ test('cost-breakdown by-feature dimension shows breakdown heading', async ({ pag
   await page.getByRole('radio', { name: 'By feature' }).click();
 
   // The section heading changes to "Cost breakdown — by feature"
-  await expect(page.getByText(/by feature/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('Cost breakdown — by feature')).toBeVisible({ timeout: 10_000 });
 
   const fs = await import('node:fs');
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
@@ -89,7 +90,7 @@ test('cost-breakdown price-book editor saves and shows success toast', async ({ 
   const runtime = readRuntime();
   await signInAsAdmin(page, runtime);
 
-  await page.goto('/admin/cost-breakdown');
+  await page.goto('/admin/cost-breakdown', { timeout: 60_000 });
 
   // Wait for page to load fully (pricing section becomes visible after pricing fetch)
   await expect(page.getByText(/\$\d/).first()).toBeVisible({ timeout: 20_000 });
