@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.98.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.97.0...transformmynotes-v1.98.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M28 Waves 3 & 4 — global AI activity indicator + SSE live-output ([#686](https://github.com/jasonp2323/transformmynotes/issues/686)) ([6ac7667](https://github.com/jasonp2323/transformmynotes/commit/6ac76674fc7f050284e148104d8971471b8b9cdb))
+
 ## [1.97.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.96.0...transformmynotes-v1.97.0) (2026-06-20)
 
 
