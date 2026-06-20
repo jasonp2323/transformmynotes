@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.97.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.96.0...transformmynotes-v1.97.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M28 backend — ACTIVITY model, producers, Activity API & M19 Collapsible (Waves 1/2/5) ([#684](https://github.com/jasonp2323/transformmynotes/issues/684)) ([9425fea](https://github.com/jasonp2323/transformmynotes/commit/9425feaf8df550e9ad13179040464d4b8857bc58))
+
 ## [1.96.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.95.0...transformmynotes-v1.96.0) (2026-06-20)
 
 
