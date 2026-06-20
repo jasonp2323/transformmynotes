@@ -35,11 +35,15 @@ interface GroupedNote {
 function groupByNote(cards: Card[], titleMap: Map<string, string>): GroupedNote[] {
   const map = new Map<string, number>();
   for (const card of cards) {
-    map.set(card.sourceNoteId, (map.get(card.sourceNoteId) ?? 0) + 1);
+    // Standalone manual cards have no sourceNoteId — group them under a sentinel key.
+    const key = card.sourceNoteId ?? '__standalone__';
+    map.set(key, (map.get(key) ?? 0) + 1);
   }
   return Array.from(map.entries()).map(([sourceNoteId, count]) => ({
     sourceNoteId,
-    title: titleMap.get(sourceNoteId) ?? 'Untitled note',
+    title: sourceNoteId === '__standalone__'
+      ? 'Standalone cards'
+      : (titleMap.get(sourceNoteId) ?? 'Untitled note'),
     count,
   }));
 }
