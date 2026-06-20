@@ -10,6 +10,9 @@ import {
   type GeneratedQuiz,
   type QuizQuestion,
   type AttemptResult,
+  buildQuizAttemptEventItem,
+  appendStudyEvent,
+  newEventId,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -151,6 +154,25 @@ export async function POST(
       durationMs,
     });
     await putAttempt(attemptItem);
+
+    // Append study-progress event for quiz attempt (fail-soft: never aborts the attempt action)
+    try {
+      await appendStudyEvent(
+        buildQuizAttemptEventItem(
+          sub,
+          {
+            quizId: studySetId,
+            score: attemptItem.score,
+            durationMs: attemptItem.durationMs,
+            gradedAt: attemptItem.gradedAt,
+          },
+          attemptItem.gradedAt,
+          newEventId(),
+        ),
+      );
+    } catch (err) {
+      console.error('[progress] QUIZATTEMPT event append failed', err);
+    }
 
     return NextResponse.json({ attemptId, score, results: revealed });
   } catch (err) {

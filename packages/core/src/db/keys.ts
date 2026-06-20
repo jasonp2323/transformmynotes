@@ -1240,3 +1240,103 @@ export const usageKeys = {
     sk: `STORAGEPROC#${ulid}`,
   }),
 };
+
+/**
+ * `StudyEvents` table keys (M25). Three item shapes share a single table:
+ *
+ * 1. **Raw event** (immutable, TTL'd):
+ *      PK = `USER#<sub>`, SK = `EVENT#<ISO-8601 timestamp>#<ulid>`
+ *    Carries `kind` + kind-specific fields + `expiresAt`. Never updated.
+ *
+ * 2. **Daily snapshot** (permanent, incremented by stream aggregator):
+ *      PK = `USER#<sub>`, SK = `DAY#<YYYY-MM-DD>`
+ *    Counters + derived fields. Never carries `expiresAt`.
+ *
+ * All items live under `pk = USER#<sub>` — no GSI needed (every query is
+ * within one user's partition).
+ *
+ * NOTE: Daily snapshots bucket by UTC day (MVP). If the user's local timezone
+ * differs, the day boundary will appear off. The timezone preference can be
+ * respected in a later iteration by storing `tz` on the user profile.
+ */
+export const progressKeys = {
+  /**
+   * Full primary key for a raw study-event item.
+   * PK = `USER#<sub>`, SK = `EVENT#<ISO-8601 timestamp>#<ulid>`.
+   * The ISO-8601 timestamp (e.g. `2026-06-20T03:26:49.123Z`) is lexicographically
+   * sortable, so events from the same second are further ordered by their ULID.
+   */
+  eventItem: (sub: string, ts: string, id: string) => ({
+    pk: `USER#${sub}`,
+    sk: `EVENT#${ts}#${id}`,
+  }),
+
+  /**
+   * Full primary key for a daily snapshot item.
+   * PK = `USER#<sub>`, SK = `DAY#<YYYY-MM-DD>`.
+   * Fixed-length date keys are equal-width so a plain BETWEEN is inclusive on
+   * both ends without a U+FFFF upper-bound trick.
+   */
+  dayItem: (sub: string, date: string) => ({
+    pk: `USER#${sub}`,
+    sk: `DAY#${date}`,
+  }),
+
+  /**
+   * QueryCommand params for listing a user's daily snapshots within an inclusive
+   * date range `[fromDate, toDate]`. DAY# keys are fixed-length (YYYY-MM-DD), so
+   * a plain BETWEEN is inclusive on both ends without any sentinel suffix.
+   * Returns items in ascending chronological order (`ScanIndexForward: true`).
+   * Spread directly into QueryCommand params.
+   */
+  dayRangeQuery: (sub: string, fromDate: string, toDate: string) => ({
+    KeyConditionExpression: 'pk = :pk AND sk BETWEEN :from AND :to',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':from': `DAY#${fromDate}`,
+      ':to': `DAY#${toDate}`,
+    },
+    ScanIndexForward: true,
+  }),
+
+  /**
+   * QueryCommand params for scanning all raw event items for a given UTC day.
+   * Uses `begins_with(sk, 'EVENT#<YYYY-MM-DD>')` because the ISO-8601 timestamp
+   * in the sort key always begins with the date portion — matching all events
+   * that occurred on that calendar day (UTC).
+   * Spread directly into QueryCommand params.
+   */
+  eventScanForDay: (sub: string, date: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :p)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':p': `EVENT#${date}`,
+    },
+  }),
+
+  /**
+   * Parses a raw-event sort key (`EVENT#<ISO-8601 timestamp>#<ulid>`) back into
+   * its parts. The ISO-8601 timestamp contains no `#`, so the last `#`-delimited
+   * segment is always the ULID.
+   * Throws on a malformed key.
+   */
+  parseEventSk: (sk: string): { ts: string; id: string } => {
+    const match = /^EVENT#(.+)#([^#]+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`progressKeys.parseEventSk: malformed event sort key "${sk}"`);
+    }
+    return { ts: match[1], id: match[2] };
+  },
+
+  /**
+   * Parses a daily-snapshot sort key (`DAY#<YYYY-MM-DD>`) back into its parts.
+   * Throws on a malformed key.
+   */
+  parseDaySk: (sk: string): { date: string } => {
+    const match = /^DAY#(\d{4}-\d{2}-\d{2})$/.exec(sk);
+    if (!match) {
+      throw new Error(`progressKeys.parseDaySk: malformed day sort key "${sk}"`);
+    }
+    return { date: match[1] };
+  },
+};

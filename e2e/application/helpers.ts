@@ -68,6 +68,11 @@ export interface Runtime {
   shareRecipientSub: string;
   shareGroupId: string;
 
+  // ── Progress test user (progress.spec) ──
+  progressUsername: string;
+  progressPassword: string;
+  progressUserSub: string;
+
   // ── S3rver ──
   s3Endpoint: string;
   notesBucket: string;

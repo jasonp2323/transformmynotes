@@ -1,5 +1,5 @@
 /// <reference path="../.sst/platform/config.d.ts" />
-import { notes, userData, usage } from "./db";
+import { notes, userData, usage, studyEvents } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
@@ -167,6 +167,39 @@ usage.subscribe("UsageAggregatorConsumerSubscription", usageAggregatorConsumer.a
   ],
 });
 
+// M25.2 study-progress stream consumer. Converts raw EVENT# INSERTs from the
+// StudyEvents table into atomic counter increments on per-user DAY# snapshots.
+// The nightly progress-finalize cron self-heals double-counts via rederiveDaySnapshot.
+export const progressAggregatorConsumer = new sst.aws.Function("ProgressAggregatorConsumer", {
+  handler: "packages/application/jobs/progress-aggregator.handler",
+  link: [studyEvents],
+  environment: {
+    SST_RESOURCE_StudyEvents_name: studyEvents.name,
+  },
+  permissions: [
+    {
+      // Query (eventScanForDay for rederive backstop), GetItem (getDaySnapshot),
+      // PutItem (rederiveDaySnapshot overwrite), UpdateItem (incrementDaySnapshot ADD).
+      actions: [
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+      ],
+      resources: [studyEvents.arn],
+    },
+  ],
+});
+
+// Subscribe the consumer to the StudyEvents table stream, filtered to raw-event
+// INSERTs only (sk begins_with "EVENT#"). DAY# snapshot writes by the consumer
+// itself don't match this filter, so there is no re-trigger loop.
+studyEvents.subscribe("ProgressAggregatorConsumerSubscription", progressAggregatorConsumer.arn, {
+  filters: [
+    { eventName: ["INSERT"], dynamodb: { NewImage: { sk: { S: [{ prefix: "EVENT#" }] } } } },
+  ],
+});
+
 // M23.3.2 daily storage-snapshot cron. Once per day, enumerates active users
 // (UserData GSI1 STATUS#active) and samples each one's STORAGE#CURRENT gauge
 // into a DAY#<date>#storage aggregate, so GB-month can be derived as an average
@@ -190,6 +223,48 @@ export const storageSnapshotCron = new sst.aws.Cron("StorageSnapshotCron", {
         // Read each user's storage gauge; write the daily storage aggregate.
         actions: ["dynamodb:GetItem", "dynamodb:PutItem"],
         resources: [usage.arn],
+      },
+    ],
+  },
+});
+
+// M25.2 nightly progress-finalize cron. Enumerates all active users (UserData
+// GSI1), self-heals the rolling 2-day window via rederiveDaySnapshot, then
+// recomputes each user's streak + lifetime totals and writes them back to the
+// UserData profile via updateProgressProfile.
+// See packages/application/jobs/progress-finalize.ts.
+export const progressFinalizeCron = new sst.aws.Cron("ProgressFinalizeCron", {
+  schedule: "rate(1 day)",
+  function: {
+    handler: "packages/application/jobs/progress-finalize.handler",
+    link: [userData, studyEvents],
+    environment: {
+      SST_RESOURCE_UserData_name: userData.name,
+      SST_RESOURCE_StudyEvents_name: studyEvents.name,
+    },
+    permissions: [
+      {
+        // Active-user enumeration runs on UserData GSI1.
+        actions: ["dynamodb:Query"],
+        resources: [userData.arn, $interpolate`${userData.arn}/index/*`],
+      },
+      {
+        // updateProgressProfile: conditional UpdateItem on the PROFILE item.
+        // getUserProfileBySub (inside updateProgressProfile): GetItem on PROFILE.
+        actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+        resources: [userData.arn],
+      },
+      {
+        // rederiveDaySnapshot: Query (eventScanForDay), PutItem (snapshot overwrite).
+        // listDaySnapshots: Query (dayRangeQuery).
+        // incrementDaySnapshot: UpdateItem (ADD on DAY# item).
+        actions: [
+          "dynamodb:Query",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+        ],
+        resources: [studyEvents.arn],
       },
     ],
   },

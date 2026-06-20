@@ -2,7 +2,7 @@
 import { router } from "./router";
 import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey, multiNoteContextLimit, maxSourceNotes, maxSourceFileBytes, maxSourcesPerUser } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
-import { userData, invites, groups, notes, usage } from "./db";
+import { userData, invites, groups, notes, usage, studyEvents } from "./db";
 import { notesBucket } from "./storage";
 
 const accountId = aws.getCallerIdentityOutput({}).accountId;
@@ -26,7 +26,7 @@ export const application = new sst.aws.Nextjs("Application", {
   // consumer (infra/jobs.ts). Prompts are loaded at consumer startup from bundled
   // `prompts/` text files (via study-prompts.ts), bypassing the AWS Lambda 4 KB
   // env-var limit — they are no longer SST secrets or env vars on either runtime.
-  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket, usage],
+  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket, usage, studyEvents],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: userPoolClient.id,
@@ -36,6 +36,7 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
     SST_RESOURCE_Usage_name: usage.name,
+    SST_RESOURCE_StudyEvents_name: studyEvents.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
     // M17 multi-note context limit (mirrors the binding in infra/jobs.ts so
     // the route's resolveContextLimit() honours the seeded value consistently).
