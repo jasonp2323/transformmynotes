@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.91.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.0...transformmynotes-v1.91.1) (2026-06-20)
+
+
+### 🐛 Fixes
+
+* **e2e:** repair note-set-picker and sharing authed E2E specs ([#670](https://github.com/jasonp2323/transformmynotes/issues/670)) ([38f0779](https://github.com/jasonp2323/transformmynotes/commit/38f07794c29489d882edc180bdda48d09218bb3d))
+
 ## [1.91.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.90.0...transformmynotes-v1.91.0) (2026-06-19)
 
 
