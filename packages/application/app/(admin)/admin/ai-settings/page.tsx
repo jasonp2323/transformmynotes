@@ -5,6 +5,7 @@ import { AdminShell } from '@/src/components/admin';
 import {
   Button,
   Card,
+  Collapsible,
   Dialog,
   Icon,
   Input,
@@ -265,13 +266,14 @@ export default function AiSettingsPage() {
     }
   }, []);
 
-  const handleHistoryToggle = useCallback(() => {
-    setHistoryOpen((prev) => {
-      if (!prev) {
-        void loadVersions();
-      }
-      return !prev;
-    });
+  // Adapts the old `handleHistoryToggle` toggle semantics to the Collapsible's
+  // `onOpenChange(next)` signature: opening the panel still lazily loads the
+  // version list exactly as before (load on every open transition).
+  const handleHistoryOpenChange = useCallback((next: boolean) => {
+    setHistoryOpen(next);
+    if (next) {
+      void loadVersions();
+    }
   }, [loadVersions]);
 
   // ── Inline validation ─────────────────────────────────────────────────────
@@ -949,39 +951,11 @@ export default function AiSettingsPage() {
 
           {/* ── Version history panel ─────────────────────────────────────── */}
           <Card padded={false}>
-            <button
-              type="button"
-              onClick={handleHistoryToggle}
-              aria-expanded={historyOpen}
-              style={{
-                background: 'none',
-                border: 'none',
-                width: '100%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '14px 20px',
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--text-strong)',
-                borderRadius: historyOpen ? '10px 10px 0 0' : 10,
-                textAlign: 'left',
-              }}
+            <Collapsible
+              title="Version history"
+              open={historyOpen}
+              onOpenChange={handleHistoryOpenChange}
             >
-              <Icon
-                name="chevron-left"
-                size={15}
-                style={{
-                  transform: historyOpen ? 'rotate(-90deg)' : 'rotate(180deg)',
-                  transition: 'transform 0.15s',
-                  flexShrink: 0,
-                }}
-              />
-              Version history
-            </button>
-
-            {historyOpen && (
               <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
                 {versionsLoading && (
                   <div style={{ padding: '18px 20px', fontSize: 13.5, color: 'var(--text-muted)' }}>
@@ -1067,7 +1041,7 @@ export default function AiSettingsPage() {
                   </div>
                 )}
               </div>
-            )}
+            </Collapsible>
           </Card>
         </div>
       )}

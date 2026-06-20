@@ -1340,3 +1340,80 @@ export const progressKeys = {
     return { date: match[1] };
   },
 };
+
+/**
+ * `Notes` table keys for ACTIVITY items (M28 — unified activity feed).
+ *
+ * ACTIVITY items live in the Notes table alongside note metadata and other items.
+ * They are distinguished by an SK prefix of `ACTIVITY#`, keeping them out of every
+ * other existing index query.
+ *
+ * Item shape:
+ *   PK  = `USER#<cognitoSub>`          — owner's partition (same as note items)
+ *   SK  = `ACTIVITY#<activityId>`      — activityId is a ULID; ULID ⇒ lexicographic == chronological
+ *   attrs: see ActivityItem in activity.ts
+ *
+ * ACTIVITY items are SPARSE — they carry NO gsi* pk/gsi* sk attributes (like SOURCE
+ * items), so they stay out of all existing GSIs (note-recency, tag, token, share,
+ * due-date, study-set, source indexes). Discovery is base-table only: query on the
+ * primary key using `begins_with(sk, 'ACTIVITY#')`, sorted newest-first via
+ * `ScanIndexForward: false` (ULID lexicographic order = chronological order).
+ */
+export const activityKeys = {
+  /**
+   * Full primary key for an activity item.
+   * PK = `USER#<cognitoSub>`, SK = `ACTIVITY#<activityId>`.
+   */
+  activityItemKey: (sub: string, activityId: string) => ({
+    pk: `USER#${sub}`,
+    sk: `ACTIVITY#${activityId}`,
+  }),
+
+  /**
+   * Query parameters for listing all activities for a user on the base table,
+   * newest-first (ScanIndexForward: false so descending ULID order = newest first).
+   * Does NOT bake in a Limit — callers set it.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  activityListQuery: (sub: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':prefix': 'ACTIVITY#',
+    },
+    ScanIndexForward: false,
+  }),
+
+  /**
+   * Query parameters for listing a user's in-flight activities (status 'queued'
+   * or 'running') on the base table. Uses a FilterExpression on the (non-key)
+   * status attribute; '#status' aliases the DynamoDB reserved word.
+   * No IndexName — this is a base-table query.
+   * Pass the returned object directly as additional params to QueryCommand.
+   */
+  activityInFlightQuery: (sub: string) => ({
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    FilterExpression: '#status = :queued OR #status = :running',
+    ExpressionAttributeNames: { '#status': 'status' },
+    ExpressionAttributeValues: {
+      ':pk': `USER#${sub}`,
+      ':prefix': 'ACTIVITY#',
+      ':queued': 'queued',
+      ':running': 'running',
+    },
+    ScanIndexForward: false,
+  }),
+
+  /**
+   * Parses an activity sort key (`ACTIVITY#<activityId>`) back into its parts.
+   * Useful for downstream waves that recover the activityId from a key-only
+   * projection. Throws on a malformed key.
+   */
+  parseActivitySk: (sk: string): { activityId: string } => {
+    const match = /^ACTIVITY#(.+)$/.exec(sk);
+    if (!match) {
+      throw new Error(`activityKeys.parseActivitySk: malformed activity sort key "${sk}"`);
+    }
+    return { activityId: match[1] };
+  },
+};

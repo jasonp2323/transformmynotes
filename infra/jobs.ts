@@ -41,7 +41,7 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
   },
   permissions: [
     {
-      actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+      actions: ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:PutItem"],
       resources: [notes.arn],
     },
     // M19: read-only access to the CONFIG#AI item in UserData (resolveAiConfig).
@@ -58,6 +58,10 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
     {
       actions: ["s3:PutObject"],
       resources: [$interpolate`arn:aws:s3:::${notesBucket.name}/study/*`],
+    },
+    {
+      actions: ["s3:PutObject"],
+      resources: [$interpolate`arn:aws:s3:::${notesBucket.name}/activity/*`],
     },
     {
       // Least privilege: InvokeModel only, scoped to the specific Claude inference

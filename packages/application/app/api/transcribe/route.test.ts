@@ -24,6 +24,10 @@ vi.mock('@transformmynotes/core', () => ({
   putUsageEvent: putUsageEventMock,
   // shouldSkipTranscription is used by process-job.ts
   shouldSkipTranscription: (status: string) => status === 'done' || status === 'processing',
+  // M28: process-job.ts writes an ACTIVITY mirror record (best-effort) via these.
+  buildActivityItem: (input: Record<string, unknown>) => ({ activityId: 'act-test-1', ...input }),
+  putActivity: () => Promise.resolve(),
+  appendStepUpdate: () => Promise.resolve({}),
   storageKeys: {
     originalImage: (s: string, i: string) => `images/users/${s}/${i}.jpg`,
     noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,

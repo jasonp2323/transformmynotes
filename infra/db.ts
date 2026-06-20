@@ -64,6 +64,7 @@ export const notes = new sst.aws.Dynamo("Notes", {
     GSI9: { hashKey: "gsi9pk", rangeKey: "gsi9sk", projection: "all" },
   },
   stream: "new-and-old-images",
+  ttl: "ttl",
 });
 
 // M23 metering table: raw usage events (TTL'd) + daily aggregates + storage gauge + price-book config.
