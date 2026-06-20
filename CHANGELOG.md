@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.93.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.92.0...transformmynotes-v1.93.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M23.5 — admin Cost Breakdown tab UI ([#675](https://github.com/jasonp2323/transformmynotes/issues/675)) ([b88ec08](https://github.com/jasonp2323/transformmynotes/commit/b88ec08c7b183349b8860ae2c75b553ae207b6da)), closes [#516](https://github.com/jasonp2323/transformmynotes/issues/516)
+
 ## [1.92.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.1...transformmynotes-v1.92.0) (2026-06-20)
 
 
