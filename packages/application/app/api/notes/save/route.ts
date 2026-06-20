@@ -11,6 +11,9 @@ import {
   countHighlights,
   syncCardsForNote,
   putStorageDeltaEvent,
+  buildNoteCreatedEventItem,
+  appendStudyEvent,
+  newEventId,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -154,6 +157,21 @@ export async function POST(req: Request) {
       originalImageS3Key: storageKeys.originalImage(sub, noteId),
       originalImageS3Keys: resolvedImageKeys,
     });
+
+    // Append study-progress event for note creation (fail-soft: never aborts the save action)
+    try {
+      const noteCreatedAt = new Date().toISOString();
+      await appendStudyEvent(
+        buildNoteCreatedEventItem(
+          sub,
+          { noteId, tags: resolvedTags },
+          noteCreatedAt,
+          newEventId(),
+        ),
+      );
+    } catch (err) {
+      console.error('[progress] NOTE_CREATED event append failed', err);
+    }
 
     // M23.2.2 storage metering, best-effort: emit a positive storage delta for the
     // persisted note (markdown body + original image S3 bytes). putStorageDeltaEvent is

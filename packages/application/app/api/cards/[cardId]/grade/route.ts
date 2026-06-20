@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getCard, recordCardReview, schedule, type Grade } from '@transformmynotes/core';
+import {
+  getCard,
+  recordCardReview,
+  schedule,
+  type Grade,
+  buildReviewEventItem,
+  appendStudyEvent,
+  newEventId,
+} from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
 export const runtime = 'nodejs';
@@ -67,9 +75,36 @@ export async function PATCH(
     );
 
     // 6. Persist review
+    const prevEase = card.ease;
+    const prevIntervalDays = card.interval;
     const updated = await recordCardReview({ sub, cardId, result });
 
-    // 7. Return the updated scheduling fields
+    // 7. Append study-progress event (fail-soft: never aborts the review action)
+    try {
+      const reviewedAt = updated.lastReviewedAt ?? new Date().toISOString();
+      const eventTs = reviewedAt;
+      const eventId = newEventId();
+      await appendStudyEvent(
+        buildReviewEventItem(
+          sub,
+          {
+            cardId,
+            grade: grade as Grade,
+            prevEase,
+            newEase: result.ease,
+            prevIntervalDays,
+            newIntervalDays: result.interval,
+            reviewedAt,
+          },
+          eventTs,
+          eventId,
+        ),
+      );
+    } catch (err) {
+      console.error('[progress] REVIEW event append failed', err);
+    }
+
+    // 8. Return the updated scheduling fields
     return NextResponse.json({
       ease: updated.ease,
       interval: updated.interval,

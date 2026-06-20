@@ -10,7 +10,7 @@
  * before `client.ts` constructs its DynamoDBClient on first import.
  */
 
-import { DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE, USAGE_TABLE } from './dynalite-config.js';
+import { DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE, USAGE_TABLE, STUDY_EVENTS_TABLE } from './dynalite-config.js';
 
 process.env.AWS_ENDPOINT_URL_DYNAMODB = DYNALITE_ENDPOINT;
 process.env.SST_RESOURCE_UserData_name = USER_DATA_TABLE;
@@ -18,6 +18,7 @@ process.env.SST_RESOURCE_Invites_name = INVITES_TABLE;
 process.env.SST_RESOURCE_Groups_name = GROUPS_TABLE;
 process.env.SST_RESOURCE_Notes_name = NOTES_TABLE;
 process.env.SST_RESOURCE_Usage_name = USAGE_TABLE;
+process.env.SST_RESOURCE_StudyEvents_name = STUDY_EVENTS_TABLE;
 process.env.AWS_REGION ??= 'us-east-1';
 process.env.AWS_ACCESS_KEY_ID ??= 'test';
 process.env.AWS_SECRET_ACCESS_KEY ??= 'test';

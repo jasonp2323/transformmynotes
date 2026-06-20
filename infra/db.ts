@@ -77,4 +77,14 @@ export const usage = new sst.aws.Dynamo("Usage", {
   ttl: "expiresAt",
 });
 
-export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes, Usage: usage };
+// M25 study-progress event log: immutable raw events (TTL'd) + daily rollup snapshots.
+// No GSI needed — every read is a single-partition USER#<sub> query.
+// Consumed by the M25.2 progressAggregator stream consumer (not yet added).
+export const studyEvents = new sst.aws.Dynamo("StudyEvents", {
+  fields: { pk: "string", sk: "string" },
+  primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+  stream: "new-and-old-images",
+  ttl: "expiresAt",
+});
+
+export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes, Usage: usage, StudyEvents: studyEvents };

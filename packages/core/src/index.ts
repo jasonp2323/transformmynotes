@@ -60,6 +60,9 @@ export * from './study/dedup';
 export * from './study/provenance';
 export * from './study/learner-context';
 
+// Study progress event log (M25)
+export * from './db/progress';
+
 // Usage metering — pure cost math + price book (M23)
 export * from './usage/types';
 export * from './usage/price-book';
