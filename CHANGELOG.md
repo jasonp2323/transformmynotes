@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.94.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.93.0...transformmynotes-v1.94.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M24.3 — AI environment study-profile settings UI ([#674](https://github.com/jasonp2323/transformmynotes/issues/674)) ([9feb142](https://github.com/jasonp2323/transformmynotes/commit/9feb142ca37cda3b76f7601a8f868a854c5654a8))
+
 ## [1.93.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.92.0...transformmynotes-v1.93.0) (2026-06-20)
 
 
