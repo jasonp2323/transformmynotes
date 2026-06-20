@@ -969,6 +969,7 @@ export default function AiSettingsPage() {
                 )}
                 {!versionsLoading && versions.length > 0 && (
                   <div>
+                    <div style={{ overflowX: 'auto' }}>
                     {/* Header row */}
                     <div
                       style={{
@@ -982,6 +983,7 @@ export default function AiSettingsPage() {
                         textTransform: 'uppercase',
                         color: 'var(--text-subtle)',
                         borderBottom: '1px solid var(--border-subtle)',
+                        minWidth: 480,
                       }}
                     >
                       <span>Version</span>
@@ -1004,6 +1006,7 @@ export default function AiSettingsPage() {
                             idx < versions.length - 1
                               ? '1px solid var(--border-subtle)'
                               : 'none',
+                          minWidth: 480,
                         }}
                       >
                         <span
@@ -1038,6 +1041,7 @@ export default function AiSettingsPage() {
                         </Button>
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1074,25 +1078,20 @@ export default function AiSettingsPage() {
 
       {/* ── Toast ─────────────────────────────────────────────────────────── */}
       {toast && (
-        <div
+        <Toast
+          tone={toast.tone}
+          icon={toast.icon}
+          title={toast.title}
+          onClose={dismissToast}
+          duration={4000}
           style={{
-            position: 'fixed',
-            right: 28,
-            bottom: 28,
-            width: 340,
-            zIndex: 50,
+            right: 'max(16px, env(safe-area-inset-right, 0px) + 16px)',
+            bottom: 'max(16px, env(safe-area-inset-bottom, 0px) + 16px)',
+            width: 'min(360px, calc(100vw - 32px))',
           }}
         >
-          <Toast
-            tone={toast.tone}
-            icon={toast.icon}
-            title={toast.title}
-            onClose={dismissToast}
-            duration={4000}
-          >
-            {toast.body}
-          </Toast>
-        </div>
+          {toast.body}
+        </Toast>
       )}
     </AdminShell>
   );
