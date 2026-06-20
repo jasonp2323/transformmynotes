@@ -1,0 +1,70 @@
+'use client';
+
+import React from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts';
+import type { DaySnapshot } from '../types';
+import { formatChartDate, pctOrNull } from '../utils';
+
+interface QuizScoreTrendChartProps {
+  days: DaySnapshot[];
+}
+
+export function QuizScoreTrendChart({ days }: QuizScoreTrendChartProps) {
+  const data = days.map((d) => ({
+    date: formatChartDate(d.date),
+    score: pctOrNull(d.avgQuizScore),
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <LineChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tickLine={false}
+          axisLine={false}
+          interval="preserveStartEnd"
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tickLine={false}
+          axisLine={false}
+          domain={[0, 100]}
+          tickFormatter={(v: number) => `${v}%`}
+        />
+        <Tooltip
+          contentStyle={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+          labelStyle={{ color: 'var(--text-strong)', fontWeight: 600 }}
+          itemStyle={{ color: 'var(--text-default)' }}
+          formatter={(value) =>
+            value == null ? ['—', 'Quiz score'] : [`${value}%`, 'Quiz score']
+          }
+        />
+        <Line
+          type="monotone"
+          dataKey="score"
+          stroke="var(--accent)"
+          strokeWidth={2}
+          dot={false}
+          connectNulls={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+QuizScoreTrendChart.displayName = 'QuizScoreTrendChart';
