@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.95.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.94.0...transformmynotes-v1.95.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M25 — Study Progress & Insights dashboard ([#679](https://github.com/jasonp2323/transformmynotes/issues/679)) ([5d271bb](https://github.com/jasonp2323/transformmynotes/commit/5d271bb1282d7a399cf6492178bdb845d9d1c23d)), closes [#551](https://github.com/jasonp2323/transformmynotes/issues/551) [#552](https://github.com/jasonp2323/transformmynotes/issues/552) [#553](https://github.com/jasonp2323/transformmynotes/issues/553) [#554](https://github.com/jasonp2323/transformmynotes/issues/554)
+
 ## [1.94.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.93.0...transformmynotes-v1.94.0) (2026-06-20)
 
 
