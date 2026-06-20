@@ -329,3 +329,39 @@ describe('buildAppendStepUpdate — with error', () => {
     expect(result.ExpressionAttributeValues[':error']).toBe('Bedrock throttled');
   });
 });
+
+// ---------------------------------------------------------------------------
+// buildAppendStepUpdate — with stream (reserved word — must be aliased)
+// ---------------------------------------------------------------------------
+
+describe('buildAppendStepUpdate — with stream', () => {
+  const result = buildAppendStepUpdate({
+    sub: 'sub-c',
+    activityId: '01STEP',
+    phase: 'generating',
+    phaseDetail: 'Generating',
+    status: 'running',
+    stream: { s3Key: 'k', done: false },
+    at: '2026-06-20T06:00:00.000Z',
+  });
+
+  it('UpdateExpression contains #stream = :stream (aliased — stream is reserved)', () => {
+    expect(result.UpdateExpression).toContain('#stream = :stream');
+  });
+
+  it('UpdateExpression does NOT use the un-aliased "stream = :stream"', () => {
+    expect(result.UpdateExpression).not.toContain(' stream = :stream');
+  });
+
+  it('ExpressionAttributeNames maps #stream to stream', () => {
+    expect(result.ExpressionAttributeNames!['#stream']).toBe('stream');
+  });
+
+  it('still aliases #status alongside #stream', () => {
+    expect(result.ExpressionAttributeNames!['#status']).toBe('status');
+  });
+
+  it(':stream carries the stream object', () => {
+    expect(result.ExpressionAttributeValues[':stream']).toEqual({ s3Key: 'k', done: false });
+  });
+});

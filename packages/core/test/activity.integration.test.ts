@@ -97,6 +97,42 @@ describe('appendStepUpdate — phase transition with progress', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Integration: appendStepUpdate — with stream field (reserved word round-trip)
+// ---------------------------------------------------------------------------
+
+describe('appendStepUpdate — stream field round-trip (reserved word)', () => {
+  it('writes stream.done=false and status running (update must not throw)', async () => {
+    await appendStepUpdate({
+      sub: SUB_A,
+      activityId: '01ACTA',
+      phase: 'generating',
+      phaseDetail: 'Generating cards',
+      status: 'running',
+      stream: { s3Key: 'activity/u/a.stream.txt', done: false },
+    });
+
+    const item = await getActivity(SUB_A, '01ACTA');
+    expect(item).toBeDefined();
+    expect(item!.status).toBe('running');
+    expect(item!.stream).toEqual({ s3Key: 'activity/u/a.stream.txt', done: false });
+  });
+
+  it('flips stream.done to true on a second update', async () => {
+    await appendStepUpdate({
+      sub: SUB_A,
+      activityId: '01ACTA',
+      phase: 'generating',
+      phaseDetail: 'Streaming complete',
+      status: 'running',
+      stream: { s3Key: 'activity/u/a.stream.txt', done: true },
+    });
+
+    const item = await getActivity(SUB_A, '01ACTA');
+    expect(item!.stream!.done).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Integration: appendStepUpdate — status transition to ready
 // ---------------------------------------------------------------------------
 

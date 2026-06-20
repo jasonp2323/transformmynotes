@@ -210,8 +210,9 @@ export function buildAppendStepUpdate(
   }
 
   if (input.stream !== undefined) {
-    setClauses.push('stream = :stream');
+    setClauses.push('#stream = :stream');
     values[':stream'] = input.stream;
+    names['#stream'] = 'stream';
   }
 
   if (input.error !== undefined) {

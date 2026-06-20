@@ -1,4 +1,9 @@
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import {
+  BedrockRuntimeClient,
+  ConverseCommand,
+  ConverseStreamCommand,
+  type ConverseStreamOutput,
+} from '@aws-sdk/client-bedrock-runtime';
 import { withBedrockRetry } from './retry.js';
 
 /**
@@ -17,11 +22,58 @@ export interface BedrockResult {
 const client = new BedrockRuntimeClient({});
 
 /**
+ * Consumes a Bedrock `ConverseStream` event stream, accumulating the emitted
+ * text and capturing token usage. Pure (no AWS calls) so it can be unit-tested
+ * with a fake async-iterable.
+ *
+ * - Appends each non-empty `contentBlockDelta.delta.text` to the accumulator
+ *   and forwards it to `onDelta`.
+ * - Captures `metadata.usage` if a metadata event arrives.
+ */
+export async function consumeOcrStream(
+  stream: AsyncIterable<ConverseStreamOutput> | undefined,
+  onDelta?: (textDelta: string) => void,
+): Promise<{ rawText: string; usage?: { inputTokens?: number; outputTokens?: number } }> {
+  if (!stream) {
+    return { rawText: '' };
+  }
+
+  let rawText = '';
+  let usage: { inputTokens?: number; outputTokens?: number } | undefined;
+
+  for await (const event of stream) {
+    const text =
+      'contentBlockDelta' in event ? event.contentBlockDelta?.delta?.text : undefined;
+    if (typeof text === 'string' && text.length > 0) {
+      rawText += text;
+      onDelta?.(text);
+    }
+
+    const eventUsage = 'metadata' in event ? event.metadata?.usage : undefined;
+    if (eventUsage) {
+      usage = {
+        inputTokens: eventUsage.inputTokens,
+        outputTokens: eventUsage.outputTokens,
+      };
+    }
+  }
+
+  return { rawText, usage };
+}
+
+/**
  * Transcribes a JPEG image using AWS Bedrock's Converse API.
  * Reads the model id from the SST resource binding (BEDROCK_MODEL_ID).
  * Wraps the call in exponential-back-off retry logic for transient errors.
+ *
+ * When `onDelta` is provided, the streaming `ConverseStream` API is used and
+ * each text delta is forwarded to the callback as it arrives; otherwise the
+ * non-streaming `Converse` API is used unchanged.
  */
-export async function transcribeImage(imageBytes: Uint8Array): Promise<BedrockResult> {
+export async function transcribeImage(
+  imageBytes: Uint8Array,
+  onDelta?: (textDelta: string) => void,
+): Promise<BedrockResult> {
   const modelId = process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value;
   if (!modelId) {
     throw new Error(
@@ -30,23 +82,41 @@ export async function transcribeImage(imageBytes: Uint8Array): Promise<BedrockRe
     );
   }
 
+  const system = [{ text: SYSTEM_PROMPT }];
+  const messages = [
+    {
+      role: 'user' as const,
+      content: [
+        {
+          image: {
+            format: 'jpeg' as const,
+            source: { bytes: imageBytes },
+          },
+        },
+      ],
+    },
+  ];
+  const inferenceConfig = { maxTokens: 4096 };
+
+  if (onDelta) {
+    const streamCommand = new ConverseStreamCommand({
+      modelId,
+      system,
+      messages,
+      inferenceConfig,
+    });
+
+    const response = await withBedrockRetry(() => client.send(streamCommand));
+    const { rawText, usage } = await consumeOcrStream(response.stream, onDelta);
+
+    return { rawText, model: modelId, usage };
+  }
+
   const command = new ConverseCommand({
     modelId,
-    system: [{ text: SYSTEM_PROMPT }],
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            image: {
-              format: 'jpeg',
-              source: { bytes: imageBytes },
-            },
-          },
-        ],
-      },
-    ],
-    inferenceConfig: { maxTokens: 4096 },
+    system,
+    messages,
+    inferenceConfig,
   });
 
   const response = await withBedrockRetry(() => client.send(command));

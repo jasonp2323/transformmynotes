@@ -50,6 +50,9 @@ function makeHappyPathDeps() {
     transcribe: vi.fn().mockResolvedValue({ rawText: RAW_TEXT }),
     putMarkdown: vi.fn().mockResolvedValue(undefined),
     emitUsage: vi.fn().mockResolvedValue(undefined),
+    createActivity: vi.fn().mockResolvedValue(undefined),
+    updateActivity: vi.fn().mockResolvedValue({}),
+    flushStream: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -93,7 +96,7 @@ describe('processTranscriptionJob — happy path', () => {
     await processTranscriptionJob('sub-123', 'job-abc', deps);
 
     expect(deps.getImageBytes).toHaveBeenCalledWith('sub-123', 'job-abc');
-    expect(deps.transcribe).toHaveBeenCalledWith(IMAGE_BYTES);
+    expect(deps.transcribe).toHaveBeenCalledWith(IMAGE_BYTES, expect.any(Function));
     // putMarkdown should be called with the processed markdown (exact value depends on
     // postprocessMarkdown's real implementation, so just assert it was called).
     expect(deps.putMarkdown).toHaveBeenCalledOnce();
@@ -331,6 +334,85 @@ describe('processTranscriptionJob — OCR failure', () => {
     await processTranscriptionJob('sub-123', 'job-abc', deps);
 
     expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ACTIVITY mirror
+// ---------------------------------------------------------------------------
+
+describe('processTranscriptionJob — ACTIVITY mirror', () => {
+  it('creates one activity and updates it through the phase sequence', async () => {
+    const deps = makeHappyPathDeps();
+    const result = await processTranscriptionJob('sub-123', 'job-abc', deps);
+
+    expect(result.outcome).toBe('success');
+    expect(deps.createActivity).toHaveBeenCalledOnce();
+
+    const updateCalls = deps.updateActivity.mock.calls as Array<[{ phase: string }]>;
+    const phases = updateCalls.map((c) => c[0].phase);
+    expect(phases).toEqual(['uploading', 'transcribing', 'finalizing', 'ready']);
+
+    const transcribingCall = updateCalls.find((c) => c[0].phase === 'transcribing')![0] as {
+      phase: string;
+      stream?: { s3Key: string; done: boolean };
+    };
+    expect(transcribingCall.stream).toBeDefined();
+    expect(typeof transcribingCall.stream!.s3Key).toBe('string');
+    expect(transcribingCall.stream!.s3Key.length).toBeGreaterThan(0);
+    expect(transcribingCall.stream!.done).toBe(false);
+
+    const readyCall = updateCalls.find((c) => c[0].phase === 'ready')![0] as {
+      phase: string;
+      status?: string;
+      stream?: { s3Key: string; done: boolean };
+    };
+    expect(readyCall.status).toBe('ready');
+    expect(readyCall.stream!.done).toBe(true);
+  });
+
+  it('passes an onDelta function to transcribe and tolerates it being invoked', async () => {
+    const deps = {
+      ...makeHappyPathDeps(),
+      transcribe: vi.fn().mockImplementation((_bytes: Uint8Array, onDelta?: (d: string) => void) => {
+        // Exercise the streaming callback to ensure it never throws.
+        onDelta?.('chunk');
+        return Promise.resolve({ rawText: RAW_TEXT });
+      }),
+    };
+
+    const result = await processTranscriptionJob('sub-123', 'job-abc', deps);
+
+    expect(result.outcome).toBe('success');
+    expect(typeof deps.transcribe.mock.calls[0][1]).toBe('function');
+  });
+
+  it('marks the activity "failed" with an error when transcribe throws', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const deps = {
+      ...makeHappyPathDeps(),
+      transcribe: vi.fn().mockRejectedValue(new Error('boom')),
+    };
+
+    const result = await processTranscriptionJob('sub-123', 'job-abc', deps);
+
+    // Existing status flow intact: processing → error.
+    expect(result.outcome).toBe('error');
+    expect(deps.updateStatus).toHaveBeenCalledTimes(2);
+    const statusCalls = deps.updateStatus.mock.calls as Array<[{ status: string }]>;
+    expect(statusCalls[0][0].status).toBe('processing');
+    expect(statusCalls[1][0].status).toBe('error');
+
+    // The activity mirror should be marked failed with an error field.
+    const failedCall = (deps.updateActivity.mock.calls as Array<[{ phase: string; status?: string; error?: string }]>).find(
+      (c) => c[0].phase === 'failed',
+    );
+    expect(failedCall).toBeDefined();
+    expect(failedCall![0].status).toBe('failed');
+    expect(typeof failedCall![0].error).toBe('string');
+    expect(failedCall![0].error!.length).toBeGreaterThan(0);
+
     consoleSpy.mockRestore();
   });
 });

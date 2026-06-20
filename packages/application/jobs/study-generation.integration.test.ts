@@ -43,6 +43,9 @@ describe('processStudyGeneration — happy path + idempotency', () => {
       getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
       generate: generateSpy,
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
     expect(r1.outcome).toBe('ready');
 
@@ -56,6 +59,9 @@ describe('processStudyGeneration — happy path + idempotency', () => {
       getNoteMarkdown: vi.fn(),
       generate: generateSpy2,
       putBody: vi.fn(),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
     expect(r2.outcome).toBe('skipped');
     expect(generateSpy2).toHaveBeenCalledTimes(0);
@@ -105,6 +111,9 @@ describe('processStudyGeneration — provenance (M17.2.1)', () => {
       getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
       generate: vi.fn().mockResolvedValue({ payload: mockPayload, promptVersion: 'test1234' }),
       putBody: putBodySpy,
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -172,6 +181,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
         promptVersion: 'v1',
       }),
       putBody: putBodySpy,
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -217,6 +229,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
       getDocumentMarkdown: getDocumentMarkdownSpy,
       generate: vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' }),
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -251,6 +266,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
       getDocumentMarkdown: getDocumentMarkdownSpy,
       generate: vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' }),
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -297,6 +315,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
       getDocumentMarkdown: vi.fn().mockResolvedValue(largeDocBody),
       generate: generateSpy,
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     // Restore env
@@ -337,6 +358,9 @@ describe('processStudyGeneration — failure', () => {
       getNoteMarkdown: vi.fn().mockRejectedValue(new Error('NoSuchKey')),
       generate: vi.fn().mockResolvedValue({ payload: {}, promptVersion: 'x' }),
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
     expect(r.outcome).toBe('failed');
 
@@ -377,6 +401,9 @@ describe('processStudyGeneration — M24.2 learnerContext threading', () => {
       getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
       generate: generateSpy,
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -410,11 +437,100 @@ describe('processStudyGeneration — M24.2 learnerContext threading', () => {
       getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
       generate: generateSpy,
       putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
     expect(generateSpy).toHaveBeenCalledOnce();
     // learnerContext must be absent / undefined — not a stale string.
     expect(generateSpy.mock.calls[0]![0].learnerContext).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ACTIVITY lifecycle — single-pass happy path
+// ---------------------------------------------------------------------------
+
+describe('processStudyGeneration — ACTIVITY lifecycle (single-pass)', () => {
+  it('emits correct phase sequence via createActivity + updateActivity', async () => {
+    const sub = `sub-activity-${rand()}`;
+    const studySetId = `set-activity-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: ['note-activity-1'],
+        type: 'flashcards',
+        title: 'Activity Test Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    const createActivitySpy = vi.fn().mockResolvedValue(undefined);
+    const updateActivitySpy = vi.fn().mockResolvedValue(undefined);
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
+      generate: vi.fn().mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' }),
+      putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: createActivitySpy,
+      updateActivity: updateActivitySpy,
+      flushStream: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+
+    // createActivity called exactly once with the right shape.
+    expect(createActivitySpy).toHaveBeenCalledTimes(1);
+    const createdItem = createActivitySpy.mock.calls[0]![0] as {
+      kind: string;
+      phase: string;
+      status: string;
+      refId: string;
+      activityId: string;
+    };
+    expect(createdItem.kind).toBe('study');
+    expect(createdItem.phase).toBe('queued');
+    expect(createdItem.status).toBe('running');
+    expect(createdItem.refId).toBe(studySetId);
+
+    // Capture the activityId from the created item.
+    const capturedActivityId = createdItem.activityId;
+    expect(typeof capturedActivityId).toBe('string');
+    expect(capturedActivityId.length).toBeGreaterThan(0);
+
+    // All updateActivity calls must use the same activityId.
+    for (const call of updateActivitySpy.mock.calls) {
+      const input = call[0] as { sub: string; activityId: string; phase: string };
+      expect(input.sub).toBe(sub);
+      expect(input.activityId).toBe(capturedActivityId);
+    }
+
+    // Extract the sequence of phases emitted via updateActivity.
+    const phases = updateActivitySpy.mock.calls.map(
+      (call) => (call[0] as { phase: string }).phase,
+    );
+
+    // Single-pass: reading_notes → generating → finalizing → ready
+    expect(phases).toEqual(['reading_notes', 'generating', 'finalizing', 'ready']);
+
+    // The 'ready' update must carry status: 'ready' and stream.done: true.
+    const readyCall = updateActivitySpy.mock.calls.find(
+      (call) => (call[0] as { phase: string }).phase === 'ready',
+    );
+    expect(readyCall).toBeDefined();
+    const readyInput = readyCall![0] as {
+      status: string;
+      stream: { s3Key: string; done: boolean };
+    };
+    expect(readyInput.status).toBe('ready');
+    expect(readyInput.stream.done).toBe(true);
+    expect(readyInput.stream.s3Key).toBe(`activity/${sub}/${capturedActivityId}.stream.txt`);
   });
 });
