@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.96.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.95.0...transformmynotes-v1.96.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M27 — manual & explicit flashcard creation ([12a040c](https://github.com/jasonp2323/transformmynotes/commit/12a040c508edfed1a9a6ac1ccf47c2119f3525fc))
+
 ## [1.95.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.94.0...transformmynotes-v1.95.0) (2026-06-20)
 
 
