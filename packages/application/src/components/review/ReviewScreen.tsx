@@ -26,6 +26,8 @@ export interface ReviewScreenProps {
   langPair: string;
   ocrConfidence: number;
   originalImageUrl: string | null;
+  originalImageUrls?: string[];
+  originalImageS3Keys?: string[];
   forceLayout?: 'stacked' | 'segmented';
 }
 
@@ -65,6 +67,8 @@ export function ReviewScreen({
   langPair,
   ocrConfidence,
   originalImageUrl,
+  originalImageUrls,
+  originalImageS3Keys,
   forceLayout,
 }: ReviewScreenProps) {
   const router = useRouter();
@@ -78,7 +82,7 @@ export function ReviewScreen({
   const [tagInputValue, setTagInputValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const editorRef = useRef<NoteEditorHandle>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -158,7 +162,15 @@ export function ReviewScreen({
       const res = await fetch('/api/notes/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, title, markdown, tags }),
+        body: JSON.stringify({
+          jobId,
+          title,
+          markdown,
+          tags,
+          ...(originalImageS3Keys && originalImageS3Keys.length > 0
+            ? { originalImageS3Keys }
+            : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -188,7 +200,7 @@ export function ReviewScreen({
     } finally {
       setSaving(false);
     }
-  }, [jobId, initialMarkdown, tags, router]);
+  }, [jobId, initialMarkdown, tags, router, originalImageS3Keys]);
 
   // ── Shared sub-components ─────────────────────────────────────────────────
 
@@ -217,29 +229,63 @@ export function ReviewScreen({
     </div>
   );
 
-  const imageOrPlaceholder = originalImageUrl ? (
-    <>
-      <div className="tmn-review-image-frame">
-        <button
-          className="tmn-review-image-btn"
-          aria-label="View full image"
-          onClick={() => setLightboxOpen(true)}
-        >
-          <img src={originalImageUrl} alt="Original handwriting" />
-        </button>
+  // Derive the ordered gallery of image URLs
+  const galleryUrls =
+    originalImageUrls && originalImageUrls.length > 0
+      ? originalImageUrls
+      : originalImageUrl
+        ? [originalImageUrl]
+        : [];
+
+  const imageOrPlaceholder =
+    galleryUrls.length > 1 ? (
+      <>
+        <ul className="tmn-review-gallery" role="list">
+          {galleryUrls.map((url, i) => (
+            <li key={url} className="tmn-review-gallery-item" role="listitem">
+              <button
+                className="tmn-review-gallery-btn"
+                aria-label={`Page ${i + 1}`}
+                onClick={() => setLightboxSrc(url)}
+              >
+                <img src={url} alt={`Page ${i + 1} handwriting`} />
+                <span className="tmn-review-gallery-num" aria-hidden="true">
+                  {i + 1}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <ImageLightbox
+          src={lightboxSrc ?? ''}
+          alt="Original handwriting — full size"
+          open={lightboxSrc !== null}
+          onClose={() => setLightboxSrc(null)}
+        />
+      </>
+    ) : galleryUrls.length === 1 ? (
+      <>
+        <div className="tmn-review-image-frame">
+          <button
+            className="tmn-review-image-btn"
+            aria-label="View full image"
+            onClick={() => setLightboxSrc(galleryUrls[0])}
+          >
+            <img src={galleryUrls[0]} alt="Original handwriting" />
+          </button>
+        </div>
+        <ImageLightbox
+          src={lightboxSrc ?? ''}
+          alt="Original handwriting — full size"
+          open={lightboxSrc !== null}
+          onClose={() => setLightboxSrc(null)}
+        />
+      </>
+    ) : (
+      <div className="tmn-review-image-placeholder">
+        <Icon name="image-off" size={36} />
       </div>
-      <ImageLightbox
-        src={originalImageUrl}
-        alt="Original handwriting — full size"
-        open={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-      />
-    </>
-  ) : (
-    <div className="tmn-review-image-placeholder">
-      <Icon name="image-off" size={36} />
-    </div>
-  );
+    );
 
   // ── ActionBar contents differ by layout ──────────────────────────────────
 

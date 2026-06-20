@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moveItem, removeAt, buildBatchReviewUrl } from '../pageTray';
+import { moveItem, removeAt, buildBatchReviewUrl, parsePageJobIds } from '../pageTray';
 
 describe('moveItem', () => {
   it('moves an element left', () => {
@@ -81,5 +81,61 @@ describe('buildBatchReviewUrl', () => {
   it('URI-encodes ids that need encoding', () => {
     const url = buildBatchReviewUrl('a b', ['a b', 'c/d']);
     expect(url).toBe('/capture/review?jobId=a%20b&pageJobIds=a%20b,c%2Fd');
+  });
+});
+
+describe('parsePageJobIds', () => {
+  it('returns [] for undefined', () => {
+    expect(parsePageJobIds(undefined)).toEqual([]);
+  });
+
+  it('returns [] for null', () => {
+    expect(parsePageJobIds(null)).toEqual([]);
+  });
+
+  it('returns [] for empty string', () => {
+    expect(parsePageJobIds('')).toEqual([]);
+  });
+
+  it('parses a single id', () => {
+    expect(parsePageJobIds('job1')).toEqual(['job1']);
+  });
+
+  it('parses multiple ids in order', () => {
+    expect(parsePageJobIds('job1,job2,job3')).toEqual(['job1', 'job2', 'job3']);
+  });
+
+  it('decodes URI-encoded ids', () => {
+    expect(parsePageJobIds('a%20b,c%2Fd')).toEqual(['a b', 'c/d']);
+  });
+
+  it('drops empty segments', () => {
+    expect(parsePageJobIds('job1,,job2')).toEqual(['job1', 'job2']);
+  });
+
+  it('caps at 20 ids', () => {
+    const ids = Array.from({ length: 25 }, (_, i) => `job${i}`);
+    const param = ids.join(',');
+    const result = parsePageJobIds(param);
+    expect(result).toHaveLength(20);
+    expect(result).toEqual(ids.slice(0, 20));
+  });
+
+  it('round-trips with buildBatchReviewUrl', () => {
+    const primary = 'primary-job';
+    const pageIds = ['job1', 'job2', 'job3'];
+    const url = buildBatchReviewUrl(primary, pageIds);
+    const params = new URLSearchParams(url.split('?')[1]);
+    const parsed = parsePageJobIds(params.get('pageJobIds'));
+    expect(parsed).toEqual(pageIds);
+  });
+
+  it('round-trips with URI-encoded ids', () => {
+    const primary = 'a b';
+    const pageIds = ['a b', 'c/d'];
+    const url = buildBatchReviewUrl(primary, pageIds);
+    const params = new URLSearchParams(url.split('?')[1]);
+    const parsed = parsePageJobIds(params.get('pageJobIds'));
+    expect(parsed).toEqual(pageIds);
   });
 });

@@ -41,3 +41,16 @@ export function buildBatchReviewUrl(primaryJobId: string, pageJobIds: string[]):
   const pages = pageJobIds.map(encodeURIComponent).join(',');
   return `/capture/review?jobId=${primary}&pageJobIds=${pages}`;
 }
+
+/**
+ * Parse the `pageJobIds` review query param (comma-separated, URI-encoded ids).
+ * Returns the decoded ids in order, dropping empties, capped at 20.
+ */
+export function parsePageJobIds(param: string | undefined | null): string[] {
+  if (!param) return [];
+  return param
+    .split(',')
+    .map((id) => decodeURIComponent(id).trim())
+    .filter((id) => id.length > 0)
+    .slice(0, 20);
+}
