@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.92.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.1...transformmynotes-v1.92.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M26.3 — multi-page review gallery + persist all page image keys ([#672](https://github.com/jasonp2323/transformmynotes/issues/672)) ([b9284c4](https://github.com/jasonp2323/transformmynotes/commit/b9284c41e080299de096acc60531aa4ca28b77fe))
+
 ## [1.91.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.0...transformmynotes-v1.91.1) (2026-06-20)
 
 
