@@ -7,8 +7,10 @@ import React, {
   useCallback,
 } from 'react';
 import type { Card } from '@transformmynotes/core';
-import { Button, Icon, IconButton, Toast } from '@/src/components/ui';
+import { Button, Dialog, Icon, IconButton, Select, Toast } from '@/src/components/ui';
+import { CardForm } from '@/src/components/cards/CardForm';
 import { PlayButton } from '@/src/components/tts';
+import { groupByNote } from './groupByNote';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,40 +26,20 @@ interface NoteMetadataMin {
   title: string;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-interface GroupedNote {
-  sourceNoteId: string;
-  title: string;
-  count: number;
-}
-
-function groupByNote(cards: Card[], titleMap: Map<string, string>): GroupedNote[] {
-  const map = new Map<string, number>();
-  for (const card of cards) {
-    // Standalone manual cards have no sourceNoteId — group them under a sentinel key.
-    const key = card.sourceNoteId ?? '__standalone__';
-    map.set(key, (map.get(key) ?? 0) + 1);
-  }
-  return Array.from(map.entries()).map(([sourceNoteId, count]) => ({
-    sourceNoteId,
-    title: sourceNoteId === '__standalone__'
-      ? 'Standalone cards'
-      : (titleMap.get(sourceNoteId) ?? 'Untitled note'),
-    count,
-  }));
-}
-
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function DeckOverview({
   cards,
   titleMap,
+  noteOptions,
   onStart,
+  onNewCard,
 }: {
   cards: Card[];
   titleMap: Map<string, string>;
+  noteOptions: NoteMetadataMin[];
   onStart: () => void;
+  onNewCard: () => void;
 }) {
   const count = cards.length;
   const groups = groupByNote(cards, titleMap);
@@ -77,16 +59,26 @@ function DeckOverview({
           : 'Review your flashcards to strengthen memory.'}
       </p>
 
-      <Button
-        variant="primary"
-        size="lg"
-        fullWidth
-        disabled={count === 0}
-        leftIcon={<Icon name="layers" size={18} />}
-        onClick={onStart}
-      >
-        Start review
-      </Button>
+      <div className="tmn-deck-overview-actions">
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          disabled={count === 0}
+          leftIcon={<Icon name="layers" size={18} />}
+          onClick={onStart}
+        >
+          Start review
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
+          leftIcon={<Icon name="plus" size={18} />}
+          onClick={onNewCard}
+        >
+          + New card
+        </Button>
+      </div>
 
       {groups.length > 0 && (
         <div className="tmn-deck-note-list" role="list" aria-label="Notes with due cards">
@@ -128,12 +120,22 @@ export function ReviewDeck() {
   const [deckState, setDeckState] = useState<DeckState>('loading');
   const [cards, setCards] = useState<Card[]>([]);
   const [titleMap, setTitleMap] = useState<Map<string, string>>(new Map());
+  const [noteOptions, setNoteOptions] = useState<NoteMetadataMin[]>([]);
   const [sessionCards, setSessionCards] = useState<Card[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [grading, setGrading] = useState(false);
   const [rate, setRate] = useState<'1x' | '0.8x'>('1x');
   const [toast, setToast] = useState<ToastState | null>(null);
+
+  // ── New card form state ──────────────────────────────────────────────────────
+  const [newCardOpen, setNewCardOpen] = useState(false);
+  const [savingNewCard, setSavingNewCard] = useState(false);
+  const [pickedNoteId, setPickedNoteId] = useState('');
+
+  // ── Delete confirm state ─────────────────────────────────────────────────────
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingCard, setDeletingCard] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -148,16 +150,20 @@ export function ReviewDeck() {
     return data.cards;
   }, []);
 
-  // ── Fetch note titles (best-effort) ─────────────────────────────────────────
+  // ── Fetch note titles + options ─────────────────────────────────────────────
 
-  const fetchTitles = useCallback(async (signal?: AbortSignal): Promise<Map<string, string>> => {
+  const fetchTitles = useCallback(async (signal?: AbortSignal): Promise<{ titleMap: Map<string, string>; noteOptions: NoteMetadataMin[] }> => {
     try {
       const res = await fetch('/api/notes', { signal });
-      if (!res.ok) return new Map();
+      if (!res.ok) return { titleMap: new Map(), noteOptions: [] };
       const data = (await res.json()) as { notes: NoteMetadataMin[] };
-      return new Map(data.notes.map((n) => [n.noteId, n.title]));
+      const notes = data.notes ?? [];
+      return {
+        titleMap: new Map(notes.map((n) => [n.noteId, n.title])),
+        noteOptions: notes,
+      };
     } catch {
-      return new Map();
+      return { titleMap: new Map(), noteOptions: [] };
     }
   }, []);
 
@@ -172,9 +178,10 @@ export function ReviewDeck() {
       fetchDue(controller.signal),
       fetchTitles(controller.signal),
     ])
-      .then(([fetchedCards, fetchedTitles]) => {
+      .then(([fetchedCards, fetchedTitleData]) => {
         setCards(fetchedCards);
-        setTitleMap(fetchedTitles);
+        setTitleMap(fetchedTitleData.titleMap);
+        setNoteOptions(fetchedTitleData.noteOptions);
         setDeckState('overview');
       })
       .catch((err: unknown) => {
@@ -205,6 +212,18 @@ export function ReviewDeck() {
       setLiveAnnouncement(`Front: ${front} — press Space to flip`);
     }
   }, [deckState, currentIndex, sessionCards]);
+
+  // ── Refresh overview data (cards + titles) ──────────────────────────────────
+
+  const refreshOverview = useCallback(async () => {
+    const [refreshedCards, refreshedTitleData] = await Promise.all([
+      fetchDue(),
+      fetchTitles(),
+    ]);
+    setCards(refreshedCards);
+    setTitleMap(refreshedTitleData.titleMap);
+    setNoteOptions(refreshedTitleData.noteOptions);
+  }, [fetchDue, fetchTitles]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -277,17 +296,87 @@ export function ReviewDeck() {
   const handleExitSession = useCallback(async () => {
     // Re-fetch to update the overview count
     try {
-      const [refreshedCards, refreshedTitles] = await Promise.all([
-        fetchDue(),
-        fetchTitles(),
-      ]);
-      setCards(refreshedCards);
-      setTitleMap(refreshedTitles);
+      await refreshOverview();
     } catch {
       // Ignore — overview will show stale count
     }
     setDeckState('overview');
-  }, [fetchDue, fetchTitles]);
+  }, [refreshOverview]);
+
+  // ── Delete card handlers ─────────────────────────────────────────────────────
+
+  const handleDeleteConfirm = useCallback(async () => {
+    const card = sessionCards[currentIndex];
+    if (!card) return;
+
+    setDeletingCard(true);
+    try {
+      const res = await fetch(`/api/cards/${card.cardId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      setDeleteConfirmOpen(false);
+
+      // Remove the card from both sessionCards and cards
+      const newSessionCards = sessionCards.filter((_, i) => i !== currentIndex);
+      const newCards = cards.filter((c) => c.cardId !== card.cardId);
+
+      setCards(newCards);
+
+      if (newSessionCards.length === 0) {
+        // Queue empty — go to done/overview
+        setDeckState('done');
+      } else {
+        // Clamp index so we don't go out of bounds
+        const nextIndex = currentIndex < newSessionCards.length ? currentIndex : newSessionCards.length - 1;
+        setSessionCards(newSessionCards);
+        setCurrentIndex(nextIndex);
+        setFlipped(false);
+      }
+
+      setToast({ tone: 'success', title: 'Card deleted' });
+    } catch {
+      setToast({ tone: 'danger', title: "Couldn't delete card — try again" });
+    } finally {
+      setDeletingCard(false);
+    }
+  }, [sessionCards, currentIndex, cards]);
+
+  // ── New card handlers ────────────────────────────────────────────────────────
+
+  const handleOpenNewCard = useCallback(() => {
+    setPickedNoteId('');
+    setNewCardOpen(true);
+  }, []);
+
+  const handleSaveNewCard = useCallback(
+    async ({ front, back }: { front: string; back: string }) => {
+      setSavingNewCard(true);
+      try {
+        const body: Record<string, string> = { front, back };
+        if (pickedNoteId) body.sourceNoteId = pickedNoteId;
+
+        const res = await fetch('/api/cards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        setNewCardOpen(false);
+        setToast({ tone: 'success', title: 'Card added' });
+
+        // Refresh overview so the new card's group appears
+        await refreshOverview();
+      } catch (err) {
+        setToast({ tone: 'danger', title: "Couldn't add card — try again" });
+        throw err; // Re-throw so CardForm stays open
+      } finally {
+        setSavingNewCard(false);
+      }
+    },
+    [pickedNoteId, refreshOverview],
+  );
 
   // ── Render: Loading ─────────────────────────────────────────────────────────
 
@@ -303,12 +392,54 @@ export function ReviewDeck() {
   // ── Render: Overview ────────────────────────────────────────────────────────
 
   if (deckState === 'overview') {
+    // Build note picker for the CardForm children slot
+    const notePicker = (
+      <Select
+        label="Link to note (optional)"
+        value={pickedNoteId}
+        onChange={(e) => setPickedNoteId(e.target.value)}
+      >
+        <option value="">No note</option>
+        {noteOptions.map((n) => (
+          <option key={n.noteId} value={n.noteId}>
+            {n.title}
+          </option>
+        ))}
+      </Select>
+    );
+
     return (
-      <DeckOverview
-        cards={cards}
-        titleMap={titleMap}
-        onStart={handleStart}
-      />
+      <>
+        <DeckOverview
+          cards={cards}
+          titleMap={titleMap}
+          noteOptions={noteOptions}
+          onStart={handleStart}
+          onNewCard={handleOpenNewCard}
+        />
+
+        <CardForm
+          open={newCardOpen}
+          title="New card"
+          saving={savingNewCard}
+          onClose={() => setNewCardOpen(false)}
+          onSave={handleSaveNewCard}
+        >
+          {notePicker}
+        </CardForm>
+
+        {/* Toast for overview-level actions */}
+        {toast && (
+          <div className="tmn-deck-toast-container">
+            <Toast
+              tone={toast.tone}
+              title={toast.title}
+              onClose={() => setToast(null)}
+              duration={3200}
+            />
+          </div>
+        )}
+      </>
     );
   }
 
@@ -340,8 +471,14 @@ export function ReviewDeck() {
         <span className="tmn-deck-session-header__progress">
           Card {position} of {total}
         </span>
-        {/* Spacer to keep progress centred */}
-        <div style={{ width: 44 }} aria-hidden="true" />
+        {/* Delete card button */}
+        <IconButton
+          label="Delete card"
+          variant="plain"
+          onClick={() => setDeleteConfirmOpen(true)}
+        >
+          <Icon name="trash-2" size={20} />
+        </IconButton>
       </div>
 
       {/* ── Session body ── */}
@@ -469,6 +606,33 @@ export function ReviewDeck() {
       >
         {liveAnnouncement}
       </span>
+
+      {/* ── Delete confirm dialog ── */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Delete this card?"
+        description="This can't be undone."
+        footer={
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deletingCard}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={deletingCard}
+              disabled={deletingCard}
+              onClick={() => void handleDeleteConfirm()}
+            >
+              Delete
+            </Button>
+          </div>
+        }
+      />
 
       {/* ── Toast ── */}
       {toast && (
