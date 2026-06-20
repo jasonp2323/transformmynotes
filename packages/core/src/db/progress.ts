@@ -1,7 +1,8 @@
 import { ulid } from 'ulid';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, UpdateCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { progressKeys } from './keys.js';
+import { type DayCounters, foldEventsToDay, computeRetentionRate, computeAvgQuizScore } from './progress-aggregate.js';
 import type { Grade } from '../srs/scheduler.js';
 import type { StudyMaterialType } from '../study/types.js';
 
@@ -125,6 +126,8 @@ export interface DaySnapshotItem {
   notesCreated: number;
   /** Total STUDYSET_CREATED events recorded for this day. */
   studySetsCreated: number;
+  /** Number of cards that crossed the mastery threshold (prevInterval < 21 → newInterval >= 21) on this day. */
+  cardsMastered: number;
   /** Derived: `correctReviews / reviews`. Written by the nightly finalize cron. */
   retentionRate?: number;
   /** Derived: `quizScoreSum / quizAttempts`. Written by the nightly finalize cron. */
@@ -271,6 +274,189 @@ export async function appendStudyEvent(item: StudyEventItem): Promise<void> {
     new PutCommand({
       TableName: TableNames.StudyEvents,
       Item: item,
+    }),
+  );
+}
+
+/**
+ * Atomically increments one or more counters on a DAY# snapshot item via a
+ * single `UpdateCommand` with `ADD` expressions.
+ *
+ * NOTE: `ADD` is not idempotent — if the stream delivers the same event twice,
+ * the counter will be over-counted. The nightly `rederiveDaySnapshot` cron
+ * corrects this by recomputing the snapshot from the raw EVENT# items.
+ *
+ * Day boundaries are UTC calendar days (MVP). Per-user timezone support is
+ * deferred to a future iteration (store `tz` on the user profile and derive
+ * the local day from it).
+ */
+export async function incrementDaySnapshot(
+  sub: string,
+  day: string,
+  delta: Partial<DayCounters>,
+): Promise<void> {
+  const entries = Object.entries(delta).filter(([, v]) => v !== undefined) as [string, number][];
+  if (entries.length === 0) return;
+
+  const addClauses: string[] = [];
+  const ean: Record<string, string> = {};
+  const eav: Record<string, number> = {};
+
+  entries.forEach(([key, value], i) => {
+    const nameAlias = `#c${i}`;
+    const valAlias = `:v${i}`;
+    ean[nameAlias] = key;
+    eav[valAlias] = value;
+    addClauses.push(`${nameAlias} ${valAlias}`);
+  });
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.StudyEvents,
+      Key: progressKeys.dayItem(sub, day),
+      UpdateExpression: `ADD ${addClauses.join(', ')}`,
+      ExpressionAttributeNames: ean,
+      ExpressionAttributeValues: eav,
+    }),
+  );
+}
+
+/** Returns the DAY# snapshot item for a given user+day, or null if absent. */
+export async function getDaySnapshot(sub: string, day: string): Promise<DaySnapshotItem | null> {
+  const res = await ddb.send(
+    new GetCommand({
+      TableName: TableNames.StudyEvents,
+      Key: progressKeys.dayItem(sub, day),
+    }),
+  );
+  return (res.Item as DaySnapshotItem | undefined) ?? null;
+}
+
+/**
+ * Returns all DAY# snapshot items for a user within an inclusive date range
+ * [fromDate, toDate], in chronological order (ascending). Paginates via
+ * LastEvaluatedKey.
+ */
+export async function listDaySnapshots(
+  sub: string,
+  fromDate: string,
+  toDate: string,
+): Promise<DaySnapshotItem[]> {
+  const items: DaySnapshotItem[] = [];
+  let lastKey: Record<string, unknown> | undefined = undefined;
+
+  while (true) {
+    const res = await ddb.send(
+      new QueryCommand({
+        TableName: TableNames.StudyEvents,
+        ...progressKeys.dayRangeQuery(sub, fromDate, toDate),
+        ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+      }),
+    );
+    if (res.Items) {
+      items.push(...(res.Items as DaySnapshotItem[]));
+    }
+    if (!res.LastEvaluatedKey) break;
+    lastKey = res.LastEvaluatedKey as Record<string, unknown>;
+  }
+
+  return items;
+}
+
+/**
+ * Self-heal: re-derives a day's snapshot from its raw EVENT# items and
+ * overwrites the DAY# snapshot with the recomputed counters + derived fields.
+ *
+ * Steps:
+ * 1. Query all EVENT# items for the day via `progressKeys.eventScanForDay`,
+ *    paginating with LastEvaluatedKey.
+ * 2. Treat each item as a `StudyEvent` (the persisted item is a superset of
+ *    the union — the extra pk/sk/expiresAt attributes are ignored by
+ *    `foldEventsToDay`).
+ * 3. Compute `retentionRate` via `computeRetentionRate` and `avgQuizScore`
+ *    via `computeAvgQuizScore`.
+ * 4. Overwrite the DAY# snapshot with a `PutCommand`.
+ * 5. Return the written snapshot.
+ */
+export async function rederiveDaySnapshot(sub: string, day: string): Promise<DaySnapshotItem> {
+  const events: StudyEvent[] = [];
+  let lastKey: Record<string, unknown> | undefined = undefined;
+
+  while (true) {
+    const res = await ddb.send(
+      new QueryCommand({
+        TableName: TableNames.StudyEvents,
+        ...progressKeys.eventScanForDay(sub, day),
+        ...(lastKey ? { ExclusiveStartKey: lastKey } : {}),
+      }),
+    );
+    if (res.Items) {
+      events.push(...(res.Items as StudyEvent[]));
+    }
+    if (!res.LastEvaluatedKey) break;
+    lastKey = res.LastEvaluatedKey as Record<string, unknown>;
+  }
+
+  const counters = foldEventsToDay(events);
+  const retentionRate = computeRetentionRate(counters.correctReviews, counters.reviews);
+  const avgQuizScore = computeAvgQuizScore(counters.quizScoreSum, counters.quizAttempts);
+
+  const snapshot: DaySnapshotItem = {
+    ...progressKeys.dayItem(sub, day),
+    ...counters,
+    ...(retentionRate !== undefined ? { retentionRate } : {}),
+    ...(avgQuizScore !== undefined ? { avgQuizScore } : {}),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await ddb.send(
+    new PutCommand({
+      TableName: TableNames.StudyEvents,
+      Item: snapshot,
+    }),
+  );
+
+  return snapshot;
+}
+
+/**
+ * Reads the current snapshot for `day`, recomputes `retentionRate` and
+ * `avgQuizScore` from its stored counters, then writes those two derived
+ * fields back with a `SET` `UpdateCommand`.
+ *
+ * Cheaper than a full `rederiveDaySnapshot` when the raw counters are trusted
+ * (e.g. after a normal stream flush with no missed events). Use
+ * `rederiveDaySnapshot` for full correction; use this for routine derived-field
+ * refresh.
+ *
+ * No-ops silently if no snapshot exists for the day yet.
+ */
+export async function finalizeDaySnapshotDerived(sub: string, day: string): Promise<void> {
+  const snapshot = await getDaySnapshot(sub, day);
+  if (snapshot === null) return;
+
+  const retentionRate = computeRetentionRate(snapshot.correctReviews, snapshot.reviews);
+  const avgQuizScore = computeAvgQuizScore(snapshot.quizScoreSum, snapshot.quizAttempts);
+
+  const now = new Date().toISOString();
+  const setClauses = ['updatedAt = :now'];
+  const eav: Record<string, unknown> = { ':now': now };
+
+  if (retentionRate !== undefined) {
+    setClauses.push('retentionRate = :rr');
+    eav[':rr'] = retentionRate;
+  }
+  if (avgQuizScore !== undefined) {
+    setClauses.push('avgQuizScore = :aqs');
+    eav[':aqs'] = avgQuizScore;
+  }
+
+  await ddb.send(
+    new UpdateCommand({
+      TableName: TableNames.StudyEvents,
+      Key: progressKeys.dayItem(sub, day),
+      UpdateExpression: `SET ${setClauses.join(', ')}`,
+      ExpressionAttributeValues: eav,
     }),
   );
 }

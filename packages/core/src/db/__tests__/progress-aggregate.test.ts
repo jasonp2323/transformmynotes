@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MASTERY_THRESHOLD_DAYS,
+  dayHasActivity,
   isCorrectGrade,
   isMasteryTransition,
   deltaForEvent,
@@ -11,6 +12,34 @@ import {
   computeStreak,
 } from '../progress-aggregate.js';
 import type { StudyEvent } from '../progress.js';
+
+// ─── dayHasActivity ──────────────────────────────────────────────────────────
+
+describe('dayHasActivity', () => {
+  it('returns false when all counters are zero', () => {
+    expect(dayHasActivity({ reviews: 0, notesCreated: 0, quizAttempts: 0, studySetsCreated: 0 })).toBe(false);
+  });
+
+  it('returns true when reviews > 0', () => {
+    expect(dayHasActivity({ reviews: 1, notesCreated: 0, quizAttempts: 0, studySetsCreated: 0 })).toBe(true);
+  });
+
+  it('returns true when notesCreated > 0', () => {
+    expect(dayHasActivity({ reviews: 0, notesCreated: 2, quizAttempts: 0, studySetsCreated: 0 })).toBe(true);
+  });
+
+  it('returns true when quizAttempts > 0', () => {
+    expect(dayHasActivity({ reviews: 0, notesCreated: 0, quizAttempts: 1, studySetsCreated: 0 })).toBe(true);
+  });
+
+  it('returns true when studySetsCreated > 0', () => {
+    expect(dayHasActivity({ reviews: 0, notesCreated: 0, quizAttempts: 0, studySetsCreated: 3 })).toBe(true);
+  });
+
+  it('returns true when multiple counters are non-zero', () => {
+    expect(dayHasActivity({ reviews: 5, notesCreated: 1, quizAttempts: 2, studySetsCreated: 0 })).toBe(true);
+  });
+});
 
 // ─── isCorrectGrade ──────────────────────────────────────────────────────────
 
@@ -82,6 +111,7 @@ describe('deltaForEvent', () => {
       correctReviews: 1,
       easeSum: 2.6,
       easeCount: 1,
+      cardsMastered: 0,
     });
   });
 
@@ -99,6 +129,34 @@ describe('deltaForEvent', () => {
     const delta = deltaForEvent(event);
     expect(delta.correctReviews).toBe(0);
     expect(delta.reviews).toBe(1);
+  });
+
+  it('REVIEW crossing mastery threshold → cardsMastered: 1', () => {
+    const event: StudyEvent = {
+      kind: 'REVIEW',
+      cardId: 'c1',
+      grade: 4,
+      prevEase: 2.5,
+      newEase: 2.6,
+      prevIntervalDays: 20,
+      newIntervalDays: 21,
+      reviewedAt: '2026-06-20T00:00:00.000Z',
+    };
+    expect(deltaForEvent(event).cardsMastered).toBe(1);
+  });
+
+  it('REVIEW already above mastery threshold → cardsMastered: 0', () => {
+    const event: StudyEvent = {
+      kind: 'REVIEW',
+      cardId: 'c1',
+      grade: 4,
+      prevEase: 2.5,
+      newEase: 2.6,
+      prevIntervalDays: 21,
+      newIntervalDays: 42,
+      reviewedAt: '2026-06-20T00:00:00.000Z',
+    };
+    expect(deltaForEvent(event).cardsMastered).toBe(0);
   });
 
   it('QUIZATTEMPT → quizAttempts+1, quizScoreSum+score', () => {
@@ -147,6 +205,7 @@ describe('foldEventsToDay', () => {
       quizScoreSum: 0,
       notesCreated: 0,
       studySetsCreated: 0,
+      cardsMastered: 0,
     });
   });
 
@@ -200,6 +259,7 @@ describe('foldEventsToDay', () => {
       quizScoreSum: 0.8,
       notesCreated: 1,
       studySetsCreated: 1,
+      cardsMastered: 0,   // both reviews have intervals below 21: 6→15 and 1→1
     });
   });
 });

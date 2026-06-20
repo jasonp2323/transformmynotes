@@ -35,6 +35,26 @@ export interface DayCounters {
   quizScoreSum: number;
   notesCreated: number;
   studySetsCreated: number;
+  cardsMastered: number;
+}
+
+// ---------------------------------------------------------------------------
+// Activity guard helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns `true` when a `DayCounters`-shaped object has at least one unit of
+ * activity — i.e. any of the four primary activity counters is greater than zero.
+ *
+ * Used by the nightly finalize cron to identify which day snapshots count as
+ * "active" when computing the study streak. Days where all four counters are
+ * zero (e.g. the cron wrote a self-heal snapshot but the user did nothing) are
+ * NOT considered active.
+ */
+export function dayHasActivity(
+  c: Pick<DayCounters, 'reviews' | 'notesCreated' | 'quizAttempts' | 'studySetsCreated'>,
+): boolean {
+  return c.reviews > 0 || c.notesCreated > 0 || c.quizAttempts > 0 || c.studySetsCreated > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +112,7 @@ export function deltaForEvent(event: StudyEvent): Partial<DayCounters> {
         correctReviews: isCorrectGrade(event.grade) ? 1 : 0,
         easeSum: event.newEase,
         easeCount: 1,
+        cardsMastered: isMasteryTransition(event.prevIntervalDays, event.newIntervalDays) ? 1 : 0,
       };
 
     case 'QUIZATTEMPT':
@@ -124,6 +145,7 @@ function zeroDayCounters(): DayCounters {
     quizScoreSum: 0,
     notesCreated: 0,
     studySetsCreated: 0,
+    cardsMastered: 0,
   };
 }
 
@@ -146,6 +168,7 @@ export function foldEventsToDay(events: StudyEvent[]): DayCounters {
     acc.quizScoreSum += delta.quizScoreSum ?? 0;
     acc.notesCreated += delta.notesCreated ?? 0;
     acc.studySetsCreated += delta.studySetsCreated ?? 0;
+    acc.cardsMastered += delta.cardsMastered ?? 0;
   }
   return acc;
 }
