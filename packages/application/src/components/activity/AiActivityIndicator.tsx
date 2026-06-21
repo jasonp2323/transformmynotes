@@ -6,6 +6,7 @@ import { cn } from '@/src/lib/cn';
 import { Icon } from '@/src/components/ui';
 import { Collapsible } from '@/src/components/ui';
 import { useAiActivity } from './AiActivityProvider';
+import { selectVisibleRecent } from '@/src/lib/activity-indicator';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -244,20 +245,29 @@ function StatusBadge({ status }: { status: ActivitySummary['status'] }) {
 export function AiActivityIndicator() {
   const { inFlight, recent } = useAiActivity();
   const [expanded, setExpanded] = React.useState(false);
+  const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(new Set());
+  // Tick counter bumped every 15 s so stale recent items auto-hide without waiting
+  // for the next provider poll.
+  const [, setTick] = React.useState(0);
 
-  const hasAny = inFlight.length > 0 || recent.length > 0;
-  const hasInFlight = inFlight.length > 0;
-  const totalCount = inFlight.length + recent.length;
+  // Filter recent items: only show those within the 2-minute window and not dismissed.
+  const visibleRecent = selectVisibleRecent(recent, dismissedIds, Date.now());
+  // Filter in-flight items: exclude any that the user has dismissed (handles stuck items).
+  const visibleInFlight = inFlight.filter((a) => !dismissedIds.has(a.activityId));
 
-  // Merge inFlight + recent deduplicated for the panel list (inFlight first).
-  const inFlightIds = new Set(inFlight.map((a) => a.activityId));
-  const recentOnly = recent.filter((a) => !inFlightIds.has(a.activityId));
-  const allItems: ActivitySummary[] = [...inFlight, ...recentOnly];
+  const hasAny = visibleInFlight.length > 0 || visibleRecent.length > 0;
+  const hasInFlight = visibleInFlight.length > 0;
+  const totalCount = visibleInFlight.length + visibleRecent.length;
+
+  // Merge visibleInFlight + visibleRecent deduplicated for the panel list (inFlight first).
+  const inFlightIds = new Set(visibleInFlight.map((a) => a.activityId));
+  const recentOnly = visibleRecent.filter((a) => !inFlightIds.has(a.activityId));
+  const allItems: ActivitySummary[] = [...visibleInFlight, ...recentOnly];
 
   const chipLabel =
-    inFlight[0]?.phaseDetail ??
-    inFlight[0]?.title ??
-    recent[0]?.title ??
+    visibleInFlight[0]?.phaseDetail ??
+    visibleInFlight[0]?.title ??
+    visibleRecent[0]?.title ??
     '';
 
   // Auto-collapse when nothing left to show.
@@ -265,7 +275,26 @@ export function AiActivityIndicator() {
     if (!hasAny) setExpanded(false);
   }, [hasAny]);
 
+  // Bump the tick counter every 15 s while there is something to show, so that
+  // stale "recent" items auto-hide without waiting for the next provider poll.
+  React.useEffect(() => {
+    if (!hasAny) return;
+    const id = setInterval(() => setTick((t) => t + 1), 15_000);
+    return () => clearInterval(id);
+  }, [hasAny]);
+
   if (!hasAny) return null;
+
+  /** Add all currently-visible activity ids to the dismissed set. */
+  function handleDismiss(e: React.MouseEvent) {
+    e.stopPropagation();
+    const ids = new Set(dismissedIds);
+    for (const a of [...visibleInFlight, ...visibleRecent]) {
+      ids.add(a.activityId);
+    }
+    setDismissedIds(ids);
+    setExpanded(false);
+  }
 
   // ---- Expanded panel ----
   if (expanded) {
@@ -292,36 +321,48 @@ export function AiActivityIndicator() {
   }
 
   // ---- Collapsed chip ----
+  // The chip is a container div so we can place an independent dismiss button
+  // alongside the expand button without nesting interactive elements.
   return (
-    <button
-      type="button"
-      className="tmn-activity__chip"
-      onClick={() => setExpanded(true)}
-      aria-label={`AI activity${totalCount > 1 ? ` — ${totalCount} items` : ''}: ${chipLabel}`}
-    >
-      {hasInFlight ? (
-        <Icon
-          name="loader-circle"
-          size={16}
-          className="tmn-activity__chip-spinner"
-          aria-hidden="true"
-        />
-      ) : (
-        <Icon
-          name="check-circle-2"
-          size={16}
-          className="tmn-activity__chip-check"
-          aria-hidden="true"
-        />
-      )}
-      {totalCount > 1 && (
-        <span className="tmn-activity__chip-count" aria-label={`${totalCount} activities`}>
-          {totalCount}
+    <div className="tmn-activity__chip-wrapper">
+      <button
+        type="button"
+        className="tmn-activity__chip"
+        onClick={() => setExpanded(true)}
+        aria-label={`AI activity${totalCount > 1 ? ` — ${totalCount} items` : ''}: ${chipLabel}`}
+      >
+        {hasInFlight ? (
+          <Icon
+            name="loader-circle"
+            size={16}
+            className="tmn-activity__chip-spinner"
+            aria-hidden="true"
+          />
+        ) : (
+          <Icon
+            name="check-circle-2"
+            size={16}
+            className="tmn-activity__chip-check"
+            aria-hidden="true"
+          />
+        )}
+        {totalCount > 1 && (
+          <span className="tmn-activity__chip-count" aria-label={`${totalCount} activities`}>
+            {totalCount}
+          </span>
+        )}
+        <span aria-live="polite" className="tmn-activity__chip-label">
+          {chipLabel}
         </span>
-      )}
-      <span aria-live="polite" className="tmn-activity__chip-label">
-        {chipLabel}
-      </span>
-    </button>
+      </button>
+      <button
+        type="button"
+        className="tmn-activity__chip-dismiss"
+        aria-label="Dismiss activity"
+        onClick={handleDismiss}
+      >
+        <Icon name="x" size={12} aria-hidden="true" />
+      </button>
+    </div>
   );
 }

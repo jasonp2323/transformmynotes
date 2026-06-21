@@ -20,11 +20,21 @@
    Chip (collapsed state) — fixed bottom-right
    -------------------------------------------------------------------------- */
 
-.tmn-activity__chip {
+/* Wrapper positions both the chip button and the dismiss button together. */
+.tmn-activity__chip-wrapper {
   position: fixed;
-  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  /* Raised above the note-view FAB (56 px tall, bottom ~20 px) to avoid overlap. */
+  bottom: calc(var(--space-4) + 64px + env(safe-area-inset-bottom, 0px));
   right: var(--space-4);
   z-index: 50;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.tmn-activity__chip {
+  position: static;
 
   display: inline-flex;
   align-items: center;
@@ -95,13 +105,37 @@
   white-space: nowrap;
 }
 
+/* Dismiss (×) button rendered next to the chip */
+.tmn-activity__chip-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-soft),
+              color var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-activity__chip-dismiss:hover {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+}
+
 /* --------------------------------------------------------------------------
    Panel (expanded state) — fixed bottom-right
    -------------------------------------------------------------------------- */
 
 .tmn-activity__panel {
   position: fixed;
-  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  /* Raised above the note-view FAB (56 px tall, bottom ~20 px) to avoid overlap. */
+  bottom: calc(var(--space-4) + 64px + env(safe-area-inset-bottom, 0px));
   right: var(--space-4);
   z-index: 50;
 
