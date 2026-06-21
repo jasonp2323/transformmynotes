@@ -1,5 +1,5 @@
 ---
-name: brainstorming
+name: brainstorm
 description: Turn a rough idea into a validated design and decomposed GitHub milestone(s) before writing any code. Use at the start of any non-trivial feature OR a brand-new application. It runs in two modes — a single capability → one milestone (epic Mx → phases Mx.x → parallel subtasks Mx.x.x), or a whole-app idea → a planned program of multiple milestones with a roadmap. Assumes a fixed AWS-serverless / Next.js / SST v4 / GitHub Actions / serverless-DynamoDB stack, so it never re-litigates the stack.
 ---
 

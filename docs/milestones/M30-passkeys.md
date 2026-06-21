@@ -46,5 +46,5 @@ the MFA foundation from M29.
 
 ## Next step
 
-When the team decides to pay for Essentials and migrate the auth flow, run the brainstorming skill
+When the team decides to pay for Essentials and migrate the auth flow, run the brainstorm skill
 (Mode A) against this outline to produce the full phase/subtask decomposition and the GitHub epic.
