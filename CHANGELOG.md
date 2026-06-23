@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.98.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.0...transformmynotes-v1.98.1) (2026-06-21)
+
+
+### 🐛 Fixes
+
+* **application:** flashcard cancel discards set, resilient polling & dismissable AI activity chip ([#701](https://github.com/jasonp2323/transformmynotes/issues/701)) ([49221e5](https://github.com/jasonp2323/transformmynotes/commit/49221e5d17e93573813b6d5d3b9e492fb4e42113)), closes [#579](https://github.com/jasonp2323/transformmynotes/issues/579) [#698](https://github.com/jasonp2323/transformmynotes/issues/698)
+* study-guide language, marketing 404 redirect & mobile admin UI ([#568](https://github.com/jasonp2323/transformmynotes/issues/568), [#566](https://github.com/jasonp2323/transformmynotes/issues/566), [#530](https://github.com/jasonp2323/transformmynotes/issues/530)) ([fa91b24](https://github.com/jasonp2323/transformmynotes/commit/fa91b2450b56546d2d7f3589bcf468aac5300839))
+
+
+### 📝 Documentation
+
+* **milestones:** add M29 MFA (TOTP + remembered devices) spec and M30 passkey outline ([#697](https://github.com/jasonp2323/transformmynotes/issues/697)) ([3abcfcc](https://github.com/jasonp2323/transformmynotes/commit/3abcfcc5d8c05752b3fe0a725b2e6d639ae3471c))
+
 ## [1.98.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.97.0...transformmynotes-v1.98.0) (2026-06-20)
 
 
