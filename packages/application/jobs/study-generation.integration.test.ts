@@ -165,7 +165,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
       }),
     );
 
-    const getDocumentMarkdownSpy = vi.fn().mockResolvedValue('# Document content');
+    const getDocumentMarkdownSpy = vi
+      .fn()
+      .mockResolvedValue({ text: '# Document content', contentTrust: 'user-authored' });
     const getNoteMarkdownSpy = vi.fn();
 
     let capturedJson = '';
@@ -222,7 +224,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
     );
 
     const getNoteMarkdownSpy = vi.fn().mockResolvedValue('# Note body');
-    const getDocumentMarkdownSpy = vi.fn().mockResolvedValue('# Doc body');
+    const getDocumentMarkdownSpy = vi
+      .fn()
+      .mockResolvedValue({ text: '# Doc body', contentTrust: 'user-authored' });
 
     const result = await processStudyGeneration(sub, studySetId, {
       getNoteMarkdown: getNoteMarkdownSpy,
@@ -312,7 +316,9 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
 
     const result = await processStudyGeneration(sub, studySetId, {
       getNoteMarkdown: vi.fn(),
-      getDocumentMarkdown: vi.fn().mockResolvedValue(largeDocBody),
+      getDocumentMarkdown: vi
+        .fn()
+        .mockResolvedValue({ text: largeDocBody, contentTrust: 'user-authored' }),
       generate: generateSpy,
       putBody: vi.fn().mockResolvedValue(undefined),
       createActivity: vi.fn().mockResolvedValue(undefined),
@@ -332,6 +338,88 @@ describe('processStudyGeneration — document sources (M20.3)', () => {
     // Confirm mapReduce flag persisted in DynamoDB
     const after = await getStudySet(sub, studySetId);
     expect(after!.mapReduce).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M21 — contentTrust threading (prompt-injection guard for web-fetched sources)
+// ---------------------------------------------------------------------------
+
+describe('processStudyGeneration — M21 contentTrust threading', () => {
+  it("passes contentTrust 'web-fetched' to generate() when a document source resolves as web-fetched", async () => {
+    const sub = `sub-trust-web-${rand()}`;
+    const studySetId = `set-trust-web-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: [],
+        sourceRefs: [{ type: 'document', id: 'web-doc-1' }],
+        type: 'flashcards',
+        title: 'Web Source Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    const generateSpy = vi
+      .fn()
+      .mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn(),
+      getDocumentMarkdown: vi
+        .fn()
+        .mockResolvedValue({ text: '# Web article', contentTrust: 'web-fetched' }),
+      generate: generateSpy,
+      putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(generateSpy).toHaveBeenCalledOnce();
+    expect(generateSpy.mock.calls[0]![0]).toMatchObject({ contentTrust: 'web-fetched' });
+  });
+
+  it("does NOT pass contentTrust 'web-fetched' for a note-only set", async () => {
+    const sub = `sub-trust-note-${rand()}`;
+    const studySetId = `set-trust-note-${rand()}`;
+
+    await putStudySet(
+      buildStudySetItem({
+        sub,
+        studySetId,
+        sourceNoteIds: ['note-trust-1'],
+        type: 'flashcards',
+        title: 'Note Only Set',
+        status: 'queued',
+        language: 'auto',
+        model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+        createdAt: '2024-06-10T00:00:00.000Z',
+      }),
+    );
+
+    const generateSpy = vi
+      .fn()
+      .mockResolvedValue({ payload: { cards: [] }, promptVersion: 'v1' });
+
+    const result = await processStudyGeneration(sub, studySetId, {
+      getNoteMarkdown: vi.fn().mockResolvedValue('# Note body'),
+      generate: generateSpy,
+      putBody: vi.fn().mockResolvedValue(undefined),
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.outcome).toBe('ready');
+    expect(generateSpy).toHaveBeenCalledOnce();
+    expect(generateSpy.mock.calls[0]![0].contentTrust).toBeUndefined();
   });
 });
 
