@@ -3,7 +3,7 @@ import { verifyIdToken } from '@/lib/verify-id-token';
 import { isAdmin } from '@/lib/auth-gate';
 import { AppShell } from '@/src/components/shells';
 import { LibraryNotes } from '@/src/components/note/LibraryNotes';
-import { CaptureFab } from '@/src/components/note/CaptureFab';
+import { LibraryCreateMenu } from '@/src/components/note/LibraryCreateMenu';
 import { DueCountGreeting } from '@/src/components/review/DueCountGreeting';
 import { getPendingAccessRequestCount } from '@/lib/pending-count';
 
@@ -30,7 +30,7 @@ export default async function DashboardPage({
   const pendingCount = adminUser ? await getPendingAccessRequestCount().catch(() => 0) : undefined;
 
   return (
-    <AppShell active="library" title="Library" userName={who} isAdmin={adminUser} pendingCount={pendingCount} fab={<CaptureFab />}>
+    <AppShell active="library" title="Library" userName={who} isAdmin={adminUser} pendingCount={pendingCount} fab={<LibraryCreateMenu variant="fab" />} actions={<LibraryCreateMenu variant="bar" />}>
       <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto">
         {searchParams.forbidden === '1' && (
           <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
