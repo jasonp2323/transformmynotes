@@ -23,6 +23,7 @@ const NAV_ITEMS: BottomNavItem[] = [
   { id: 'library',  icon: 'book-open',      label: 'Library',  href: '/dashboard' },
   { id: 'review',   icon: 'layers',         label: 'Review',   href: '/review' },
   { id: 'study',    icon: 'graduation-cap', label: 'Study',    href: '/study' },
+  { id: 'sources',  icon: 'file-text',      label: 'Sources',  href: '/sources' },
   { id: 'progress', icon: 'trending-up',    label: 'Progress', href: '/progress' },
   { id: 'profile',  icon: 'user',           label: 'You',      href: '/account' },
 ];

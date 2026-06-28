@@ -85,10 +85,15 @@ export interface ProcessStudyDeps {
    */
   getNoteMarkdown: (sub: string, noteId: string) => Promise<string>;
   /**
-   * Fetch a document source's extracted text.
+   * Fetch a document source's extracted text and its trust signal.
    * Default: calls `resolveSourceText(sub, { type: 'document', id })` from core.
+   * `contentTrust` is `'web-fetched'` for M21 web-article sources (gating the LLM
+   * injection guard) and `'user-authored'` for uploaded PDFs/DOCX.
    */
-  getDocumentMarkdown: (sub: string, sourceId: string) => Promise<string>;
+  getDocumentMarkdown: (
+    sub: string,
+    sourceId: string,
+  ) => Promise<{ text: string; contentTrust: 'user-authored' | 'web-fetched' }>;
   /**
    * Generate the study material payload.
    * Default: `generateStudyMaterial` from `@transformmynotes/core`.
@@ -99,6 +104,7 @@ export interface ProcessStudyDeps {
     noteTitle: string;
     language: StudyLanguage;
     learnerContext?: string;
+    contentTrust?: 'user-authored' | 'web-fetched';
     phase?: 'map' | 'reduce';
     candidates?: RawCandidate[];
     maxTokensOverride?: number;
@@ -130,9 +136,12 @@ async function defaultGetNoteMarkdown(sub: string, noteId: string): Promise<stri
   return response.Body!.transformToString();
 }
 
-async function defaultGetDocumentMarkdown(sub: string, sourceId: string): Promise<string> {
+async function defaultGetDocumentMarkdown(
+  sub: string,
+  sourceId: string,
+): Promise<{ text: string; contentTrust: 'user-authored' | 'web-fetched' }> {
   const resolved = await resolveSourceText(sub, { type: 'document', id: sourceId });
-  return resolved.text;
+  return { text: resolved.text, contentTrust: resolved.contentTrust };
 }
 
 async function defaultPutBody(sub: string, studySetId: string, json: string): Promise<void> {
@@ -269,14 +278,27 @@ export async function processStudyGeneration(
     const noteBodies = await Promise.all(
       refs.map(async (ref) => {
         if (ref.type === 'note') {
-          return { noteId: ref.id, body: await getNoteMarkdown(sub, ref.id) };
+          return {
+            noteId: ref.id,
+            body: await getNoteMarkdown(sub, ref.id),
+            contentTrust: 'user-authored' as const,
+          };
         }
         if (ref.type === 'document') {
-          return { noteId: ref.id, body: await getDocumentMarkdown(sub, ref.id) };
+          const resolved = await getDocumentMarkdown(sub, ref.id);
+          return { noteId: ref.id, body: resolved.text, contentTrust: resolved.contentTrust };
         }
         throw new Error('web sources are not supported yet');
       }),
     );
+
+    // Aggregate trust across all resolved refs: if ANY source is web-fetched, the
+    // combined content is untrusted and must be sent with the LLM injection guard
+    // (M21). Omitted (undefined) when nothing is web-fetched so note-only and
+    // uploaded-document generation behave exactly as before.
+    const contentTrust = noteBodies.some((n) => n.contentTrust === 'web-fetched')
+      ? ('web-fetched' as const)
+      : undefined;
 
     // Allowed ids for provenance: the ref ids (note or document) in resolved order.
     const allowedIds = refs.map((r) => r.id);
@@ -331,6 +353,7 @@ export async function processStudyGeneration(
         noteTitle: studySet.title,
         language: studySet.language,
         learnerContext: studySet.learnerContext,
+        contentTrust,
         onDelta,
       });
 
@@ -378,6 +401,7 @@ export async function processStudyGeneration(
         noteTitle: studySet.title,
         language: studySet.language,
         learnerContext: studySet.learnerContext,
+        contentTrust,
         phase: 'map',
         maxTokensOverride: 2048,
       });
@@ -424,6 +448,7 @@ export async function processStudyGeneration(
       noteTitle: studySet.title,
       language: studySet.language,
       learnerContext: studySet.learnerContext,
+      contentTrust,
       phase: 'reduce',
       candidates: deduped,
       onDelta,
