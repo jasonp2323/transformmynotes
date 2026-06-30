@@ -10,7 +10,7 @@ import {
 const accountId = aws.getCallerIdentityOutput({}).accountId;
 
 // The BEDROCK_MODEL_ID secret is a cross-region inference profile id (e.g.
-// "us.anthropic.claude-3-5-sonnet-20241022-v2:0"). Strip the region prefix
+// "us.anthropic.claude-sonnet-4-5-20250929-v1:0"). Strip the region prefix
 // ("us.", "eu.", "apac.") to recover the underlying foundation-model id used in
 // the per-region foundation-model ARNs. If no prefix is present the id is used
 // as-is (a bare foundation-model id still works for both ARNs).
