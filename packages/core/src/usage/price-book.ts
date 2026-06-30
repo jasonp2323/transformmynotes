@@ -2,11 +2,14 @@
  * Price book defaults and model-price resolution (M23).
  *
  * Rates used in DEFAULT_PRICE_BOOK:
- *  - Claude 3.5 Sonnet (us-east-1 cross-region inference profile):
+ *  - Claude Sonnet 4.5 (us-east-1 cross-region inference profile) — the current
+ *    primary model. The previous primary, Claude 3.5 Sonnet v2, was retired /
+ *    reached EOL by AWS Bedrock and is kept here only as a legacy entry for
+ *    historical usage records.
  *    $0.003 / 1k input tokens, $0.015 / 1k output tokens.
- *    Source: https://aws.amazon.com/bedrock/pricing/ (Claude 3.5 Sonnet v2,
- *    On-Demand, us-east-1, as of 2025-06). The `us.*` cross-region inference
- *    profile routes to the same model and uses the same on-demand token rates.
+ *    Source: https://aws.amazon.com/bedrock/pricing/ (Claude Sonnet 4.5,
+ *    On-Demand, us-east-1). The `us.*` cross-region inference profile routes to
+ *    the same model and uses the same on-demand token rates.
  *  - S3 Standard storage: $0.023 / GB-month.
  *    Source: https://aws.amazon.com/s3/pricing/ (S3 Standard, us-east-1).
  */
@@ -15,20 +18,42 @@ import type { PriceBook, ModelPrice } from './types.js';
 
 /**
  * The Bedrock cross-region inference profile the app currently uses as its
- * primary model (locked in `AI_MODEL_ALLOWLIST` in `study/config.ts`).
- * Listed explicitly as a key in the default price book so lookups are exact.
+ * primary model (Claude Sonnet 4.5, locked in `AI_MODEL_ALLOWLIST` in
+ * `study/config.ts`). Listed explicitly as a key in the default price book so
+ * lookups are exact.
  */
-const CLAUDE_35_SONNET_V2_US =
-  'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
+const CLAUDE_SONNET_45_US = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
 
 /**
  * Bare foundation-model id alias for the same model, kept as a secondary key
  * in case any records were written before the cross-region profile was enforced.
  */
+const CLAUDE_SONNET_45_BASE = 'anthropic.claude-sonnet-4-5-20250929-v1:0';
+
+/**
+ * Claude Sonnet 4.5 on-demand token rates (USD per 1,000 tokens).
+ * Source: AWS Bedrock pricing page, us-east-1.
+ */
+const SONNET_45_RATES: ModelPrice = {
+  inputPer1k: 0.003,  // $0.003 / 1k input tokens
+  outputPer1k: 0.015, // $0.015 / 1k output tokens
+};
+
+/**
+ * LEGACY: the previous primary model (Claude 3.5 Sonnet v2), retired / EOL by
+ * AWS Bedrock. Kept only so historical usage records written against it still
+ * resolve to a price — never used for new generations.
+ */
+const CLAUDE_35_SONNET_V2_US =
+  'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
+
+/**
+ * Bare foundation-model id alias for the legacy Claude 3.5 Sonnet v2 model.
+ */
 const CLAUDE_35_SONNET_V2_BASE = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 
 /**
- * Claude 3.5 Sonnet v2 on-demand token rates (USD per 1,000 tokens).
+ * Claude 3.5 Sonnet v2 on-demand token rates (USD per 1,000 tokens). Legacy.
  * Source: AWS Bedrock pricing page, us-east-1, as of 2025-06.
  */
 const SONNET_35_V2_RATES: ModelPrice = {
@@ -45,18 +70,24 @@ const SONNET_35_V2_RATES: ModelPrice = {
  */
 export const DEFAULT_PRICE_BOOK: PriceBook = {
   models: {
-    // Primary model — cross-region inference profile (production + CI)
+    // Primary model — Claude Sonnet 4.5 cross-region inference profile
+    // (production + CI).
+    [CLAUDE_SONNET_45_US]: SONNET_45_RATES,
+    // Bare foundation-model id alias for the primary model.
+    [CLAUDE_SONNET_45_BASE]: SONNET_45_RATES,
+    // LEGACY: Claude 3.5 Sonnet v2 (retired/EOL) — kept so historical usage
+    // records still resolve to a price.
     [CLAUDE_35_SONNET_V2_US]: SONNET_35_V2_RATES,
-    // Bare foundation-model id alias (legacy records / test env)
     [CLAUDE_35_SONNET_V2_BASE]: SONNET_35_V2_RATES,
   },
   /**
    * Fallback rate for any model id not present in `models`.
-   * Defaults to Sonnet 3.5 v2 rates — a conservative overestimate for cheaper
-   * models, an underestimate for more expensive ones, but safe enough for an
+   * Defaults to Sonnet 4.5 rates (numerically identical to the old Sonnet 3.5
+   * v2 fallback) — a conservative overestimate for cheaper models, an
+   * underestimate for more expensive ones, but safe enough for an
    * "unrecognized model" guard. The `unpriced: true` flag surfaces this.
    */
-  defaultModel: SONNET_35_V2_RATES,
+  defaultModel: SONNET_45_RATES,
   /**
    * S3 Standard storage rate.
    * Source: https://aws.amazon.com/s3/pricing/ (us-east-1, first 50 TB / month).

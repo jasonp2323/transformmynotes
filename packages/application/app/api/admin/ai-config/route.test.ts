@@ -13,7 +13,7 @@ const bustAiConfigCacheMock = vi.hoisted(() => vi.fn());
 const buildSecretDefaultsMock = vi.hoisted(() => vi.fn(() => ({
   baseSystemPrompt: 'DEFAULT BASE',
   promptOverrides: { flashcards: 'DEF FC' },
-  modelId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  modelId: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
   modelOverrides: {},
   maxTokens: 4096,
   temperature: 0.5,
@@ -62,7 +62,7 @@ import { GET, PUT } from './route';
 const ADMIN = { sub: 'admin-1', claims: {} };
 
 const VALID_CONFIG = {
-  modelId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  modelId: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
   baseSystemPrompt: 'You are a helpful study assistant.',
   maxTokens: 4096,
   temperature: 0.5,
