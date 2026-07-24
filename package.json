@@ -21,13 +21,13 @@
     "test:e2e:application": "playwright test --config playwright.application.config.ts"
   },
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.1067.0",
-    "@axe-core/playwright": "^4.11.3",
-    "@playwright/test": "^1.49.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1094.0",
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
     "@types/s3rver": "^3.7.4",
     "cognito-local": "^5.3.0",
     "s3rver": "^3.7.1",
-    "sst": "^4.15.2",
+    "sst": "^4.17.1",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"
   }
