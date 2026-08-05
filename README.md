@@ -8,6 +8,17 @@ invite- and approval-gated with an admin panel. The application also supports co
 a spaced-repetition review deck, shared notes, and an AI study-material suite (flashcards, quizzes,
 summaries, and study guides) generated from notes and ingested documents.
 
+## Architecture at a glance
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/architecture-light.svg">
+  <img alt="TransformMyNotes architecture: browser and Android clients reach a single CloudFront router that fronts the marketing and application Next.js apps; the application authenticates via Cognito, persists to a single-table DynamoDB and an S3 bucket, and DynamoDB streams drive Lambda consumers that call Amazon Bedrock and Polly." src="docs/architecture-light.svg">
+</picture>
+
+See the [`## Architecture`](#architecture) section below for the detailed access patterns and
+`CLAUDE.md` for the full conventions this diagram summarizes.
+
 ---
 
 ## Features

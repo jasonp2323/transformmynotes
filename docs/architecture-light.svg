@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1030" width="1240" height="1030" role="img" aria-labelledby="title desc">
+<title id="title">TransformMyNotes cloud and application architecture</title>
+<desc id="desc">Browser and Android clients reach a single Amazon CloudFront router (behind Cloudflare DNS) that fronts two Next.js apps: the public Marketing site and the authenticated Application. The Application verifies JWTs against Amazon Cognito, reads and writes a single-table DynamoDB and an S3 bucket, and calls Amazon Bedrock for OCR and Amazon Polly for text-to-speech. DynamoDB Streams drive Lambda consumers (study-material generation, source extraction, usage and progress aggregation, scheduled crons) and the study-generation consumer also calls Bedrock. Resend sends transactional email and SSM Parameter Store holds secrets. GitHub Actions deploys via OIDC to AWS using SST.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0,0 L10,5 L0,10 z" class="arrowhead"/>
+</marker>
+</defs>
+<style>
+.bg{fill:#ffffff}
+.band{fill:#f6f8fa;stroke:#d0d7de;stroke-width:1}
+.band-heading{fill:#59636e;font-size:13px;font-weight:600;letter-spacing:1px}
+.title{fill:#1f2328;font-size:22px;font-weight:700}
+.subtitle{fill:#59636e;font-size:13px}
+.node-title{fill:#1f2328;font-size:14px;font-weight:600}
+.node-sub{fill:#59636e;font-size:12px}
+.node-base{fill:#ffffff;stroke:#d0d7de;stroke-width:1.25}
+.node-aws{fill:#ffffff;stroke:#b7590a;stroke-width:1.25}
+.node-amber{fill:#ffffff;stroke:#9a6700;stroke-width:1.25}
+.node-auth{fill:#ffffff;stroke:#8250df;stroke-width:1.25}
+.node-data{fill:#ffffff;stroke:#0969da;stroke-width:1.25}
+.node-lambda{fill:#ffffff;stroke:#1a7f37;stroke-width:1.25}
+.node-external{fill:#ffffff;stroke:#6e7781;stroke-width:1.25}
+.chip-aws{fill:#fff4e6}
+.arrow{fill:none;stroke:#6e7781;stroke-width:1.5}
+.arrow-label{fill:#57606a;font-size:12px}
+.arrowhead{fill:#6e7781}
+</style>
+<rect class="bg" x="0" y="0" width="1240" height="1030"/>
+<g font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+
+<text id="diagram-title" x="620" y="34" text-anchor="middle" class="title">TransformMyNotes — cloud &amp; application architecture</text>
+<text x="620" y="54" text-anchor="middle" class="subtitle">AWS us-east-1 · SST v4 (Pulumi) · Next.js App Router</text>
+
+<!-- BAND 1: CLIENTS -->
+<rect class="band" x="20" y="70" width="1200" height="114" rx="14"/>
+<text x="36" y="90" class="band-heading">CLIENTS</text>
+<rect class="node-external" x="300" y="104" width="280" height="64" rx="8"/>
+<text x="440" y="128" text-anchor="middle" class="node-title">Mobile / desktop browser</text>
+<text x="440" y="148" text-anchor="middle" class="node-sub">Next.js App Router UI</text>
+<rect class="node-external" x="660" y="104" width="280" height="64" rx="8"/>
+<text x="800" y="128" text-anchor="middle" class="node-title">Android app</text>
+<text x="800" y="146" text-anchor="middle" class="node-sub">Capacitor WebView shell</text>
+<text x="800" y="162" text-anchor="middle" class="node-sub">wraps app.transformmynotes.com</text>
+
+<!-- BAND 2: EDGE & DNS -->
+<rect class="band" x="20" y="200" width="1200" height="114" rx="14"/>
+<text x="36" y="220" class="band-heading">EDGE &amp; DNS</text>
+<rect class="node-amber" x="140" y="234" width="300" height="64" rx="8"/>
+<text x="290" y="258" text-anchor="middle" class="node-title">Cloudflare DNS</text>
+<text x="290" y="278" text-anchor="middle" class="node-sub">proxied (prod) · DNS-only (pr-&lt;N&gt;)</text>
+<rect class="node-aws" x="470" y="234" width="300" height="64" rx="8"/>
+<rect class="chip-aws" x="748" y="246" width="8" height="8" rx="2"/>
+<text x="620" y="258" text-anchor="middle" class="node-title">Amazon CloudFront</text>
+<text x="620" y="276" text-anchor="middle" class="node-sub">single sst.aws.Router</text>
+<text x="620" y="292" text-anchor="middle" class="node-sub">ACM cert · us-east-1</text>
+<text x="455" y="226" text-anchor="middle" class="arrow-label">resolves</text>
+
+<!-- BAND 3: WEB TIER -->
+<rect class="band" x="20" y="330" width="1200" height="134" rx="14"/>
+<text x="36" y="350" class="band-heading">WEB TIER (AWS LAMBDA + S3 ASSETS)</text>
+<rect class="node-aws" x="40" y="364" width="280" height="84" rx="8"/>
+<rect class="chip-aws" x="298" y="376" width="8" height="8" rx="2"/>
+<text x="180" y="388" text-anchor="middle" class="node-title">Marketing site</text>
+<text x="180" y="404" text-anchor="middle" class="node-sub">Next.js · no auth, no DB</text>
+<rect class="node-aws" x="340" y="364" width="560" height="84" rx="8"/>
+<rect class="chip-aws" x="878" y="376" width="8" height="8" rx="2"/>
+<text x="620" y="388" text-anchor="middle" class="node-title">Application</text>
+<text x="620" y="404" text-anchor="middle" class="node-sub">Next.js · proxy.ts JWT middleware</text>
+<text x="620" y="420" text-anchor="middle" class="node-sub">/api: transcribe · notes · study</text>
+<text x="620" y="436" text-anchor="middle" class="node-sub">sources · audio · admin · progress</text>
+<rect class="node-auth" x="920" y="364" width="260" height="84" rx="8"/>
+<text x="1050" y="388" text-anchor="middle" class="node-title">Amazon Cognito</text>
+<text x="1050" y="404" text-anchor="middle" class="node-sub">user pool · invite-only</text>
+<text x="1050" y="420" text-anchor="middle" class="node-sub">post-confirmation Lambda trigger</text>
+<text x="1050" y="436" text-anchor="middle" class="node-sub">Amplify Auth ↔ aws-jwt-verify</text>
+<text x="400" y="331" text-anchor="middle" class="arrow-label">apex</text>
+<text x="636" y="331" text-anchor="middle" class="arrow-label">app.</text>
+<text x="970" y="452" text-anchor="middle" class="arrow-label">verify JWT</text>
+
+<!-- BAND 4: DATA -->
+<rect class="band" x="20" y="480" width="1200" height="150" rx="14"/>
+<text x="36" y="500" class="band-heading">DATA (SINGLE-TABLE DYNAMODB + S3)</text>
+<rect class="node-data" x="200" y="514" width="380" height="100" rx="8"/>
+<text x="390" y="538" text-anchor="middle" class="node-title">DynamoDB</text>
+<text x="390" y="554" text-anchor="middle" class="node-sub">UserData · Invites · Groups</text>
+<text x="390" y="570" text-anchor="middle" class="node-sub">Notes (GSI1–GSI9)</text>
+<text x="390" y="586" text-anchor="middle" class="node-sub">Usage · StudyEvents</text>
+<text x="390" y="602" text-anchor="middle" class="node-sub">streams: new-and-old-images</text>
+<rect class="node-data" x="660" y="514" width="360" height="100" rx="8"/>
+<text x="840" y="538" text-anchor="middle" class="node-title">S3 — NotesBucket</text>
+<text x="840" y="554" text-anchor="middle" class="node-sub">images/ · markdown/</text>
+<text x="840" y="570" text-anchor="middle" class="node-sub">study/ · sources/</text>
+<text x="840" y="586" text-anchor="middle" class="node-sub">presigned direct upload</text>
+<text x="460" y="475" text-anchor="middle" class="arrow-label">read / write</text>
+<text x="760" y="475" text-anchor="middle" class="arrow-label">presigned URL</text>
+
+<!-- BAND 5: ASYNC -->
+<rect class="band" x="20" y="646" width="1200" height="118" rx="14"/>
+<text x="36" y="666" class="band-heading">ASYNC (DYNAMODB STREAMS → LAMBDA · EVENTBRIDGE CRONS)</text>
+<rect class="node-lambda" x="40" y="680" width="260" height="68" rx="8"/>
+<text x="170" y="704" text-anchor="middle" class="node-title">StudyGenerationConsumer</text>
+<text x="170" y="720" text-anchor="middle" class="node-sub">Notes stream</text>
+<rect class="node-lambda" x="320" y="680" width="260" height="68" rx="8"/>
+<text x="450" y="704" text-anchor="middle" class="node-title">SourceExtractionConsumer</text>
+<text x="450" y="720" text-anchor="middle" class="node-sub">PDF · DOCX · EPUB</text>
+<rect class="node-lambda" x="660" y="680" width="150" height="68" rx="8"/>
+<text x="735" y="704" text-anchor="middle" class="node-title">UsageAggregator</text>
+<text x="735" y="720" text-anchor="middle" class="node-sub">Usage stream</text>
+<rect class="node-lambda" x="826" y="680" width="180" height="68" rx="8"/>
+<text x="916" y="704" text-anchor="middle" class="node-title">ProgressAggregator</text>
+<text x="916" y="720" text-anchor="middle" class="node-sub">StudyEvents stream</text>
+<rect class="node-lambda" x="1022" y="680" width="150" height="68" rx="8"/>
+<text x="1097" y="704" text-anchor="middle" class="node-title">Crons</text>
+<text x="1097" y="720" text-anchor="middle" class="node-sub">StorageSnapshot</text>
+<text x="1097" y="736" text-anchor="middle" class="node-sub">ProgressFinalize</text>
+<text x="400" y="650" text-anchor="middle" class="arrow-label">streams</text>
+
+<!-- BAND 6: AI & EXTERNAL SERVICES -->
+<rect class="band" x="20" y="780" width="1200" height="118" rx="14"/>
+<text x="36" y="800" class="band-heading">AI &amp; EXTERNAL SERVICES</text>
+<rect class="node-aws" x="40" y="814" width="260" height="68" rx="8"/>
+<rect class="chip-aws" x="278" y="826" width="8" height="8" rx="2"/>
+<text x="170" y="838" text-anchor="middle" class="node-title">Amazon Bedrock Converse</text>
+<text x="170" y="854" text-anchor="middle" class="node-sub">Claude vision → OCR (pt-BR)</text>
+<text x="170" y="870" text-anchor="middle" class="node-sub">tool-use → study materials</text>
+<rect class="node-aws" x="320" y="814" width="260" height="68" rx="8"/>
+<rect class="chip-aws" x="558" y="826" width="8" height="8" rx="2"/>
+<text x="450" y="838" text-anchor="middle" class="node-title">Amazon Polly</text>
+<text x="450" y="854" text-anchor="middle" class="node-sub">pt-BR TTS audio</text>
+<rect class="node-external" x="660" y="814" width="180" height="68" rx="8"/>
+<text x="750" y="838" text-anchor="middle" class="node-title">Resend</text>
+<text x="750" y="854" text-anchor="middle" class="node-sub">Transactional email</text>
+<rect class="node-external" x="856" y="814" width="150" height="68" rx="8"/>
+<text x="931" y="838" text-anchor="middle" class="node-title">Turnstile</text>
+<text x="931" y="854" text-anchor="middle" class="node-sub">bot protection</text>
+<rect class="node-aws" x="1022" y="814" width="170" height="68" rx="8"/>
+<rect class="chip-aws" x="1170" y="826" width="8" height="8" rx="2"/>
+<text x="1107" y="838" text-anchor="middle" class="node-title">Parameter Store</text>
+<text x="1107" y="854" text-anchor="middle" class="node-sub">sst.Secret values</text>
+<text x="180" y="781" text-anchor="middle" class="arrow-label">invoke</text>
+<text x="390" y="794" text-anchor="middle" class="arrow-label">OCR</text>
+<text x="540" y="798" text-anchor="middle" class="arrow-label">TTS</text>
+
+<!-- BAND 7: CI / CD -->
+<rect class="band" x="20" y="914" width="1200" height="98" rx="14"/>
+<text x="36" y="934" class="band-heading">CI / CD</text>
+<rect class="node-external" x="40" y="948" width="1160" height="48" rx="8"/>
+<text x="620" y="972" text-anchor="middle" class="node-title">GitHub Actions → OIDC → AWS · SST deploy</text>
+<text x="620" y="988" text-anchor="middle" class="node-sub">push master → production · PR → pr-&lt;N&gt; stage</text>
+
+<!-- ARROWS -->
+<line class="arrow" x1="440" y1="168" x2="550" y2="234" marker-end="url(#arrow)"/>
+<line class="arrow" x1="800" y1="168" x2="690" y2="234" marker-end="url(#arrow)"/>
+<line class="arrow" x1="440" y1="266" x2="470" y2="266" marker-end="url(#arrow)"/>
+<line class="arrow" x1="500" y1="298" x2="300" y2="364" marker-end="url(#arrow)"/>
+<line class="arrow" x1="620" y1="298" x2="620" y2="364" marker-end="url(#arrow)"/>
+<polyline class="arrow" points="890,448 890,458 1050,458 1050,448" marker-end="url(#arrow)"/>
+<line class="arrow" x1="560" y1="448" x2="390" y2="514" marker-end="url(#arrow)"/>
+<line class="arrow" x1="680" y1="448" x2="840" y2="514" marker-end="url(#arrow)"/>
+<line class="arrow" x1="390" y1="614" x2="390" y2="680" marker-end="url(#arrow)"/>
+<line class="arrow" x1="170" y1="748" x2="170" y2="814" marker-end="url(#arrow)"/>
+<polyline class="arrow" points="610,448 610,800 170,800 170,814" marker-end="url(#arrow)"/>
+<polyline class="arrow" points="630,448 630,806 450,806 450,814" marker-end="url(#arrow)"/>
+
+</g>
+</svg>
