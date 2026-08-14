@@ -8,6 +8,11 @@ invite- and approval-gated with an admin panel. The application also supports co
 a spaced-repetition review deck, shared notes, and an AI study-material suite (flashcards, quizzes,
 summaries, and study guides) generated from notes and ingested documents.
 
+<p align="center">
+  <img src="docs/architecture.svg" alt="TransformMyNotes architecture: Cloudflare DNS and a single CloudFront Router fronting the marketing and authed Next.js apps, with Cognito auth, DynamoDB single-table storage, S3, DynamoDB-Stream Lambda consumers, and Amazon Bedrock/Polly." width="100%">
+</p>
+<p align="center"><sub>See <a href="#architecture">Architecture</a> for detail.</sub></p>
+
 ---
 
 ## Features

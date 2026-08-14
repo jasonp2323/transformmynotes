@@ -1,0 +1,322 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1600" width="1400" height="1600" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title id="title">TransformMyNotes system architecture</title>
+  <desc id="desc">Clients (marketing browser, authed browser, Android app) reach a single Cloudflare-DNS-fronted CloudFront Router that splits traffic to two Next.js apps: public Marketing and authed Application. Application is protected by AWS Cognito auth and shares the core library with background jobs. Data lives in a DynamoDB single-table design (Notes table with GSI1-GSI9, plus UserData, Invites, Groups, Usage, StudyEvents) and an S3 bucket. DynamoDB Streams trigger Lambda consumers for async study-set generation, source extraction, and usage/progress aggregation, plus two daily crons. Amazon Bedrock, Polly, Resend and Cloudflare Turnstile are external managed services. GitHub Actions deploys via OIDC to AWS.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="8" y="8" width="1384" height="1584" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- title -->
+  <text x="700" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#0f172a">TransformMyNotes — System Architecture</text>
+  <text x="700" y="52" text-anchor="middle" font-size="13" fill="#64748b">Next.js on SST v4 / AWS · DynamoDB single-table design · event-driven jobs · Amazon Bedrock AI</text>
+
+  <!-- ============ CLIENTS ROW ============ -->
+  <g>
+    <rect x="60" y="66" width="400" height="80" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="260" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#334155">Browser</text>
+    <text x="260" y="112" text-anchor="middle" font-size="13" fill="#334155">Marketing site visitors</text>
+    <text x="260" y="131" text-anchor="middle" font-size="13" fill="#64748b" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">transformmynotes.com</text>
+
+    <rect x="500" y="66" width="400" height="80" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="700" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#334155">Browser</text>
+    <text x="700" y="112" text-anchor="middle" font-size="13" fill="#334155">Authed users (mobile-first web app)</text>
+    <text x="700" y="131" text-anchor="middle" font-size="13" fill="#64748b" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">app.transformmynotes.com</text>
+
+    <rect x="940" y="66" width="400" height="80" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="1140" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#334155">Android App</text>
+    <text x="1140" y="112" text-anchor="middle" font-size="13" fill="#334155">packages/mobile · Capacitor</text>
+    <text x="1140" y="131" text-anchor="middle" font-size="13" fill="#64748b">WebView wraps app.transformmynotes.com</text>
+  </g>
+
+  <!-- ============ EDGE ============ -->
+  <g>
+    <rect x="60" y="165" width="1280" height="95" rx="12" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.5"/>
+    <line x1="700" y1="185" x2="700" y2="245" stroke="#c7d2fe" stroke-width="1.5"/>
+    <text x="380" y="200" text-anchor="middle" font-size="15" font-weight="700" fill="#3730a3">Cloudflare DNS</text>
+    <text x="380" y="219" text-anchor="middle" font-size="13" fill="#3730a3">Proxied (orange-cloud) — production apex</text>
+    <text x="380" y="237" text-anchor="middle" font-size="13" fill="#3730a3">DNS-only (grey-cloud) — pr-&lt;N&gt; stages, for ACM</text>
+
+    <text x="1020" y="200" text-anchor="middle" font-size="15" font-weight="700" fill="#3730a3">CloudFront Router</text>
+    <text x="1020" y="219" text-anchor="middle" font-size="13" fill="#3730a3">sst.aws.Router — one distribution · us-east-1</text>
+    <text x="1020" y="237" text-anchor="middle" font-size="13" fill="#3730a3">apex → Marketing   |   app.* → Application</text>
+  </g>
+
+  <!-- ============ NEXT.JS APPS ============ -->
+  <g>
+    <rect x="60" y="275" width="1280" height="235" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="7,5"/>
+    <text x="1310" y="296" text-anchor="end" font-size="16" font-weight="700" fill="#1e3a8a">NEXT.JS APPLICATIONS — sst.aws.Nextjs (Lambda + CloudFront)</text>
+
+    <!-- Marketing -->
+    <rect x="90" y="310" width="300" height="170" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="240" y="337" text-anchor="middle" font-size="15" font-weight="700" fill="#1e3a8a">Marketing</text>
+    <text x="240" y="357" text-anchor="middle" font-size="13" fill="#1e3a8a" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">@transformmynotes/marketing</text>
+    <text x="240" y="379" text-anchor="middle" font-size="13" fill="#1e3a8a">Public site · port 3000</text>
+    <text x="240" y="399" text-anchor="middle" font-size="13" fill="#1e3a8a">No auth · no DB</text>
+    <text x="240" y="419" text-anchor="middle" font-size="13" fill="#1e3a8a">No server-side forms</text>
+
+    <!-- Application -->
+    <rect x="420" y="310" width="580" height="170" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="710" y="337" text-anchor="middle" font-size="15" font-weight="700" fill="#1e3a8a">Application</text>
+    <text x="710" y="357" text-anchor="middle" font-size="13" fill="#1e3a8a" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">@transformmynotes/application · :3002</text>
+    <text x="710" y="378" text-anchor="middle" font-size="13" fill="#1e3a8a">proxy.ts verifies Cognito JWT (aws-jwt-verify)</text>
+    <text x="710" y="399" text-anchor="middle" font-size="12.5" fill="#1e3a8a">API routes (representative):</text>
+    <text x="710" y="419" text-anchor="middle" font-size="13" fill="#1e3a8a" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">/api/transcribe  /api/notes/*  /api/study/*</text>
+    <text x="710" y="438" text-anchor="middle" font-size="13" fill="#1e3a8a" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">/api/cards/*  /api/sources/*  /api/admin/*</text>
+    <text x="710" y="457" text-anchor="middle" font-size="13" fill="#1e3a8a" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">/api/audio/synthesize  /api/activity/*</text>
+
+    <!-- Core lib -->
+    <rect x="1030" y="310" width="290" height="170" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="1175" y="337" text-anchor="middle" font-size="15" font-weight="700" fill="#1e3a8a">core (shared lib)</text>
+    <text x="1175" y="357" text-anchor="middle" font-size="13" fill="#1e3a8a" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">@transformmynotes/core</text>
+    <text x="1175" y="379" text-anchor="middle" font-size="13" fill="#1e3a8a">db · ocr · study · srs</text>
+    <text x="1175" y="398" text-anchor="middle" font-size="13" fill="#1e3a8a">search · sources · tts</text>
+    <text x="1175" y="417" text-anchor="middle" font-size="13" fill="#1e3a8a">usage · auth · editor</text>
+    <text x="1175" y="439" text-anchor="middle" font-size="12.5" fill="#3b82f6">used by application + jobs</text>
+    <text x="1175" y="456" text-anchor="middle" font-size="12.5" fill="#3b82f6">via sst.Resource bindings</text>
+  </g>
+
+  <!-- ============ AUTH ============ -->
+  <g>
+    <rect x="560" y="525" width="300" height="80" rx="8" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="710" y="552" text-anchor="middle" font-size="15" font-weight="700" fill="#5b21b6">Amazon Cognito</text>
+    <text x="710" y="572" text-anchor="middle" font-size="13" fill="#5b21b6">User pool + app client · invite-only</text>
+    <text x="710" y="591" text-anchor="middle" font-size="13" fill="#5b21b6">Groups: admin / member</text>
+  </g>
+
+  <!-- ============ DATA STORES ============ -->
+  <g>
+    <rect x="60" y="615" width="1280" height="315" rx="12" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="7,5"/>
+    <text x="1310" y="639" text-anchor="end" font-size="16" font-weight="700" fill="#92400e">DATA STORES — DynamoDB (single-table) + S3</text>
+
+    <!-- row1: small tables -->
+    <rect x="90" y="655" width="380" height="65" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="280" y="678" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">UserData</text>
+    <text x="280" y="697" text-anchor="middle" font-size="13" fill="#92400e">profiles · settings · CONFIG#AI · GSI1</text>
+
+    <rect x="510" y="655" width="380" height="65" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="700" y="678" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">Invites</text>
+    <text x="700" y="697" text-anchor="middle" font-size="13" fill="#92400e">GSI1</text>
+
+    <rect x="930" y="655" width="380" height="65" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="1120" y="678" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">Groups</text>
+    <text x="1120" y="697" text-anchor="middle" font-size="13" fill="#92400e">GSI1</text>
+
+    <!-- row2: Notes / Usage / StudyEvents / S3 -->
+    <rect x="90" y="740" width="440" height="170" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="310" y="765" text-anchor="middle" font-size="15" font-weight="700" fill="#92400e">Notes — main domain table</text>
+    <text x="115" y="785" font-size="12.5" fill="#92400e" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">PK USER#&lt;sub&gt; / SK NOTE#&lt;ulid&gt;</text>
+    <text x="115" y="804" font-size="12.5" fill="#92400e">GSI1 UserNotesByTime · GSI3 ByToken</text>
+    <text x="115" y="822" font-size="12.5" fill="#92400e">GSI5 ByDue · GSI6 StudySetsByUser</text>
+    <text x="115" y="840" font-size="12.5" fill="#92400e">GSI9 SourcesByUser · 9 GSIs total</text>
+    <text x="115" y="861" font-size="12.5" fill="#92400e">Item types: NOTE · TAG · TOKEN</text>
+    <text x="115" y="879" font-size="12.5" fill="#92400e">SHARE · CARD · STUDYSET · ATTEMPT · SOURCE</text>
+
+    <rect x="550" y="740" width="220" height="170" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="660" y="800" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">Usage</text>
+    <text x="660" y="820" text-anchor="middle" font-size="13" fill="#92400e">metering events</text>
+    <text x="660" y="838" text-anchor="middle" font-size="13" fill="#92400e">+ daily aggregates</text>
+    <text x="660" y="857" text-anchor="middle" font-size="13" fill="#92400e">GSI1</text>
+
+    <rect x="790" y="740" width="220" height="170" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="900" y="800" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">StudyEvents</text>
+    <text x="900" y="820" text-anchor="middle" font-size="13" fill="#92400e">study-progress</text>
+    <text x="900" y="838" text-anchor="middle" font-size="13" fill="#92400e">event log</text>
+    <text x="900" y="857" text-anchor="middle" font-size="13" fill="#92400e">no GSI</text>
+
+    <rect x="1030" y="740" width="280" height="170" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="1170" y="765" text-anchor="middle" font-size="15" font-weight="700" fill="#92400e">S3 — NotesBucket</text>
+    <text x="1055" y="787" font-size="12.5" fill="#92400e">Prefixes:</text>
+    <text x="1055" y="806" font-size="12.5" fill="#92400e" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">markdown/  study/</text>
+    <text x="1055" y="824" font-size="12.5" fill="#92400e" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">sources/users/  audio/</text>
+    <text x="1055" y="843" font-size="12.5" fill="#92400e" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">activity/</text>
+    <text x="1055" y="864" font-size="12.5" fill="#92400e">Direct browser PUT via</text>
+    <text x="1055" y="882" font-size="12.5" fill="#92400e">presigned URLs (CORS-scoped)</text>
+
+    <text x="1310" y="922" text-anchor="end" font-size="12" fill="#b45309">Every table: stream = new-and-old-images</text>
+  </g>
+
+  <!-- ============ ASYNC / EVENT-DRIVEN ============ -->
+  <g>
+    <rect x="60" y="945" width="1280" height="280" rx="12" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="7,5"/>
+    <text x="1310" y="969" text-anchor="end" font-size="16" font-weight="700" fill="#166534">ASYNC / EVENT-DRIVEN — DynamoDB Streams + Lambda (jobs)</text>
+
+    <rect x="90" y="985" width="290" height="115" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="235" y="1007" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">StudyGenerationConsumer</text>
+    <text x="235" y="1026" text-anchor="middle" font-size="12.5" fill="#166534">Notes stream · INSERT</text>
+    <text x="235" y="1043" text-anchor="middle" font-size="12.5" fill="#166534">SK starts with STUDYSET#</text>
+    <text x="235" y="1061" text-anchor="middle" font-size="12.5" fill="#166534">Bedrock gen → S3 study/</text>
+    <text x="235" y="1079" text-anchor="middle" font-size="12.5" fill="#166534">+ status update</text>
+
+    <rect x="400" y="985" width="290" height="115" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="545" y="1007" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">SourceExtractionConsumer</text>
+    <text x="545" y="1026" text-anchor="middle" font-size="12.5" fill="#166534">Notes stream · INSERT/MODIFY</text>
+    <text x="545" y="1043" text-anchor="middle" font-size="12.5" fill="#166534">SK starts with SOURCE# · extracting</text>
+    <text x="545" y="1061" text-anchor="middle" font-size="12.5" fill="#166534">Extracts PDF/DOCX/EPUB/text</text>
+    <text x="545" y="1079" text-anchor="middle" font-size="12.5" fill="#166534">→ S3</text>
+
+    <rect x="710" y="985" width="290" height="115" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="855" y="1007" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">UsageAggregatorConsumer</text>
+    <text x="855" y="1026" text-anchor="middle" font-size="12.5" fill="#166534">Usage stream · INSERT</text>
+    <text x="855" y="1043" text-anchor="middle" font-size="12.5" fill="#166534">SK starts with EVT#</text>
+    <text x="855" y="1061" text-anchor="middle" font-size="12.5" fill="#166534">Daily AI-cost aggregates</text>
+    <text x="855" y="1079" text-anchor="middle" font-size="12.5" fill="#166534">+ per-user storage gauge</text>
+
+    <rect x="1020" y="985" width="290" height="115" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="1165" y="1007" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">ProgressAggregatorConsumer</text>
+    <text x="1165" y="1026" text-anchor="middle" font-size="12.5" fill="#166534">StudyEvents stream · INSERT</text>
+    <text x="1165" y="1043" text-anchor="middle" font-size="12.5" fill="#166534">SK starts with EVENT#</text>
+    <text x="1165" y="1061" text-anchor="middle" font-size="12.5" fill="#166534">Daily study-progress</text>
+    <text x="1165" y="1079" text-anchor="middle" font-size="12.5" fill="#166534">snapshots</text>
+
+    <rect x="280" y="1120" width="400" height="85" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="480" y="1144" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">StorageSnapshotCron</text>
+    <text x="480" y="1163" text-anchor="middle" font-size="12.5" fill="#166534">rate(1 day)</text>
+    <text x="480" y="1181" text-anchor="middle" font-size="12.5" fill="#166534">Samples per-user storage gauge → daily aggregate</text>
+
+    <rect x="720" y="1120" width="400" height="85" rx="8" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="920" y="1144" text-anchor="middle" font-size="14" font-weight="700" fill="#166534">ProgressFinalizeCron</text>
+    <text x="920" y="1163" text-anchor="middle" font-size="12.5" fill="#166534">rate(1 day)</text>
+    <text x="920" y="1181" text-anchor="middle" font-size="12.5" fill="#166534">Recomputes streaks + lifetime totals → UserData</text>
+  </g>
+
+  <!-- ============ EXTERNAL / MANAGED SERVICES ============ -->
+  <g>
+    <rect x="60" y="1240" width="1280" height="140" rx="12" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="7,5"/>
+    <text x="1310" y="1264" text-anchor="end" font-size="16" font-weight="700" fill="#9d174d">AI / EXTERNAL MANAGED SERVICES</text>
+
+    <rect x="120" y="1280" width="220" height="80" rx="8" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="230" y="1304" text-anchor="middle" font-size="14" font-weight="700" fill="#9d174d">Amazon Bedrock</text>
+    <text x="230" y="1323" text-anchor="middle" font-size="12.5" fill="#9d174d">Claude vision OCR (pt-BR)</text>
+    <text x="230" y="1341" text-anchor="middle" font-size="12.5" fill="#9d174d">+ tool-use study gen</text>
+
+    <rect x="355" y="1280" width="220" height="80" rx="8" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="465" y="1304" text-anchor="middle" font-size="14" font-weight="700" fill="#9d174d">Amazon Polly</text>
+    <text x="465" y="1323" text-anchor="middle" font-size="12.5" fill="#9d174d">pt-BR text-to-speech</text>
+    <text x="465" y="1341" text-anchor="middle" font-size="12.5" fill="#9d174d">flashcard/note audio</text>
+
+    <rect x="590" y="1280" width="220" height="80" rx="8" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="700" y="1304" text-anchor="middle" font-size="14" font-weight="700" fill="#9d174d">Resend</text>
+    <text x="700" y="1323" text-anchor="middle" font-size="12.5" fill="#9d174d">Transactional email</text>
+    <text x="700" y="1341" text-anchor="middle" font-size="12.5" fill="#9d174d">invites · welcome (app only)</text>
+
+    <rect x="825" y="1280" width="220" height="80" rx="8" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="935" y="1304" text-anchor="middle" font-size="14" font-weight="700" fill="#9d174d">Cloudflare Turnstile</text>
+    <text x="935" y="1323" text-anchor="middle" font-size="12.5" fill="#9d174d">Bot protection</text>
+    <text x="935" y="1341" text-anchor="middle" font-size="12.5" fill="#9d174d">on auth forms</text>
+
+    <rect x="1060" y="1280" width="220" height="80" rx="8" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="1170" y="1304" text-anchor="middle" font-size="14" font-weight="700" fill="#9d174d">SSM Parameter Store</text>
+    <text x="1170" y="1323" text-anchor="middle" font-size="12.5" fill="#9d174d">sst.Secret values</text>
+    <text x="1170" y="1341" text-anchor="middle" font-size="12.5" fill="#9d174d">seeded per stage (Console)</text>
+  </g>
+
+  <!-- ============ BOTTOM: LEGEND + DEPLOY ============ -->
+  <g>
+    <rect x="60" y="1395" width="620" height="170" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="85" y="1421" font-size="15" font-weight="700" fill="#0f172a">Legend</text>
+
+    <rect x="85" y="1435" width="18" height="18" rx="4" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="112" y="1449" font-size="13" fill="#334155">Clients</text>
+    <rect x="380" y="1435" width="18" height="18" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="407" y="1449" font-size="13" fill="#334155">Edge / CDN + DNS</text>
+
+    <rect x="85" y="1461" width="18" height="18" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="112" y="1475" font-size="13" fill="#334155">Next.js compute</text>
+    <rect x="380" y="1461" width="18" height="18" rx="4" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="407" y="1475" font-size="13" fill="#334155">Auth</text>
+
+    <rect x="85" y="1487" width="18" height="18" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="112" y="1501" font-size="13" fill="#334155">Data — DynamoDB + S3</text>
+    <rect x="380" y="1487" width="18" height="18" rx="4" fill="#dcfce7" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="407" y="1501" font-size="13" fill="#334155">Async / event-driven</text>
+
+    <rect x="85" y="1513" width="18" height="18" rx="4" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="112" y="1527" font-size="13" fill="#334155">AI / external managed</text>
+
+    <line x1="380" y1="1522" x2="420" y2="1522" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="428" y="1527" font-size="13" fill="#334155">sync request</text>
+
+    <line x1="85" y1="1548" x2="125" y2="1548" stroke="#475569" stroke-width="2" stroke-dasharray="7,5" marker-end="url(#arrow)"/>
+    <text x="133" y="1553" font-size="13" fill="#334155">async / event (DynamoDB Stream, cron)</text>
+
+    <rect x="720" y="1395" width="620" height="170" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="745" y="1421" font-size="15" font-weight="700" fill="#0f172a">Deploy — GitHub Actions</text>
+    <text x="745" y="1444" font-size="13" fill="#334155">OIDC → AWS (no long-lived keys) · region us-east-1</text>
+    <text x="745" y="1465" font-size="13" fill="#334155">Gates: lint → typecheck → unit → integration → E2E</text>
+    <text x="745" y="1486" font-size="13" fill="#334155">(marketing), all offline — then sst deploy</text>
+    <text x="745" y="1507" font-size="13" fill="#334155">push master → production   |   PR → pr-&lt;N&gt;</text>
+    <text x="745" y="1528" font-size="13" fill="#334155">PR closed → teardown (unlock → refresh → remove)</text>
+  </g>
+
+  <!-- ============ ARROWS ============ -->
+  <g stroke="#475569" stroke-width="1.5" fill="none">
+    <!-- clients -> edge -->
+    <line x1="260" y1="146" x2="260" y2="165" marker-end="url(#arrow)"/>
+    <line x1="700" y1="146" x2="700" y2="165" marker-end="url(#arrow)"/>
+    <line x1="1140" y1="146" x2="1140" y2="165" marker-end="url(#arrow)"/>
+
+    <!-- edge -> apps -->
+    <line x1="200" y1="260" x2="200" y2="310" marker-end="url(#arrow)"/>
+    <line x1="710" y1="260" x2="710" y2="310" marker-end="url(#arrow)"/>
+
+    <!-- application -> core -->
+    <line x1="1000" y1="400" x2="1030" y2="400" marker-end="url(#arrow)"/>
+
+    <!-- cognito -> application (JWT verified) -->
+    <line x1="710" y1="525" x2="710" y2="480" marker-end="url(#arrow)"/>
+
+    <!-- application -> notes (save) -->
+    <line x1="490" y1="480" x2="490" y2="740" marker-end="url(#arrow)"/>
+
+    <!-- client(authed) -> cognito (Amplify sign-in), left corridor -->
+    <polyline points="520,146 520,156 35,156 35,560 560,560" marker-end="url(#arrow)"/>
+
+    <!-- client(authed) -> S3 (direct presigned PUT), right corridor -->
+    <polyline points="880,146 880,156 1355,156 1355,800 1310,800" marker-end="url(#arrow)"/>
+
+    <!-- application -> bedrock (Claude vision OCR), right corridor -->
+    <polyline points="990,480 990,500 1375,500 1375,1370 230,1370 230,1360" marker-end="url(#arrow)"/>
+
+    <!-- StudyGenerationConsumer -> bedrock (tool-use) -->
+    <line x1="200" y1="1100" x2="200" y2="1280" marker-end="url(#arrow)"/>
+  </g>
+
+  <g stroke="#475569" stroke-width="1.5" fill="none" stroke-dasharray="7,5">
+    <!-- Notes stream -> consumers -->
+    <line x1="200" y1="910" x2="200" y2="985" marker-end="url(#arrow)"/>
+    <line x1="460" y1="910" x2="460" y2="985" marker-end="url(#arrow)"/>
+    <!-- Usage stream -> UsageAggregatorConsumer -->
+    <line x1="740" y1="910" x2="740" y2="985" marker-end="url(#arrow)"/>
+    <!-- StudyEvents stream -> ProgressAggregatorConsumer (small jog) -->
+    <polyline points="1005,910 1005,950 1030,950 1030,985" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- edge labels -->
+  <g font-size="12" fill="#334155">
+    <rect x="150" y="546" width="120" height="18" fill="#f8fafc"/>
+    <text x="210" y="559" text-anchor="middle">Amplify sign-in</text>
+
+    <rect x="1005" y="146" width="150" height="18" fill="#f8fafc"/>
+    <text x="1080" y="159" text-anchor="middle">direct S3 PUT (presigned)</text>
+
+    <rect x="1075" y="490" width="130" height="18" fill="#f8fafc"/>
+    <text x="1140" y="503" text-anchor="middle">Claude vision OCR</text>
+
+    <rect x="140" y="1181" width="130" height="18" fill="#f8fafc"/>
+    <text x="205" y="1194" text-anchor="middle">tool-use generation</text>
+
+    <rect x="122" y="960" width="150" height="16" fill="#f8fafc"/>
+    <text x="197" y="972" text-anchor="middle" font-size="11.5">Notes stream · INSERT</text>
+
+    <rect x="500" y="726" width="55" height="16" fill="#f8fafc"/>
+    <text x="500" y="738" text-anchor="start">save</text>
+
+    <rect x="650" y="493" width="115" height="18" fill="#f8fafc"/>
+    <text x="710" y="506" text-anchor="middle">JWT verified</text>
+  </g>
+</svg>
