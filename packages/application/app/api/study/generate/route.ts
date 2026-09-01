@@ -6,6 +6,9 @@ import {
   MATERIAL_TYPES, type StudyMaterialType, type StudyLanguage, type NoteItem,
   resolveAiConfig, estimateTokens, resolveContextLimit, resolveMaxSourceNotes,
   resolveSourceText, getUserProfileBySub, assembleLearnerContext,
+  buildStudySetCreatedEventItem,
+  appendStudyEvent,
+  newEventId,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -341,6 +344,20 @@ export async function POST(req: Request) {
       learnerContext,
     });
     await putStudySet(item);
+
+    // Append study-progress event for study set creation (fail-soft: never aborts the generate action)
+    try {
+      await appendStudyEvent(
+        buildStudySetCreatedEventItem(
+          sub,
+          { studySetId: item.studySetId, type: item.type },
+          now,
+          newEventId(),
+        ),
+      );
+    } catch (err) {
+      console.error('[progress] STUDYSET_CREATED event append failed', err);
+    }
 
     return NextResponse.json({ studySetId }, { status: 202 });
   } catch (err) {

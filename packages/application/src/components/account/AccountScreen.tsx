@@ -5,6 +5,7 @@ import { signOut } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Avatar, Button, Icon } from '@/src/components/ui';
 import { VoiceSelector } from '@/src/components/tts';
+import { AiProfileSection } from '@/src/components/account/AiProfileSection';
 
 export interface AccountScreenProps {
   email: string;
@@ -114,6 +115,9 @@ export function AccountScreen({ email, isAdmin }: AccountScreenProps) {
         </div>
         <VoiceSelector />
       </div>
+
+      {/* AI environment */}
+      <AiProfileSection />
 
       {/* Actions */}
       <div

@@ -15,3 +15,4 @@ export const INVITES_TABLE = 'Invites';
 export const GROUPS_TABLE = 'Groups';
 export const NOTES_TABLE = 'Notes';
 export const USAGE_TABLE = 'Usage';
+export const STUDY_EVENTS_TABLE = 'StudyEvents';

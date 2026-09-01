@@ -91,6 +91,32 @@ function NotebookEmptyState() {
       >
         Capture your first note
       </Button>
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          marginTop: 14,
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+        }}
+      >
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Icon name="file-text" size={17} />}
+          onClick={() => router.push('/sources?add=doc')}
+        >
+          Upload a document
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Icon name="link" size={17} />}
+          onClick={() => router.push('/sources?add=url')}
+        >
+          Add from URL
+        </Button>
+      </div>
       <button
         onClick={() => router.push('/capture')}
         style={{

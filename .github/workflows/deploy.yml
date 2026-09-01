@@ -90,7 +90,15 @@ jobs:
         #     branches, so deploying a pr-<N> stage for one just orphans a full
         #     stack (CloudFront included) that nothing ever removes. head_ref is
         #     empty on push, so production deploys are unaffected.
-        run: echo "deploy=${{ (!contains(github.event.head_commit.message, '[skip deploy]') && !contains(github.event.pull_request.title, '[skip deploy]') && !startsWith(github.head_ref, 'release-please--')) }}" >> "$GITHUB_OUTPUT"
+        #   - this is a Dependabot PR. Dependabot-triggered runs read from the
+        #     *Dependabot* secret store, not the Actions secret store, so
+        #     AWS_ROLE_ARN and CLOUDFLARE_API_TOKEN resolve to empty and the OIDC
+        #     step dies with "Could not load credentials from any providers" —
+        #     failing every dependency bump for a reason unrelated to the bump.
+        #     A dependency bump doesn't need its own pr-<N> stack anyway, and the
+        #     lint/typecheck/unit/integration/E2E gates above still run and still
+        #     gate the merge. teardown.yml skips these branches to match.
+        run: echo "deploy=${{ (!contains(github.event.head_commit.message, '[skip deploy]') && !contains(github.event.pull_request.title, '[skip deploy]') && !startsWith(github.head_ref, 'release-please--') && !startsWith(github.head_ref, 'dependabot/')) }}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve application-E2E gate
         id: e2e_app

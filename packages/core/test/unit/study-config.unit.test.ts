@@ -20,7 +20,7 @@ import {
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_TYPE_PROMPTS } from '../../src/study/default-prompts';
 
 const ENV_VARS = {
-  SST_RESOURCE_BEDROCK_MODEL_ID_value: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  SST_RESOURCE_BEDROCK_MODEL_ID_value: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
   SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: 'Base system prompt text',
   SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: 'Flashcards prompt text',
   SST_RESOURCE_STUDY_QUIZ_PROMPT_value: 'Quiz prompt text',
@@ -49,10 +49,10 @@ describe('MAX_TOKENS_BY_TYPE', () => {
 describe('AI_MODEL_ALLOWLIST', () => {
   it('is locked to exactly one entry — the us. cross-region inference profile', () => {
     expect(AI_MODEL_ALLOWLIST).toHaveLength(1);
-    expect(AI_MODEL_ALLOWLIST).toContain('us.anthropic.claude-3-5-sonnet-20241022-v2:0');
+    expect(AI_MODEL_ALLOWLIST).toContain('us.anthropic.claude-sonnet-4-5-20250929-v1:0');
   });
   it('does NOT include the bare foundation-model id, Haiku ids, or legacy Sonnet', () => {
-    expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-3-5-sonnet-20241022-v2:0');
+    expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-sonnet-4-5-20250929-v1:0');
     expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-3-haiku-20240307-v1:0');
     expect(AI_MODEL_ALLOWLIST).not.toContain('us.anthropic.claude-3-haiku-20240307-v1:0');
     expect(AI_MODEL_ALLOWLIST).not.toContain('anthropic.claude-3-sonnet-20240229-v1:0');
@@ -149,7 +149,7 @@ describe('deepMergeAiConfig', () => {
   it('merges record fields per key, keeping default keys not in the override', () => {
     const merged = deepMergeAiConfig(buildSecretDefaults(), {
       promptOverrides: { flashcards: 'DB flashcards' },
-      modelOverrides: { quiz: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0' },
+      modelOverrides: { quiz: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0' },
       enabledMaterialTypes: { summary: false },
     });
     // overridden keys win
@@ -157,7 +157,7 @@ describe('deepMergeAiConfig', () => {
     // non-overridden default keys survive
     expect(merged.promptOverrides.quiz).toBe('Quiz prompt text');
     // model override added without dropping anything
-    expect(merged.modelOverrides.quiz).toBe('us.anthropic.claude-3-5-sonnet-20241022-v2:0');
+    expect(merged.modelOverrides.quiz).toBe('us.anthropic.claude-sonnet-4-5-20250929-v1:0');
     // per-key flag merge
     expect(merged.enabledMaterialTypes.summary).toBe(false);
     expect(merged.enabledMaterialTypes.flashcards).toBe(true);

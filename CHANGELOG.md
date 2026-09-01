@@ -1,5 +1,78 @@
 # Changelog
 
+## [1.99.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.1...transformmynotes-v1.99.0) (2026-08-14)
+
+
+### 🚀 Features
+
+* **application:** surface PDF/document & web-article study sources (Library entry points, mobile nav, M21 injection guard) ([#703](https://github.com/jasonp2323/transformmynotes/issues/703)) ([0f315a6](https://github.com/jasonp2323/transformmynotes/commit/0f315a6be96c89a8cd7835bdfeba03daeef0b101))
+
+
+### 🐛 Fixes
+
+* **core:** replace EOL Bedrock model (Sonnet 3.5 v2 → Sonnet 4.5) ([#707](https://github.com/jasonp2323/transformmynotes/issues/707)) ([805572d](https://github.com/jasonp2323/transformmynotes/commit/805572d2b4586108010a189255058017f2e0ff3c)), closes [#706](https://github.com/jasonp2323/transformmynotes/issues/706)
+* **marketing:** resolve Android APK link by tag, not page 1 of releases ([677f252](https://github.com/jasonp2323/transformmynotes/commit/677f252cd1ec6ac682cc8ed38c2c6faa351ad06b)), closes [#713](https://github.com/jasonp2323/transformmynotes/issues/713)
+
+
+### 📝 Documentation
+
+* add system architecture diagram to README ([#717](https://github.com/jasonp2323/transformmynotes/issues/717)) ([4be3bf4](https://github.com/jasonp2323/transformmynotes/commit/4be3bf453da10bdf8a10dd02eb2e4d50d182f262))
+
+## [1.98.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.0...transformmynotes-v1.98.1) (2026-06-21)
+
+
+### 🐛 Fixes
+
+* **application:** flashcard cancel discards set, resilient polling & dismissable AI activity chip ([#701](https://github.com/jasonp2323/transformmynotes/issues/701)) ([49221e5](https://github.com/jasonp2323/transformmynotes/commit/49221e5d17e93573813b6d5d3b9e492fb4e42113)), closes [#579](https://github.com/jasonp2323/transformmynotes/issues/579) [#698](https://github.com/jasonp2323/transformmynotes/issues/698)
+* study-guide language, marketing 404 redirect & mobile admin UI ([#568](https://github.com/jasonp2323/transformmynotes/issues/568), [#566](https://github.com/jasonp2323/transformmynotes/issues/566), [#530](https://github.com/jasonp2323/transformmynotes/issues/530)) ([fa91b24](https://github.com/jasonp2323/transformmynotes/commit/fa91b2450b56546d2d7f3589bcf468aac5300839))
+
+
+### 📝 Documentation
+
+* **milestones:** add M29 MFA (TOTP + remembered devices) spec and M30 passkey outline ([#697](https://github.com/jasonp2323/transformmynotes/issues/697)) ([3abcfcc](https://github.com/jasonp2323/transformmynotes/commit/3abcfcc5d8c05752b3fe0a725b2e6d639ae3471c))
+
+## [1.98.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.97.0...transformmynotes-v1.98.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M28 Waves 3 & 4 — global AI activity indicator + SSE live-output ([#686](https://github.com/jasonp2323/transformmynotes/issues/686)) ([6ac7667](https://github.com/jasonp2323/transformmynotes/commit/6ac76674fc7f050284e148104d8971471b8b9cdb))
+
+## [1.97.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.96.0...transformmynotes-v1.97.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M28 backend — ACTIVITY model, producers, Activity API & M19 Collapsible (Waves 1/2/5) ([#684](https://github.com/jasonp2323/transformmynotes/issues/684)) ([9425fea](https://github.com/jasonp2323/transformmynotes/commit/9425feaf8df550e9ad13179040464d4b8857bc58))
+
+## [1.96.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.95.0...transformmynotes-v1.96.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M27 — manual & explicit flashcard creation ([12a040c](https://github.com/jasonp2323/transformmynotes/commit/12a040c508edfed1a9a6ac1ccf47c2119f3525fc))
+
+## [1.95.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.94.0...transformmynotes-v1.95.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M25 — Study Progress & Insights dashboard ([#679](https://github.com/jasonp2323/transformmynotes/issues/679)) ([5d271bb](https://github.com/jasonp2323/transformmynotes/commit/5d271bb1282d7a399cf6492178bdb845d9d1c23d)), closes [#551](https://github.com/jasonp2323/transformmynotes/issues/551) [#552](https://github.com/jasonp2323/transformmynotes/issues/552) [#553](https://github.com/jasonp2323/transformmynotes/issues/553) [#554](https://github.com/jasonp2323/transformmynotes/issues/554)
+
+## [1.94.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.93.0...transformmynotes-v1.94.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M24.3 — AI environment study-profile settings UI ([#674](https://github.com/jasonp2323/transformmynotes/issues/674)) ([9feb142](https://github.com/jasonp2323/transformmynotes/commit/9feb142ca37cda3b76f7601a8f868a854c5654a8))
+
+## [1.93.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.92.0...transformmynotes-v1.93.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M23.5 — admin Cost Breakdown tab UI ([#675](https://github.com/jasonp2323/transformmynotes/issues/675)) ([b88ec08](https://github.com/jasonp2323/transformmynotes/commit/b88ec08c7b183349b8860ae2c75b553ae207b6da)), closes [#516](https://github.com/jasonp2323/transformmynotes/issues/516)
+
 ## [1.92.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.1...transformmynotes-v1.92.0) (2026-06-20)
 
 

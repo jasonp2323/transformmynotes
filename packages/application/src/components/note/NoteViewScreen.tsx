@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import NoteEditor from '@/src/components/editor/NoteEditor';
 import type { NoteEditorHandle } from '@/src/components/editor/NoteEditor';
@@ -21,6 +21,7 @@ import { ShareSheet } from './ShareSheet';
 import { GenerateStudyMaterial } from './GenerateStudyMaterial';
 import { StudySetsForNote } from './StudySetsForNote';
 import { NoteSetPicker } from '@/src/components/study/NoteSetPicker';
+import { CardForm } from '@/src/components/cards/CardForm';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,15 @@ export function NoteViewScreen({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [studyRefreshNonce, setStudyRefreshNonce] = useState(0);
   const [multiPickerOpen, setMultiPickerOpen] = useState(false);
+  const [addCardOpen, setAddCardOpen] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
+
+  // Derive whether the note body contains any == highlight == marks.
+  // Using initialMarkdown is acceptable per spec — the note body is already loaded on the client.
+  const hasHighlights = useMemo(
+    () => /==[^=\n]+==/.test(initialMarkdown),
+    [initialMarkdown],
+  );
 
   // Initialize to true (online) to avoid SSR/hydration mismatch; corrected on mount.
   const [isOnline, setIsOnline] = useState(true);
@@ -327,6 +337,35 @@ export function NoteViewScreen({
     }
   }, [noteId]);
 
+  // ── Manual card creation ──────────────────────────────────────────────────
+
+  const handleCreateManualCard = useCallback(async (values: { front: string; back: string }) => {
+    setSavingCard(true);
+    try {
+      const res = await fetch('/api/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ front: values.front, back: values.back, sourceNoteId: noteId }),
+      });
+      if (res.ok) {
+        setAddCardOpen(false);
+        setToast({ tone: 'success', title: 'Card added' });
+      } else {
+        const err = new Error(`HTTP ${res.status}`);
+        setToast({ tone: 'danger', title: "Couldn't add card — try again" });
+        throw err;
+      }
+    } catch (err) {
+      // Only set danger toast for network/unexpected errors (non-ok path already set it)
+      if (!(err instanceof Error && err.message.startsWith('HTTP '))) {
+        setToast({ tone: 'danger', title: "Couldn't add card — try again" });
+      }
+      throw err;
+    } finally {
+      setSavingCard(false);
+    }
+  }, [noteId]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const firstTag = tags[0];
@@ -575,14 +614,40 @@ export function NoteViewScreen({
           </IconButton>
 
           {isOwner && (
+            <>
+              {!hasHighlights && (
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    color: 'var(--text-subtle)',
+                    margin: '0 0 4px',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Highlight text in your note, then generate cards from it.
+                </p>
+              )}
+              <Button
+                variant="secondary"
+                fullWidth
+                leftIcon={<Icon name="highlighter" size={18} />}
+                loading={cardSyncing}
+                onClick={() => void handleAddToReviewDeck()}
+              >
+                Generate from highlights
+              </Button>
+            </>
+          )}
+
+          {isOwner && (
             <Button
               variant="secondary"
               fullWidth
-              leftIcon={<Icon name="layers" size={18} />}
-              loading={cardSyncing}
-              onClick={() => void handleAddToReviewDeck()}
+              leftIcon={<Icon name="plus" size={18} />}
+              onClick={() => setAddCardOpen(true)}
             >
-              Add to review deck
+              + Add card
             </Button>
           )}
 
@@ -622,6 +687,17 @@ export function NoteViewScreen({
           open={multiPickerOpen}
           onClose={() => setMultiPickerOpen(false)}
           initialSelectedIds={[noteId]}
+        />
+      )}
+
+      {/* ── Manual card creation dialog — owner only ── */}
+      {isOwner && (
+        <CardForm
+          open={addCardOpen}
+          title="Add card"
+          saving={savingCard}
+          onClose={() => setAddCardOpen(false)}
+          onSave={handleCreateManualCard}
         />
       )}
 

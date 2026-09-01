@@ -54,3 +54,6 @@ export type { ToastProps } from './Toast';
 
 export { Dialog } from './Dialog';
 export type { DialogProps } from './Dialog';
+
+export { Collapsible } from './Collapsible';
+export type { CollapsibleProps } from './Collapsible';

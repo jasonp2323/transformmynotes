@@ -14,7 +14,7 @@
 import dynalite from 'dynalite';
 import { DynamoDBClient, CreateTableCommand } from '@aws-sdk/client-dynamodb';
 import type { Server } from 'node:http';
-import { DYNALITE_PORT, DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE, USAGE_TABLE } from './dynalite-config.js';
+import { DYNALITE_PORT, DYNALITE_ENDPOINT, USER_DATA_TABLE, INVITES_TABLE, GROUPS_TABLE, NOTES_TABLE, USAGE_TABLE, STUDY_EVENTS_TABLE } from './dynalite-config.js';
 
 function startServer(server: Server, port: number): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -273,6 +273,27 @@ export default async function setup() {
           ],
           Projection: { ProjectionType: 'ALL' },
         },
+      ],
+      BillingMode: 'PAY_PER_REQUEST',
+      StreamSpecification: {
+        StreamEnabled: true,
+        StreamViewType: 'NEW_AND_OLD_IMAGES',
+      },
+    }),
+  );
+
+  // Mirror infra/db.ts: StudyEvents table (M25 study-progress event log) — pk/sk primary only,
+  // no GSI. Streams enabled; TTL omitted (dynalite ignores it).
+  await ddbAdmin.send(
+    new CreateTableCommand({
+      TableName: STUDY_EVENTS_TABLE,
+      AttributeDefinitions: [
+        { AttributeName: 'pk', AttributeType: 'S' },
+        { AttributeName: 'sk', AttributeType: 'S' },
+      ],
+      KeySchema: [
+        { AttributeName: 'pk', KeyType: 'HASH' },
+        { AttributeName: 'sk', KeyType: 'RANGE' },
       ],
       BillingMode: 'PAY_PER_REQUEST',
       StreamSpecification: {

@@ -9,6 +9,7 @@ export * from './db/shares';
 export * from './db/cards';
 export * from './db/quiz-attempts';
 export * from './db/study';
+export * from './db/activity';
 export * from './db/transcription-jobs';
 export * from './db/uploads';
 export * from './db/ai-config';
@@ -59,6 +60,10 @@ export * from './study/chunk';
 export * from './study/dedup';
 export * from './study/provenance';
 export * from './study/learner-context';
+
+// Study progress event log (M25)
+export * from './db/progress';
+export * from './db/progress-aggregate';
 
 // Usage metering — pure cost math + price book (M23)
 export * from './usage/types';

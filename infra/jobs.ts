@@ -1,5 +1,5 @@
 /// <reference path="../.sst/platform/config.d.ts" />
-import { notes, userData, usage } from "./db";
+import { notes, userData, usage, studyEvents } from "./db";
 import { notesBucket } from "./storage";
 import {
   bedrockInferenceProfileId,
@@ -10,7 +10,7 @@ import {
 const accountId = aws.getCallerIdentityOutput({}).accountId;
 
 // The BEDROCK_MODEL_ID secret is a cross-region inference profile id (e.g.
-// "us.anthropic.claude-3-5-sonnet-20241022-v2:0"). Strip the region prefix
+// "us.anthropic.claude-sonnet-4-5-20250929-v1:0"). Strip the region prefix
 // ("us.", "eu.", "apac.") to recover the underlying foundation-model id used in
 // the per-region foundation-model ARNs. If no prefix is present the id is used
 // as-is (a bare foundation-model id still works for both ARNs).
@@ -41,7 +41,7 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
   },
   permissions: [
     {
-      actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+      actions: ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:PutItem"],
       resources: [notes.arn],
     },
     // M19: read-only access to the CONFIG#AI item in UserData (resolveAiConfig).
@@ -58,6 +58,10 @@ export const studyGenerationConsumer = new sst.aws.Function("StudyGenerationCons
     {
       actions: ["s3:PutObject"],
       resources: [$interpolate`arn:aws:s3:::${notesBucket.name}/study/*`],
+    },
+    {
+      actions: ["s3:PutObject"],
+      resources: [$interpolate`arn:aws:s3:::${notesBucket.name}/activity/*`],
     },
     {
       // Least privilege: InvokeModel only, scoped to the specific Claude inference
@@ -167,6 +171,39 @@ usage.subscribe("UsageAggregatorConsumerSubscription", usageAggregatorConsumer.a
   ],
 });
 
+// M25.2 study-progress stream consumer. Converts raw EVENT# INSERTs from the
+// StudyEvents table into atomic counter increments on per-user DAY# snapshots.
+// The nightly progress-finalize cron self-heals double-counts via rederiveDaySnapshot.
+export const progressAggregatorConsumer = new sst.aws.Function("ProgressAggregatorConsumer", {
+  handler: "packages/application/jobs/progress-aggregator.handler",
+  link: [studyEvents],
+  environment: {
+    SST_RESOURCE_StudyEvents_name: studyEvents.name,
+  },
+  permissions: [
+    {
+      // Query (eventScanForDay for rederive backstop), GetItem (getDaySnapshot),
+      // PutItem (rederiveDaySnapshot overwrite), UpdateItem (incrementDaySnapshot ADD).
+      actions: [
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+      ],
+      resources: [studyEvents.arn],
+    },
+  ],
+});
+
+// Subscribe the consumer to the StudyEvents table stream, filtered to raw-event
+// INSERTs only (sk begins_with "EVENT#"). DAY# snapshot writes by the consumer
+// itself don't match this filter, so there is no re-trigger loop.
+studyEvents.subscribe("ProgressAggregatorConsumerSubscription", progressAggregatorConsumer.arn, {
+  filters: [
+    { eventName: ["INSERT"], dynamodb: { NewImage: { sk: { S: [{ prefix: "EVENT#" }] } } } },
+  ],
+});
+
 // M23.3.2 daily storage-snapshot cron. Once per day, enumerates active users
 // (UserData GSI1 STATUS#active) and samples each one's STORAGE#CURRENT gauge
 // into a DAY#<date>#storage aggregate, so GB-month can be derived as an average
@@ -190,6 +227,48 @@ export const storageSnapshotCron = new sst.aws.Cron("StorageSnapshotCron", {
         // Read each user's storage gauge; write the daily storage aggregate.
         actions: ["dynamodb:GetItem", "dynamodb:PutItem"],
         resources: [usage.arn],
+      },
+    ],
+  },
+});
+
+// M25.2 nightly progress-finalize cron. Enumerates all active users (UserData
+// GSI1), self-heals the rolling 2-day window via rederiveDaySnapshot, then
+// recomputes each user's streak + lifetime totals and writes them back to the
+// UserData profile via updateProgressProfile.
+// See packages/application/jobs/progress-finalize.ts.
+export const progressFinalizeCron = new sst.aws.Cron("ProgressFinalizeCron", {
+  schedule: "rate(1 day)",
+  function: {
+    handler: "packages/application/jobs/progress-finalize.handler",
+    link: [userData, studyEvents],
+    environment: {
+      SST_RESOURCE_UserData_name: userData.name,
+      SST_RESOURCE_StudyEvents_name: studyEvents.name,
+    },
+    permissions: [
+      {
+        // Active-user enumeration runs on UserData GSI1.
+        actions: ["dynamodb:Query"],
+        resources: [userData.arn, $interpolate`${userData.arn}/index/*`],
+      },
+      {
+        // updateProgressProfile: conditional UpdateItem on the PROFILE item.
+        // getUserProfileBySub (inside updateProgressProfile): GetItem on PROFILE.
+        actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+        resources: [userData.arn],
+      },
+      {
+        // rederiveDaySnapshot: Query (eventScanForDay), PutItem (snapshot overwrite).
+        // listDaySnapshots: Query (dayRangeQuery).
+        // incrementDaySnapshot: UpdateItem (ADD on DAY# item).
+        actions: [
+          "dynamodb:Query",
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+        ],
+        resources: [studyEvents.arn],
       },
     ],
   },

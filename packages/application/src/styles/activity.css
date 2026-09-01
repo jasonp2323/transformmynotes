@@ -1,0 +1,419 @@
+/* ==========================================================================
+   AI Activity Indicator — tmn-activity
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Keyframes
+   -------------------------------------------------------------------------- */
+
+@keyframes tmn-activity-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes tmn-activity-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* --------------------------------------------------------------------------
+   Chip (collapsed state) — fixed bottom-right
+   -------------------------------------------------------------------------- */
+
+/* Wrapper positions both the chip button and the dismiss button together. */
+.tmn-activity__chip-wrapper {
+  position: fixed;
+  /* Raised above the note-view FAB (56 px tall, bottom ~20 px) to avoid overlap. */
+  bottom: calc(var(--space-4) + 64px + env(safe-area-inset-bottom, 0px));
+  right: var(--space-4);
+  z-index: 50;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.tmn-activity__chip {
+  position: static;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-body);
+
+  /* Reset button defaults */
+  appearance: none;
+  text-align: left;
+
+  transition: box-shadow var(--dur-fast) var(--ease-soft),
+              border-color var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-activity__chip:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-lg);
+}
+
+.tmn-activity__chip--empty {
+  display: none;
+}
+
+/* Spinner icon inside chip */
+.tmn-activity__chip-spinner {
+  animation: tmn-activity-spin 1s linear infinite;
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+/* Check icon inside chip */
+.tmn-activity__chip-check {
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+/* Count badge */
+.tmn-activity__chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-brand-soft);
+  color: var(--brand);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  flex-shrink: 0;
+}
+
+/* Label text */
+.tmn-activity__chip-label {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dismiss (×) button rendered next to the chip */
+.tmn-activity__chip-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-soft),
+              color var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-activity__chip-dismiss:hover {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+}
+
+/* --------------------------------------------------------------------------
+   Panel (expanded state) — fixed bottom-right
+   -------------------------------------------------------------------------- */
+
+.tmn-activity__panel {
+  position: fixed;
+  /* Raised above the note-view FAB (56 px tall, bottom ~20 px) to avoid overlap. */
+  bottom: calc(var(--space-4) + 64px + env(safe-area-inset-bottom, 0px));
+  right: var(--space-4);
+  z-index: 50;
+
+  width: 360px;
+  max-width: calc(100vw - var(--space-4) * 2);
+  max-height: 70vh;
+  overflow-y: auto;
+
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.tmn-activity__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  background: var(--surface-card);
+  z-index: 1;
+}
+
+.tmn-activity__panel-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.tmn-activity__panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  transition: background var(--dur-fast) var(--ease-soft),
+              color var(--dur-fast) var(--ease-soft);
+}
+
+.tmn-activity__panel-close:hover {
+  background: var(--surface-sunken);
+  color: var(--text-body);
+}
+
+/* --------------------------------------------------------------------------
+   Activity list
+   -------------------------------------------------------------------------- */
+
+.tmn-activity__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Per-activity item container */
+.tmn-activity__item {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.tmn-activity__item--ready {
+  border-left: 3px solid #22c55e; /* green-500 */
+}
+
+.tmn-activity__item--failed {
+  border-left: 3px solid var(--danger);
+}
+
+/* Title row inside the collapsible trigger */
+.tmn-activity__item-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Status dot
+   -------------------------------------------------------------------------- */
+
+.tmn-activity__status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border-default);
+}
+
+.tmn-activity__status-dot--running {
+  background: var(--brand);
+  animation: tmn-activity-pulse 1.2s ease-in-out infinite;
+}
+
+.tmn-activity__status-dot--ready {
+  background: #22c55e;
+}
+
+.tmn-activity__status-dot--failed {
+  background: var(--danger);
+}
+
+.tmn-activity__status-dot--queued {
+  background: var(--text-subtle);
+}
+
+/* --------------------------------------------------------------------------
+   Status icon (small lucide inline icon)
+   -------------------------------------------------------------------------- */
+
+.tmn-activity__status-icon {
+  flex-shrink: 0;
+}
+
+.tmn-activity__status-icon--running { color: var(--brand); }
+.tmn-activity__status-icon--ready   { color: #22c55e; }
+.tmn-activity__status-icon--failed  { color: var(--danger); }
+.tmn-activity__status-icon--queued  { color: var(--text-subtle); }
+
+/* --------------------------------------------------------------------------
+   Collapsible overrides for activity items
+   -------------------------------------------------------------------------- */
+
+.tmn-activity__collapsible .tmn-collapsible__trigger {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-body);
+  text-align: left;
+}
+
+.tmn-collapsible__trigger {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-body);
+  text-align: left;
+}
+
+.tmn-collapsible__chevron {
+  transition: transform var(--dur-fast) var(--ease-soft);
+  transform: rotate(0deg);
+  flex-shrink: 0;
+}
+
+.tmn-collapsible__chevron--open {
+  transform: rotate(90deg);
+}
+
+.tmn-collapsible__content {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+/* --------------------------------------------------------------------------
+   Detail content inside expanded activity
+   -------------------------------------------------------------------------- */
+
+.tmn-activity__phase-detail {
+  font-size: var(--text-sm);
+  color: var(--text-body);
+  margin: 0 0 var(--space-2);
+}
+
+.tmn-activity__progress {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+/* Step history */
+.tmn-activity__steps {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.tmn-activity__step {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.tmn-activity__step--current {
+  color: var(--text-strong);
+  font-weight: var(--weight-semibold);
+}
+
+.tmn-activity__step-time {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* Stream output */
+.tmn-activity__stream {
+  overflow-y: auto;
+  max-height: 120px;
+  background: var(--surface-sunken);
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-body);
+  white-space: pre-wrap;
+  border-radius: var(--radius-md);
+  margin-top: var(--space-2);
+  word-break: break-all;
+}
+
+/* View link */
+.tmn-activity__view-link {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.tmn-activity__view-link:hover {
+  text-decoration: underline;
+}
+
+/* Error message */
+.tmn-activity__error {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .tmn-activity__chip-spinner,
+  .tmn-activity__status-dot--running {
+    animation: none;
+  }
+
+  .tmn-collapsible__chevron {
+    transition: none;
+  }
+
+  .tmn-activity__chip,
+  .tmn-activity__panel-close {
+    transition: none;
+  }
+}
