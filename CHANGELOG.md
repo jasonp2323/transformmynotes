@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.99.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.1...transformmynotes-v1.99.0) (2026-08-14)
+
+
+### 🚀 Features
+
+* **application:** surface PDF/document & web-article study sources (Library entry points, mobile nav, M21 injection guard) ([#703](https://github.com/jasonp2323/transformmynotes/issues/703)) ([0f315a6](https://github.com/jasonp2323/transformmynotes/commit/0f315a6be96c89a8cd7835bdfeba03daeef0b101))
+
+
+### 🐛 Fixes
+
+* **core:** replace EOL Bedrock model (Sonnet 3.5 v2 → Sonnet 4.5) ([#707](https://github.com/jasonp2323/transformmynotes/issues/707)) ([805572d](https://github.com/jasonp2323/transformmynotes/commit/805572d2b4586108010a189255058017f2e0ff3c)), closes [#706](https://github.com/jasonp2323/transformmynotes/issues/706)
+* **marketing:** resolve Android APK link by tag, not page 1 of releases ([677f252](https://github.com/jasonp2323/transformmynotes/commit/677f252cd1ec6ac682cc8ed38c2c6faa351ad06b)), closes [#713](https://github.com/jasonp2323/transformmynotes/issues/713)
+
+
+### 📝 Documentation
+
+* add system architecture diagram to README ([#717](https://github.com/jasonp2323/transformmynotes/issues/717)) ([4be3bf4](https://github.com/jasonp2323/transformmynotes/commit/4be3bf453da10bdf8a10dd02eb2e4d50d182f262))
+
 ## [1.98.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.0...transformmynotes-v1.98.1) (2026-06-21)
 
 
