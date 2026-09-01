@@ -64,7 +64,12 @@ describe('pickImage', () => {
   });
 
   afterEach(() => {
+    // vi.restoreAllMocks() (Vitest 4) only restores vi.spyOn() spies — it no
+    // longer clears call history on plain vi.fn() mocks like the ones
+    // returned by the vi.mock('@capacitor/...') factories above, so clear
+    // those explicitly too.
     vi.restoreAllMocks();
+    vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 

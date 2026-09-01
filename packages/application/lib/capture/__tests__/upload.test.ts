@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Mock } from 'vitest';
 import { uploadImageForTranscription, CaptureUploadError, MULTIPART_THRESHOLD } from '../upload';
 import type { TranscribeResult } from '../upload';
 
@@ -50,14 +51,16 @@ function makeLargeBlob(sizeBytes: number): Blob {
 // ---------------------------------------------------------------------------
 
 describe('uploadImageForTranscription', () => {
-  let resizeFn: ReturnType<typeof vi.fn>;
-  let fetchFn: ReturnType<typeof vi.fn>;
-  let putFn: ReturnType<typeof vi.fn>;
+  let resizeFn: Mock<(file: Blob) => Promise<Blob>>;
+  let fetchFn: Mock<typeof fetch>;
+  let putFn: Mock<(url: string, blob: Blob, onProgress?: (fraction: number) => void) => Promise<void>>;
 
   beforeEach(() => {
-    resizeFn = vi.fn().mockResolvedValue(resizedBlob);
-    fetchFn = vi.fn();
-    putFn = vi.fn().mockResolvedValue(undefined); // default: PUT succeeds
+    resizeFn = vi.fn<(file: Blob) => Promise<Blob>>().mockResolvedValue(resizedBlob);
+    fetchFn = vi.fn<typeof fetch>();
+    putFn = vi
+      .fn<(url: string, blob: Blob, onProgress?: (fraction: number) => void) => Promise<void>>()
+      .mockResolvedValue(undefined); // default: PUT succeeds
   });
 
   // -------------------------------------------------------------------------
@@ -314,7 +317,7 @@ describe('uploadImageForTranscription', () => {
       s3Key: 'images/users/sub/job-multipart.jpg',
     };
 
-    let putPartFn: ReturnType<typeof vi.fn>;
+    let putPartFn: Mock<(url: string, blob: Blob, partNumber: number) => Promise<string>>;
     let largeBlob: Blob;
 
     beforeEach(() => {
@@ -322,7 +325,9 @@ describe('uploadImageForTranscription', () => {
       largeBlob = makeLargeBlob(6 * 1024 * 1024);
       // resizeFn returns the same large blob
       resizeFn.mockResolvedValue(largeBlob);
-      putPartFn = vi.fn().mockResolvedValue('"etag-value"');
+      putPartFn = vi
+        .fn<(url: string, blob: Blob, partNumber: number) => Promise<string>>()
+        .mockResolvedValue('"etag-value"');
 
       fetchFn
         .mockResolvedValueOnce(jsonResponse(MULTIPART_CREATE_RESPONSE)) // multipart/create

@@ -17,15 +17,15 @@ vi.mock('@/lib/require-api-user', () => ({
 
 // Tagged lib-dynamodb command factories so the ddb mock can branch on type.
 vi.mock('@aws-sdk/lib-dynamodb', () => ({
-  GetCommand: vi.fn((input) => ({ __type: 'Get', input })),
-  PutCommand: vi.fn((input) => ({ __type: 'Put', input })),
-  QueryCommand: vi.fn((input) => ({ __type: 'Query', input })),
+  GetCommand: vi.fn(function (input) { return { __type: 'Get', input }; }),
+  PutCommand: vi.fn(function (input) { return { __type: 'Put', input }; }),
+  QueryCommand: vi.fn(function (input) { return { __type: 'Query', input }; }),
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => ({ send: s3SendMock })),
-  PutObjectCommand: vi.fn((input) => ({ __type: 'PutObject', input })),
-  GetObjectCommand: vi.fn((input) => ({ __type: 'GetObject', input })),
+  S3Client: vi.fn(function () { return { send: s3SendMock }; }),
+  PutObjectCommand: vi.fn(function (input) { return { __type: 'PutObject', input }; }),
+  GetObjectCommand: vi.fn(function (input) { return { __type: 'GetObject', input }; }),
 }));
 
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
