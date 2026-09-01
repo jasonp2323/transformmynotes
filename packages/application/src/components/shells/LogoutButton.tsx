@@ -4,6 +4,7 @@ import React from 'react';
 import { signOut } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/src/components/ui/Icon';
+import { purgeOfflineCaches } from '@/src/lib/offline';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export function LogoutButton() {
     }
     // Authoritative session cookie clear is done server-side.
     await fetch('/api/auth/sign-out', { method: 'POST' });
+    // Purge offline caches before redirect to prevent the next user from seeing cached data.
+    await purgeOfflineCaches();
     router.push('/login');
   }
 

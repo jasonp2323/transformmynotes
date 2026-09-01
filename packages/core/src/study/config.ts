@@ -76,12 +76,16 @@ export interface AiConfig {
  */
 export const AI_MODEL_ALLOWLIST: readonly string[] = [
   // LOCKED to a single known-good model for now — we are not letting admins
-  // switch models yet. Newer Claude models (e.g. Haiku 4.5) and the bare
-  // foundation-model id forms have caused generation failures; this is the
-  // us. cross-region inference profile that production runs and that the
-  // StudyGenerationConsumer IAM (infra/jobs.ts) is scoped to. Re-expand only
-  // after each candidate model is validated end-to-end.
-  'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  // switch models yet. The previous model (Claude 3.5 Sonnet v2,
+  // us.anthropic.claude-3-5-sonnet-20241022-v2:0) was retired / reached EOL by
+  // AWS Bedrock (first observed 2026-06-17), causing
+  // `ResourceNotFoundException: This model version has reached the end of its
+  // life` on every generation. It is replaced with the current Claude Sonnet
+  // 4.5 cross-region inference profile below, which production runs and that the
+  // StudyGenerationConsumer IAM (infra/jobs.ts) is scoped to. The list stays
+  // intentionally locked to a single known-good model — re-expand only after
+  // each candidate model is validated end-to-end.
+  'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
 ] as const;
 
 /**

@@ -29,6 +29,8 @@ export interface StudySet {
   inputNoteCount?: number;
   /** M20: generalised source refs (note or document) used to generate this study set. */
   sourceRefs?: { type: 'note' | 'document' | 'web'; id: string }[];
+  /** M24: snapshot of the per-user learner context used for this generation. */
+  learnerContext?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +64,8 @@ export interface BuildStudySetItemInput {
   bodyS3Key?: string;
   /** M20: generalised source refs (note or document) used to generate this study set. */
   sourceRefs?: { type: 'note' | 'document' | 'web'; id: string }[];
+  /** M24: snapshot of the per-user learner context used for this generation. */
+  learnerContext?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -109,6 +113,10 @@ export function buildStudySetItem(input: BuildStudySetItemInput): StudySetItem {
 
   if (input.sourceRefs !== undefined) {
     item.sourceRefs = input.sourceRefs;
+  }
+
+  if (input.learnerContext !== undefined) {
+    item.learnerContext = input.learnerContext;
   }
 
   return item;

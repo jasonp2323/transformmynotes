@@ -17,6 +17,7 @@ const deleteNoteRecordMock = vi.hoisted(() => vi.fn());
 const tokeniseMock = vi.hoisted(() => vi.fn());
 const authoriseNoteReadMock = vi.hoisted(() => vi.fn());
 const revokeAllSharesForNoteMock = vi.hoisted(() => vi.fn());
+const putStorageDeltaEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -48,6 +49,7 @@ vi.mock('@transformmynotes/core', () => {
     tokenise: tokeniseMock,
     authoriseNoteRead: authoriseNoteReadMock,
     revokeAllSharesForNote: revokeAllSharesForNoteMock,
+    putStorageDeltaEvent: putStorageDeltaEventMock,
   };
 });
 
@@ -56,6 +58,7 @@ vi.mock('@aws-sdk/client-s3', () => ({
   PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
   GetObjectCommand: vi.fn((input) => ({ kind: 'GetObject', input })),
   DeleteObjectCommand: vi.fn((input) => ({ kind: 'DeleteObject', input })),
+  HeadObjectCommand: vi.fn((input) => ({ kind: 'HeadObject', input })),
 }));
 
 // ---------------------------------------------------------------------------
@@ -160,6 +163,7 @@ beforeEach(() => {
   tokeniseMock.mockReturnValue(['hello', 'world']);
   authoriseNoteReadMock.mockResolvedValue(true);
   revokeAllSharesForNoteMock.mockResolvedValue(0);
+  putStorageDeltaEventMock.mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -247,6 +251,16 @@ describe('PATCH /api/notes/[noteId]', () => {
       expect(body.ok).toBe(false);
       expect(body.error).toBe('A note may have at most 20 tags.');
     });
+
+    it('returns 400 when baseUpdatedAt is not a string', async () => {
+      const [req, ctx] = makeRequest({ ...DEFAULT_BODY, baseUpdatedAt: 12345 });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(400);
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('Invalid baseUpdatedAt.');
+    });
   });
 
   describe('note lookup', () => {
@@ -279,7 +293,7 @@ describe('PATCH /api/notes/[noteId]', () => {
       expect(body.updatedAt).toBe(UPDATED_NOTE.updatedAt);
     });
 
-    it('calls updateNote with correct delta, expectedUpdatedAt, and preserved createdAt', async () => {
+    it('calls updateNote with correct delta, expectedUpdatedAt, and preserved createdAt (no baseUpdatedAt → backward-compat)', async () => {
       const [req, ctx] = makeRequest();
       await PATCH(req, ctx);
 
@@ -293,6 +307,38 @@ describe('PATCH /api/notes/[noteId]', () => {
           expectedUpdatedAt: EXISTING_NOTE.updatedAt,
           createdAt: EXISTING_NOTE.createdAt,
         }),
+      );
+    });
+
+    it('uses supplied baseUpdatedAt as expectedUpdatedAt when present', async () => {
+      const clientBaseline = '2026-01-01T00:00:00.000Z'; // same as EXISTING_NOTE.updatedAt here
+      const [req, ctx] = makeRequest({ ...DEFAULT_BODY, baseUpdatedAt: clientBaseline });
+      const res = await PATCH(req, ctx);
+      const body = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(200);
+      expect(body.updatedAt).toBe(UPDATED_NOTE.updatedAt);
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedUpdatedAt: clientBaseline }),
+      );
+    });
+
+    it('falls back to existing.updatedAt when baseUpdatedAt is absent', async () => {
+      // No baseUpdatedAt in the request body — backward-compat path.
+      const [req, ctx] = makeRequest({ markdown: '## Hi', title: 'Title', tags: [] });
+      await PATCH(req, ctx);
+
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedUpdatedAt: EXISTING_NOTE.updatedAt }),
+      );
+    });
+
+    it('falls back to existing.updatedAt when baseUpdatedAt is an empty string', async () => {
+      const [req, ctx] = makeRequest({ ...DEFAULT_BODY, baseUpdatedAt: '' });
+      await PATCH(req, ctx);
+
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedUpdatedAt: EXISTING_NOTE.updatedAt }),
       );
     });
 
@@ -347,16 +393,96 @@ describe('PATCH /api/notes/[noteId]', () => {
   });
 
   describe('conflict handling', () => {
-    it('returns 409 when updateNote rejects with NoteConflictError', async () => {
+    it('returns 409 with conflict:true and server state when updateNote throws NoteConflictError', async () => {
       updateNoteMock.mockRejectedValueOnce(new NoteConflictError());
+
+      // After the conflict, the handler re-fetches the current server note.
+      // getNote is called twice: once for the initial lookup, once for the conflict re-fetch.
+      const SERVER_NOTE = {
+        ...EXISTING_NOTE,
+        title: 'Server Title',
+        tags: ['serverTag'],
+        words: 10,
+        highlights: 1,
+        langPair: 'en-fr',
+        ocrConfidence: 95,
+        updatedAt: '2026-06-01T00:00:00.000Z',
+      };
+      getNoteMock
+        .mockResolvedValueOnce(EXISTING_NOTE)   // initial lookup
+        .mockResolvedValueOnce(SERVER_NOTE);    // conflict re-fetch
+
+      // s3SendMock: first call is GetObject for old body (token diff),
+      // second call is GetObject for server body in conflict re-fetch.
+      s3SendMock
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } })
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('server body text') } });
 
       const [req, ctx] = makeRequest();
       const res = await PATCH(req, ctx);
-      const body = await res.json() as Record<string, unknown>;
+      const resBody = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(409);
-      expect(body.ok).toBe(false);
-      expect(body.error).toBe('Note was modified concurrently. Reload and try again.');
+      expect(resBody.ok).toBe(false);
+      expect(resBody.conflict).toBe(true);
+      expect(resBody.error).toBe('This note was changed elsewhere since you started editing.');
+
+      const server = resBody.server as Record<string, unknown>;
+      expect(server.updatedAt).toBe(SERVER_NOTE.updatedAt);
+      expect(server.title).toBe(SERVER_NOTE.title);
+      expect(server.tags).toEqual(SERVER_NOTE.tags);
+      expect(server.markdown).toBe('server body text');
+      expect(server.words).toBe(SERVER_NOTE.words);
+      expect(server.highlights).toBe(SERVER_NOTE.highlights);
+      expect(server.langPair).toBe(SERVER_NOTE.langPair);
+      expect(server.ocrConfidence).toBe(SERVER_NOTE.ocrConfidence);
+    });
+
+    it('does NOT send PutObjectCommand for the new body on a conflict (S3 body is not clobbered)', async () => {
+      const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+      updateNoteMock.mockRejectedValueOnce(new NoteConflictError());
+
+      // Second getNote call for server re-fetch
+      getNoteMock
+        .mockResolvedValueOnce(EXISTING_NOTE)
+        .mockResolvedValueOnce(EXISTING_NOTE);
+
+      s3SendMock
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } })
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('server body') } });
+
+      const [req, ctx] = makeRequest();
+      await PATCH(req, ctx);
+
+      // PutObjectCommand must NOT have been called — no S3 write on conflict.
+      expect(PutObjectCommand).not.toHaveBeenCalled();
+    });
+
+    it('returns 409 with baseUpdatedAt matching server (stale client guard)', async () => {
+      // Client sends a stale baseUpdatedAt; updateNote sees mismatch and throws.
+      updateNoteMock.mockRejectedValueOnce(new NoteConflictError());
+
+      getNoteMock
+        .mockResolvedValueOnce(EXISTING_NOTE)
+        .mockResolvedValueOnce(EXISTING_NOTE);
+
+      s3SendMock
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } })
+        .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('server body') } });
+
+      const [req, ctx] = makeRequest({
+        ...DEFAULT_BODY,
+        baseUpdatedAt: '2025-01-01T00:00:00.000Z', // stale
+      });
+      const res = await PATCH(req, ctx);
+      const resBody = await res.json() as Record<string, unknown>;
+
+      expect(res.status).toBe(409);
+      expect(resBody.conflict).toBe(true);
+      // updateNote must have been called with the client's stale baseUpdatedAt as expectedUpdatedAt
+      expect(updateNoteMock).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedUpdatedAt: '2025-01-01T00:00:00.000Z' }),
+      );
     });
   });
 
@@ -609,12 +735,14 @@ describe('DELETE /api/notes/[noteId]', () => {
   });
 
   it('still returns { ok: true } if S3 DeleteObject fails', async () => {
-    // First send is GetObject (for token reconstruction) — succeeds with default mock.
-    // Subsequent sends (DeleteObject calls) fail.
+    // Send sequence: (1) GetObject (token reconstruction) succeeds,
+    // (2) HeadObject (image size for metering) succeeds,
+    // (3) & (4) DeleteObject calls fail.
     s3SendMock
-      .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } })
-      .mockRejectedValueOnce(new Error('S3 access denied'))
-      .mockRejectedValueOnce(new Error('S3 access denied'));
+      .mockResolvedValueOnce({ Body: { transformToString: vi.fn().mockResolvedValue('old body text') } }) // GetObject
+      .mockResolvedValueOnce({ ContentLength: 123 }) // HeadObject (image size) — new
+      .mockRejectedValueOnce(new Error('S3 access denied')) // DeleteObject body
+      .mockRejectedValueOnce(new Error('S3 access denied')); // DeleteObject image
 
     const [req, ctx] = makeDeleteRequest();
     const res = await DELETE(req, ctx);

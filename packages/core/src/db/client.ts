@@ -42,4 +42,10 @@ export const TableNames = {
   get Notes(): string {
     return requireTableName('SST_RESOURCE_Notes_name');
   },
+  get Usage(): string {
+    return requireTableName('SST_RESOURCE_Usage_name');
+  },
+  get StudyEvents(): string {
+    return requireTableName('SST_RESOURCE_StudyEvents_name');
+  },
 } as const;

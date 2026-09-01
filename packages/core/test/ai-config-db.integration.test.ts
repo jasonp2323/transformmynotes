@@ -22,7 +22,7 @@ import {
 import { bustAiConfigCache, type AiConfigInput } from '../src/study/config.js';
 
 beforeAll(async () => {
-  process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
+  process.env.SST_RESOURCE_BEDROCK_MODEL_ID_value = 'us.anthropic.claude-sonnet-4-5-20250929-v1:0';
   process.env.SST_RESOURCE_STUDY_SYSTEM_PROMPT_value = 'Env base system prompt';
 
   // Clean the CONFIG#AI partition to guarantee a fresh slate.
@@ -42,7 +42,7 @@ function fixture(overrides: Partial<AiConfigInput> = {}): AiConfigInput {
   return {
     baseSystemPrompt: 'Body prompt',
     promptOverrides: {},
-    modelId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    modelId: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
     modelOverrides: {},
     maxTokens: 4096,
     temperature: 0.5,

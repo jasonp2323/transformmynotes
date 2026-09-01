@@ -165,12 +165,13 @@ test.describe('[E2E] NoteSetPicker', () => {
     // Click the mobile nav button to enter selection mode
     await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
 
-    // Header "Select all" checkbox + per-note checkboxes appear
+    // Header "Select all" checkbox + per-note checkboxes appear.
+    // The Checkbox component hides the <input> via CSS; check the visible <label> instead.
     await expect(
-      page.getByRole('checkbox', { name: 'Select all notes' }).first(),
+      page.locator('label.tmn-check:has(input[aria-label="Select all notes"])').first(),
     ).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.getByRole('checkbox', { name: `Select ${NOTE_A_TITLE}` }).first(),
+      page.locator(`label.tmn-check:has(input[aria-label="Select ${NOTE_A_TITLE}"])`).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -185,8 +186,9 @@ test.describe('[E2E] NoteSetPicker', () => {
     // Enter selection mode via the mobile nav button
     await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
 
-    // Click the library "Select all notes" checkbox
-    await page.getByRole('checkbox', { name: 'Select all notes' }).first().click();
+    // Click the library "Select all notes" checkbox.
+    // The Checkbox component hides the <input> via CSS; click the visible <label> instead.
+    await page.locator('label.tmn-check:has(input[aria-label="Select all notes"])').first().click();
 
     // All three per-note checkboxes should be checked
     await expect(
@@ -199,9 +201,11 @@ test.describe('[E2E] NoteSetPicker', () => {
       page.getByRole('checkbox', { name: `Select ${NOTE_C_TITLE}` }).first(),
     ).toBeChecked({ timeout: 5_000 });
 
-    // The in-flow CTA becomes enabled
+    // The in-flow CTA becomes enabled.
+    // Use exact: true to avoid matching the mobile nav button whose aria-label
+    // is "Select notes to generate study material" (substring match otherwise).
     await expect(
-      page.getByRole('button', { name: 'Generate study material' }),
+      page.getByRole('button', { name: 'Generate study material', exact: true }).first(),
     ).toBeEnabled({ timeout: 5_000 });
   });
 
@@ -218,7 +222,7 @@ test.describe('[E2E] NoteSetPicker', () => {
     await page.getByText(NOTE_A_TITLE).first().click();
 
     // Open the picker via the in-flow CTA — library flow jumps straight to the material-type step
-    await page.getByRole('button', { name: 'Generate study material' }).click();
+    await page.getByRole('button', { name: 'Generate study material', exact: true }).first().click();
     await expect(page.getByText('Choose format').first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -233,17 +237,25 @@ test.describe('[E2E] NoteSetPicker', () => {
     // Enter selection mode via mobile nav button, select a note, open picker via in-flow CTA
     await page.getByRole('button', { name: 'Select notes to generate study material' }).click();
     await page.getByText(NOTE_A_TITLE).first().click();
-    await page.getByRole('button', { name: 'Generate study material' }).click();
+    await page.getByRole('button', { name: 'Generate study material', exact: true }).first().click();
     await expect(page.getByText('Choose format').first()).toBeVisible({ timeout: 10_000 });
 
     // Step back to the note-selection step
     await page.getByRole('button', { name: 'Back' }).first().click();
     await expect(page.getByText('Select notes').first()).toBeVisible({ timeout: 10_000 });
 
-    // Search filters the note list
-    await page.getByLabel('Search notes').fill('French');
-    await expect(page.getByText(NOTE_C_TITLE).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(NOTE_A_TITLE).first()).toBeHidden({ timeout: 10_000 });
+    // Search filters the note list — scope to the open dialog to avoid matching
+    // the library search input (and note cards) rendered behind the picker.
+    const dialog = page.locator('dialog[open]');
+    await dialog.getByLabel('Search notes').fill('French');
+    // NOTE_C should appear in the filtered note list
+    await expect(dialog.getByText(NOTE_C_TITLE).first()).toBeVisible({ timeout: 10_000 });
+    // NOTE_A should NOT appear in the note list rows. Note rows are <label> elements
+    // wrapping a checkbox; selected-note chips at the top are <div> elements (not labels).
+    // Scoping to labels avoids false positives from the pre-selected chip.
+    await expect(
+      dialog.locator('label').filter({ hasText: NOTE_A_TITLE }),
+    ).toBeHidden({ timeout: 10_000 });
   });
 
   // ── Cleanup ──────────────────────────────────────────────────────────────────

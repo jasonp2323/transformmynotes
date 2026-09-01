@@ -34,6 +34,7 @@ export async function GET() {
       lastReviewedAt: c.lastReviewedAt,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
+      origin: c.origin ?? ('highlight' as const),
     }));
 
     return NextResponse.json({ cards: mapped, total: mapped.length });

@@ -7,6 +7,7 @@
 @import './success.css';
 @import './note-view.css';
 @import './study.css';
+@import './activity.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
