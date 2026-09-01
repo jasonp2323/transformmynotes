@@ -38,11 +38,12 @@ interface NavGroup {
 const NOTEBOOK_GROUP: NavGroup = {
   group: 'Notebook',
   items: [
-    { id: 'library', icon: 'book-open', label: 'Library',    href: '/dashboard' },
-    { id: 'search',  icon: 'search',    label: 'Search',     href: '/search' },
-    { id: 'review',  icon: 'layers',         label: 'Review deck', liveBadge: true, href: '/review' },
-    { id: 'study',   icon: 'graduation-cap', label: 'Study',       href: '/study' },
-    { id: 'sources', icon: 'file-text',      label: 'Sources',     href: '/sources' },
+    { id: 'library',  icon: 'book-open',      label: 'Library',     href: '/dashboard' },
+    { id: 'search',   icon: 'search',         label: 'Search',      href: '/search' },
+    { id: 'review',   icon: 'layers',         label: 'Review deck', liveBadge: true, href: '/review' },
+    { id: 'study',    icon: 'graduation-cap', label: 'Study',       href: '/study' },
+    { id: 'sources',  icon: 'file-text',      label: 'Sources',     href: '/sources' },
+    { id: 'progress', icon: 'trending-up',    label: 'Progress',    href: '/progress' },
   ],
 };
 
@@ -73,6 +74,7 @@ export function DesktopShell({
       { id: 'members', icon: 'users',  label: 'Members', href: '/admin/members' },
       { id: 'invites', icon: 'ticket', label: 'Invites', href: '/admin/invites' },
       { id: 'ai-settings', icon: 'sliders', label: 'AI Settings', href: '/admin/ai-settings' },
+      { id: 'cost-breakdown', icon: 'pie-chart', label: 'Cost Breakdown', href: '/admin/cost-breakdown' },
     ],
   };
   const navGroups: NavGroup[] = isAdmin ? [NOTEBOOK_GROUP, adminGroup] : [NOTEBOOK_GROUP];

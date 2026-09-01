@@ -8,6 +8,12 @@ export type SourceRef = { type: 'note'; id: string } | { type: 'document'; id: s
 export interface ResolvedSource {
   text: string;
   provenanceLabel: string;
+  /**
+   * Trust signal for the resolved content, gating the LLM prompt-injection guard
+   * (M21). Notes and uploaded documents are `'user-authored'`; only web-fetched
+   * article sources (`source.type === 'web'`) are `'web-fetched'`.
+   */
+  contentTrust: 'user-authored' | 'web-fetched';
 }
 
 /**
@@ -38,7 +44,7 @@ export async function resolveSourceText(sub: string, ref: SourceRef): Promise<Re
       new GetObjectCommand({ Bucket: bucket, Key: storageKeys.noteMarkdown(sub, ref.id) }),
     );
     const text = await response.Body!.transformToString();
-    return { text, provenanceLabel: note.title };
+    return { text, provenanceLabel: note.title, contentTrust: 'user-authored' };
   }
 
   // type === 'document'
@@ -60,5 +66,8 @@ export async function resolveSourceText(sub: string, ref: SourceRef): Promise<Re
     new GetObjectCommand({ Bucket: bucket, Key: source.extractedTextS3Key }),
   );
   const text = await response.Body!.transformToString();
-  return { text, provenanceLabel: source.title };
+  // Only web-fetched articles carry untrusted content and get the injection guard;
+  // uploaded PDFs/DOCX (type 'document') remain 'user-authored'.
+  const contentTrust = source.type === 'web' ? 'web-fetched' : 'user-authored';
+  return { text, provenanceLabel: source.title, contentTrust };
 }

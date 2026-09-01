@@ -63,4 +63,13 @@ describe('default-prompts drift guard', () => {
     const file = readPromptFile('STUDY_GUIDE_PROMPT.txt');
     expect(DEFAULT_TYPE_PROMPTS.study_guide).toBe(file);
   });
+
+  it('DEFAULT_TYPE_PROMPTS.study_guide contains an English-scaffolding language rule', () => {
+    // Verifies that the study-guide prompt instructs the model to write
+    // instructional scaffolding in English while keeping subject content
+    // in its source language — the fix for the Portuguese study-guide bug.
+    expect(DEFAULT_TYPE_PROMPTS.study_guide).toContain('LANGUAGE RULE');
+    expect(DEFAULT_TYPE_PROMPTS.study_guide).toContain('ENGLISH');
+    expect(DEFAULT_TYPE_PROMPTS.study_guide).toContain('source language');
+  });
 });

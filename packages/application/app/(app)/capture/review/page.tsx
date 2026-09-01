@@ -4,6 +4,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { storageKeys, postprocessMarkdown } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 import { ReviewScreen } from '@/src/components/review/ReviewScreen';
+import { parsePageJobIds } from '@/src/components/capture/pageTray';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,11 +23,12 @@ function requireBucketName(): string {
 export default async function ReviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ jobId?: string; layout?: string }>;
+  searchParams: Promise<{ jobId?: string; layout?: string; pageJobIds?: string }>;
 }) {
   const params = await searchParams;
   const jobId = params.jobId;
   const layoutParam = params.layout;
+  const pageIds = parsePageJobIds(params.pageJobIds);
 
   if (!jobId) {
     redirect('/capture');
@@ -77,6 +79,30 @@ export default async function ReviewPage({
     imageUrl = null;
   }
 
+  // Presign GET URLs for all page images (multi-page batch)
+  let originalImageUrls: string[] | undefined;
+  let originalImageS3Keys: string[] | undefined;
+  if (pageIds.length >= 1) {
+    const s3Keys = pageIds.map((id) => storageKeys.originalImage(sub, id));
+    try {
+      const urls = await Promise.all(
+        s3Keys.map((key) =>
+          getSignedUrl(
+            s3,
+            new GetObjectCommand({ Bucket: bucket, Key: key }),
+            { expiresIn: 900 },
+          ),
+        ),
+      );
+      originalImageUrls = urls;
+      originalImageS3Keys = s3Keys;
+    } catch {
+      // Any failure → degrade gracefully, no gallery
+      originalImageUrls = [];
+      originalImageS3Keys = [];
+    }
+  }
+
   const forceLayout = layoutParam === 'stacked' ? 'stacked' : undefined;
 
   return (
@@ -87,6 +113,8 @@ export default async function ReviewPage({
       langPair={meta.detectedLang}
       ocrConfidence={meta.ocrConfidence}
       originalImageUrl={imageUrl}
+      originalImageUrls={originalImageUrls}
+      originalImageS3Keys={originalImageS3Keys}
       forceLayout={forceLayout}
     />
   );

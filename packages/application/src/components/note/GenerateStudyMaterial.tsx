@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Button,
@@ -11,9 +11,9 @@ import {
 import {
   STUDY_TYPE_META,
   STUDY_TYPE_ORDER,
-  type StudySetMeta,
 } from '@/src/lib/study-ui';
 import type { StudyMaterialType } from '@transformmynotes/core';
+import { useAiActivity } from '@/src/components/activity/AiActivityProvider';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -21,17 +21,6 @@ interface ToastState {
   tone: 'success' | 'danger' | 'neutral' | 'warning';
   title: string;
 }
-
-type GenerationState =
-  | { phase: 'idle' }
-  | { phase: 'generating'; studySetId: string; type: StudyMaterialType; polls: number }
-  | { phase: 'failed'; studySetId: string; type: StudyMaterialType; error: string }
-  | { phase: 'timeout'; studySetId: string; type: StudyMaterialType };
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 60;
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -45,149 +34,15 @@ export function GenerateStudyMaterial({
   onStudySetReady,
 }: GenerateStudyMaterialProps) {
   const router = useRouter();
+  const { registerActivity } = useAiActivity();
 
   // Picker dialog state
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selected, setSelected] = useState<Set<StudyMaterialType>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
-  // Generation / polling state
-  const [generation, setGeneration] = useState<GenerationState>({ phase: 'idle' });
-
   // Toast
   const [toast, setToast] = useState<ToastState | null>(null);
-
-  // Timer ref for cleanup
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, []);
-
-  // ── Polling ────────────────────────────────────────────────────────────────
-
-  const schedulePoll = useCallback(
-    (studySetId: string, type: StudyMaterialType, pollCount: number) => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-      }
-
-      timerRef.current = setTimeout(() => {
-        if (!mountedRef.current) return;
-
-        void (async () => {
-          try {
-            const res = await fetch(`/api/study/${studySetId}`);
-            if (!mountedRef.current) return;
-
-            if (!res.ok) {
-              setGeneration({ phase: 'idle' });
-              setToast({ tone: 'danger', title: 'Lost track of the generation — try again.' });
-              return;
-            }
-
-            const data = (await res.json()) as StudySetMeta;
-            if (!mountedRef.current) return;
-
-            if (data.status === 'ready') {
-              setGeneration({ phase: 'idle' });
-              onStudySetReady?.();
-              router.push(`/study/${studySetId}`);
-              return;
-            }
-
-            if (data.status === 'failed') {
-              setGeneration({
-                phase: 'failed',
-                studySetId,
-                type,
-                error: data.error ?? 'Generation failed — please try again.',
-              });
-              return;
-            }
-
-            // queued | running
-            const nextCount = pollCount + 1;
-            if (nextCount >= MAX_POLLS) {
-              setGeneration({ phase: 'timeout', studySetId, type });
-              return;
-            }
-
-            // Schedule next poll
-            setGeneration({ phase: 'generating', studySetId, type, polls: nextCount });
-            schedulePoll(studySetId, type, nextCount);
-          } catch {
-            if (!mountedRef.current) return;
-            setGeneration({ phase: 'idle' });
-            setToast({ tone: 'danger', title: 'Lost connection while generating — try again.' });
-          }
-        })();
-      }, POLL_INTERVAL_MS);
-    },
-    [router, onStudySetReady],
-  );
-
-  // ── Manual re-poll for timeout state ─────────────────────────────────────
-
-  const handleManualRefresh = useCallback(
-    (studySetId: string, type: StudyMaterialType) => {
-      setGeneration({ phase: 'generating', studySetId, type, polls: 0 });
-      schedulePoll(studySetId, type, 0);
-    },
-    [schedulePoll],
-  );
-
-  // ── Retry for failed state ────────────────────────────────────────────────
-
-  const handleRetry = useCallback(
-    async (studySetId: string, type: StudyMaterialType) => {
-      setSubmitting(true);
-      try {
-        const res = await fetch('/api/study/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceNoteId: noteId, type }),
-        });
-
-        if (!mountedRef.current) return;
-
-        if (res.status === 202) {
-          const data = (await res.json()) as { studySetId: string };
-          setGeneration({ phase: 'generating', studySetId: data.studySetId, type, polls: 0 });
-          schedulePoll(data.studySetId, type, 0);
-        } else if (res.status === 429) {
-          const data = (await res.json()) as { error?: string };
-          setGeneration({ phase: 'idle' });
-          setToast({
-            tone: 'warning',
-            title:
-              data.error ?? 'Too many in-flight generations — wait for one to finish.',
-          });
-        } else if (res.status === 401) {
-          setGeneration({ phase: 'idle' });
-          setToast({ tone: 'danger', title: 'Please sign in again.' });
-        } else {
-          setGeneration({ phase: 'idle' });
-          setToast({ tone: 'danger', title: 'Something went wrong — please try again.' });
-        }
-      } catch {
-        if (!mountedRef.current) return;
-        setGeneration({ phase: 'idle' });
-        setToast({ tone: 'danger', title: 'Network error — please try again.' });
-      } finally {
-        if (mountedRef.current) setSubmitting(false);
-      }
-    },
-    [noteId, schedulePoll],
-  );
 
   // ── Toggle type selection ─────────────────────────────────────────────────
 
@@ -228,8 +83,6 @@ export function GenerateStudyMaterial({
             )
           );
 
-          if (!mountedRef.current) return;
-
           const unauthorized = otherResults.some((r) => r.status === 401);
           const rateLimited = otherResults.filter((r) => r.status === 429).length;
           const succeeded = otherResults.filter((r) => r.status === 202).length;
@@ -244,17 +97,22 @@ export function GenerateStudyMaterial({
               title: `Started ${succeeded} of ${otherTypes.length} — the rest hit the in-flight limit. Try the others shortly.`,
             });
           }
+
+          if (succeeded > 0) {
+            registerActivity();
+          }
         }
 
         // Navigate to the deck review flow regardless of other-type outcomes.
         setPickerOpen(false);
         setSelected(new Set());
         onStudySetReady?.();
+        registerActivity();
         router.push(`/notes/${noteId}/generate-cards`);
         return;
       }
 
-      // ── Non-flashcard branch: existing behavior, operating on otherTypes ──
+      // ── Non-flashcard branch: operating on otherTypes ──
       // (In this branch hasFlashcards is false, so otherTypes === types.)
       const results = await Promise.all(
         otherTypes.map((type) =>
@@ -266,17 +124,14 @@ export function GenerateStudyMaterial({
         )
       );
 
-      if (!mountedRef.current) return;
-
       if (otherTypes.length === 1) {
-        // Single-type path — keep existing single-item flow
+        // Single-type path
         const result = results[0];
         if (!result) return;
         if (result.status === 202) {
           setPickerOpen(false);
           setSelected(new Set());
-          setGeneration({ phase: 'generating', studySetId: result.data.studySetId!, type: result.type, polls: 0 });
-          schedulePoll(result.data.studySetId!, result.type, 0);
+          registerActivity();
         } else if (result.status === 429) {
           setPickerOpen(false);
           setToast({ tone: 'warning', title: result.data.error ?? 'Too many in-flight generations — wait for one to finish.' });
@@ -296,6 +151,10 @@ export function GenerateStudyMaterial({
 
         onStudySetReady?.(); // bump the refresh nonce
 
+        if (succeeded > 0) {
+          registerActivity();
+        }
+
         if (unauthorized) {
           setToast({ tone: 'danger', title: 'Please sign in again.' });
         } else if (rateLimited > 0 && succeeded > 0) {
@@ -310,16 +169,13 @@ export function GenerateStudyMaterial({
         }
       }
     } catch {
-      if (!mountedRef.current) return;
       setToast({ tone: 'danger', title: 'Network error — please try again.' });
     } finally {
-      if (mountedRef.current) setSubmitting(false);
+      setSubmitting(false);
     }
-  }, [noteId, selected, schedulePoll, onStudySetReady, router]);
+  }, [noteId, selected, onStudySetReady, router, registerActivity]);
 
   // ── Render ────────────────────────────────────────────────────────────────
-
-  const genState = generation;
 
   return (
     <>
@@ -329,63 +185,14 @@ export function GenerateStudyMaterial({
         fullWidth
         leftIcon={<Icon name="sparkles" size={18} />}
         onClick={() => {
-          if (genState.phase === 'idle') {
+          if (!submitting) {
             setPickerOpen(true);
           }
         }}
-        disabled={genState.phase !== 'idle'}
+        disabled={submitting}
       >
         Generate study material
       </Button>
-
-      {/* ── In-progress banner ── */}
-      {genState.phase === 'generating' && (
-        <div className="tmn-study-progress" role="status">
-          <Icon name="loader-circle" size={18} />
-          <span>
-            Generating your {STUDY_TYPE_META[genState.type].label.toLowerCase()}…
-          </span>
-        </div>
-      )}
-
-      {/* ── Failed state ── */}
-      {genState.phase === 'failed' && (
-        <div className="tmn-study-progress tmn-study-progress--error" role="alert">
-          <Icon name="x" size={18} />
-          <span>{genState.error}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            loading={submitting}
-            onClick={() => void handleRetry(genState.studySetId, genState.type)}
-          >
-            Try again
-          </Button>
-        </div>
-      )}
-
-      {/* ── Timeout state ── */}
-      {genState.phase === 'timeout' && (
-        <div className="tmn-study-progress" role="status">
-          <Icon name="loader-circle" size={18} />
-          <span>Still processing — check back later.</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleManualRefresh(genState.studySetId, genState.type)}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            rightIcon={<Icon name="arrow-right" size={14} />}
-            onClick={() => router.push('/study')}
-          >
-            View all
-          </Button>
-        </div>
-      )}
 
       {/* ── Type-picker Dialog ── */}
       <Dialog

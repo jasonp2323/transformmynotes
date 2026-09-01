@@ -238,7 +238,7 @@ export default function AdminPendingPage() {
   return (
     <AdminShell title="Pending registrations" eyebrow="Admin" actions={approveAllButton}>
       {/* Summary cards */}
-      <div style={{ display: 'flex', gap: 14, marginBottom: 22 }}>
+      <div style={{ display: 'flex', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
         {(
           [
             ['Awaiting review', awaitingCount, 'var(--warning-500)'],
@@ -246,7 +246,7 @@ export default function AdminPendingPage() {
             ['Avg. wait', avgWait, 'var(--brand-strong)'],
           ] as const
         ).map(([label, value, color], i) => (
-          <Card key={i} padded style={{ flex: 1 }}>
+          <Card key={i} padded style={{ flex: '1 1 120px', minWidth: 0 }}>
             <div
               style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600 }}
             >
@@ -379,25 +379,20 @@ export default function AdminPendingPage() {
 
       {/* Toast */}
       {toast && (
-        <div
+        <Toast
+          tone={toast.tone}
+          icon={toast.icon}
+          title={toast.title}
+          onClose={dismissToast}
+          duration={3200}
           style={{
-            position: 'fixed',
-            right: 28,
-            bottom: 28,
-            width: 340,
-            zIndex: 50,
+            right: 'max(16px, env(safe-area-inset-right, 0px) + 16px)',
+            bottom: 'max(16px, env(safe-area-inset-bottom, 0px) + 16px)',
+            width: 'min(360px, calc(100vw - 32px))',
           }}
         >
-          <Toast
-            tone={toast.tone}
-            icon={toast.icon}
-            title={toast.title}
-            onClose={dismissToast}
-            duration={3200}
-          >
-            {toast.body}
-          </Toast>
-        </div>
+          {toast.body}
+        </Toast>
       )}
     </AdminShell>
   );

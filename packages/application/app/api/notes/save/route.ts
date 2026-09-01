@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import {
   storageKeys,
   getTranscriptionJob,
@@ -10,6 +10,10 @@ import {
   postprocessMarkdown,
   countHighlights,
   syncCardsForNote,
+  putStorageDeltaEvent,
+  buildNoteCreatedEventItem,
+  appendStudyEvent,
+  newEventId,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -45,7 +49,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { jobId, title, markdown, tags } = (body ?? {}) as Record<string, unknown>;
+  const { jobId, title, markdown, tags, originalImageS3Keys } = (body ?? {}) as Record<string, unknown>;
 
   // Validate jobId.
   if (typeof jobId !== 'string' || !jobId) {
@@ -92,6 +96,24 @@ export async function POST(req: Request) {
     }
   }
 
+  // Validate originalImageS3Keys (optional).
+  let resolvedImageKeys: string[] | undefined;
+  if (originalImageS3Keys !== undefined) {
+    const sentinelKey = storageKeys.originalImage(sub, '__id__');
+    const imagePrefix = sentinelKey.slice(0, sentinelKey.lastIndexOf('/') + 1);
+    if (
+      !Array.isArray(originalImageS3Keys) ||
+      !(originalImageS3Keys as unknown[]).every((k) => typeof k === 'string') ||
+      !(originalImageS3Keys as string[]).every((k) => k.startsWith(imagePrefix))
+    ) {
+      return NextResponse.json(
+        { ok: false, error: 'Invalid originalImageS3Keys.' },
+        { status: 400 },
+      );
+    }
+    resolvedImageKeys = originalImageS3Keys as string[];
+  }
+
   try {
     // Resolve required env var — fail loudly if unset.
     const bucket = requireBucketName();
@@ -133,7 +155,42 @@ export async function POST(req: Request) {
       ocrConfidence: meta.ocrConfidence,
       bodyS3Key: storageKeys.noteMarkdown(sub, noteId),
       originalImageS3Key: storageKeys.originalImage(sub, noteId),
+      originalImageS3Keys: resolvedImageKeys,
     });
+
+    // Append study-progress event for note creation (fail-soft: never aborts the save action)
+    try {
+      const noteCreatedAt = new Date().toISOString();
+      await appendStudyEvent(
+        buildNoteCreatedEventItem(
+          sub,
+          { noteId, tags: resolvedTags },
+          noteCreatedAt,
+          newEventId(),
+        ),
+      );
+    } catch (err) {
+      console.error('[progress] NOTE_CREATED event append failed', err);
+    }
+
+    // M23.2.2 storage metering, best-effort: emit a positive storage delta for the
+    // persisted note (markdown body + original image S3 bytes). putStorageDeltaEvent is
+    // fire-and-forget (never throws) and the HeadObject is wrapped in try/catch, so this
+    // block can never break the note flow or change the HTTP response.
+    const markdownBytes = Buffer.byteLength(markdown);
+    let imageBytes = 0;
+    try {
+      const head = await s3.send(
+        new HeadObjectCommand({
+          Bucket: bucket,
+          Key: storageKeys.originalImage(sub, noteId),
+        }),
+      );
+      imageBytes = head.ContentLength ?? 0;
+    } catch {
+      /* image may legitimately be absent (non-image notes) — treat as 0 */
+    }
+    await putStorageDeltaEvent({ sub, bytesDelta: markdownBytes + imageBytes });
 
     // Index tokens for full-text search.
     await putNoteTokens(sub, noteId, tokenise((title || 'Untitled note') + ' ' + markdown));

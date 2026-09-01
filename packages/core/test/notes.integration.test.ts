@@ -266,6 +266,53 @@ describe('Notes — listNoteIdsByTag via GSI2 (NotesByTag)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Sub-case: originalImageS3Keys round-trip
+// ---------------------------------------------------------------------------
+
+describe('Notes — originalImageS3Keys round-trip', () => {
+  const SUB = 'sub-imgkeys-001';
+  const NOTE_WITH_KEYS = '01JXXXXXXXXXXXXXXXXXMP001';
+  const NOTE_WITHOUT_KEYS = '01JXXXXXXXXXXXXXXXXXMP002';
+  const IMAGE_KEYS = ['images/users/sub-imgkeys-001/p1.jpg', 'images/users/sub-imgkeys-001/p2.jpg'];
+
+  it('writes a note with originalImageS3Keys and reads it back in order', async () => {
+    await writeNoteWithTags({
+      ...BASE_NOTE,
+      sub: SUB,
+      noteId: NOTE_WITH_KEYS,
+      title: 'Multi-page Note',
+      tags: [],
+      originalImageS3Keys: IMAGE_KEYS,
+    });
+
+    const fetched = await getNote(SUB, NOTE_WITH_KEYS);
+    expect(fetched).toBeDefined();
+    expect(fetched!.originalImageS3Keys).toEqual(IMAGE_KEYS);
+  });
+
+  it('note with originalImageS3Keys appears in listUserNotes with the array intact', async () => {
+    const notes = await listUserNotes(SUB);
+    const note = notes.find((n) => n.noteId === NOTE_WITH_KEYS);
+    expect(note).toBeDefined();
+    expect(note!.originalImageS3Keys).toEqual(IMAGE_KEYS);
+  });
+
+  it('writes a note WITHOUT originalImageS3Keys and reads back fine with field undefined', async () => {
+    await writeNoteWithTags({
+      ...BASE_NOTE,
+      sub: SUB,
+      noteId: NOTE_WITHOUT_KEYS,
+      title: 'Single-page Note',
+      tags: [],
+    });
+
+    const fetched = await getNote(SUB, NOTE_WITHOUT_KEYS);
+    expect(fetched).toBeDefined();
+    expect(fetched!.originalImageS3Keys).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Sub-case 4: Multi-tag write — each tag produces its own tag-index item
 // ---------------------------------------------------------------------------
 
