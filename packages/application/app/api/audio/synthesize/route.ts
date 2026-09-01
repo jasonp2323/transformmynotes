@@ -11,6 +11,9 @@ import {
   synthesizeSpeech,
   resolveAiConfig,
   resolveVoiceEngine,
+  buildActivityItem,
+  putActivity,
+  appendStepUpdate,
 } from '@transformmynotes/core';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
 
@@ -106,6 +109,8 @@ export async function POST(req: Request) {
   }
   const effectiveSsmlRate = ssmlRate as string | undefined;
 
+  let activity: ReturnType<typeof buildActivityItem> | undefined;
+
   try {
     const bucket = requireBucketName();
 
@@ -160,6 +165,23 @@ export async function POST(req: Request) {
 
     if (!cached) {
       // Cache miss: synthesize, store the MP3 in S3, and write the pointer item.
+      // Best-effort ACTIVITY create — must NEVER break synthesis.
+      try {
+        activity = buildActivityItem({
+          sub,
+          kind: 'tts',
+          refId: hash,
+          title: 'Generating audio',
+          phase: 'synthesizing',
+          phaseDetail: 'Generating audio',
+          status: 'running',
+        });
+        await putActivity(activity);
+      } catch (activityErr) {
+        console.error('[audio/synthesize] Failed to write activity (create)', activityErr);
+        activity = undefined;
+      }
+
       const { audioBytes } = await synthesizeSpeech(
         trimmedText,
         effectiveVoiceId,
@@ -191,6 +213,20 @@ export async function POST(req: Request) {
           },
         }),
       );
+
+      if (activity) {
+        try {
+          await appendStepUpdate({
+            sub,
+            activityId: activity.activityId,
+            phase: 'ready',
+            phaseDetail: 'Audio ready',
+            status: 'ready',
+          });
+        } catch (activityErr) {
+          console.error('[audio/synthesize] Failed to write activity (ready)', activityErr);
+        }
+      }
     }
 
     // Presign a GetObject URL for the cached or freshly-written MP3.
@@ -208,6 +244,20 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error('[audio/synthesize] Unexpected error synthesizing audio', err);
+    if (activity) {
+      try {
+        await appendStepUpdate({
+          sub,
+          activityId: activity.activityId,
+          phase: 'failed',
+          phaseDetail: 'Audio generation failed',
+          status: 'failed',
+          error: 'synthesis failed',
+        });
+      } catch (activityErr) {
+        console.error('[audio/synthesize] Failed to write activity (failed)', activityErr);
+      }
+    }
     return NextResponse.json(
       { ok: false, error: 'Could not synthesize audio. Please try again.' },
       { status: 500 },

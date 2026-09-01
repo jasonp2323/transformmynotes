@@ -24,6 +24,8 @@ const resolveContextLimitMock = vi.hoisted(() => vi.fn());
 const resolveMaxSourceNotesMock = vi.hoisted(() => vi.fn());
 const getSourceMock = vi.hoisted(() => vi.fn());
 const resolveSourceTextMock = vi.hoisted(() => vi.fn());
+const getUserProfileBySubMock = vi.hoisted(() => vi.fn());
+const assembleLearnerContextMock = vi.hoisted(() => vi.fn());
 
 const s3SendMock = vi.hoisted(() => vi.fn());
 vi.mock('@aws-sdk/client-s3', () => ({
@@ -48,6 +50,8 @@ vi.mock('@transformmynotes/core', () => ({
   resolveMaxSourceNotes: resolveMaxSourceNotesMock,
   getSource: getSourceMock,
   resolveSourceText: resolveSourceTextMock,
+  getUserProfileBySub: getUserProfileBySubMock,
+  assembleLearnerContext: assembleLearnerContextMock,
   MATERIAL_TYPES: ['flashcards', 'quiz', 'assignment', 'summary', 'glossary', 'study_guide'],
 }));
 
@@ -126,6 +130,9 @@ beforeEach(() => {
     extractedTextS3Key: 'sources/users/user-sub-1/doc-1.md',
   });
   resolveSourceTextMock.mockResolvedValue({ text: 'doc text', provenanceLabel: 'Doc One' });
+  // Default: no profile (null) so unrelated tests are unaffected.
+  getUserProfileBySubMock.mockResolvedValue(null);
+  assembleLearnerContextMock.mockReturnValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -351,5 +358,101 @@ describe('document sources (M20.3)', () => {
     expect(res.status).toBe(200);
     expect(body.mapReduceNeeded).toBe(true);
     expect(resolveSourceTextMock).toHaveBeenCalledWith('user-sub-1', { type: 'document', id: 'doc-1' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M24.2 — language precedence + learnerContext snapshot
+// ---------------------------------------------------------------------------
+
+describe('M24.2 — language precedence + learnerContext snapshot', () => {
+  it('explicit request language wins over profile preferredLanguage', async () => {
+    // Profile says bilingual, request says pt-BR → pt-BR wins.
+    getUserProfileBySubMock.mockResolvedValueOnce({
+      aiProfile: { preferredLanguage: 'bilingual', updatedAt: '2025-01-01T00:00:00.000Z' },
+    });
+    assembleLearnerContextMock.mockReturnValueOnce(undefined);
+
+    const res = await POST(
+      makeRequest({ sourceNoteId: 'note-1', type: 'flashcards', language: 'pt-BR' }),
+    );
+
+    expect(res.status).toBe(202);
+    expect(buildStudySetItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ language: 'pt-BR' }),
+    );
+  });
+
+  it('omitted language falls back to profile preferredLanguage', async () => {
+    // No request language, profile says bilingual → bilingual.
+    getUserProfileBySubMock.mockResolvedValueOnce({
+      aiProfile: { preferredLanguage: 'bilingual', updatedAt: '2025-01-01T00:00:00.000Z' },
+    });
+    assembleLearnerContextMock.mockReturnValueOnce(undefined);
+
+    const res = await POST(
+      makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }),
+    );
+
+    expect(res.status).toBe(202);
+    expect(buildStudySetItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ language: 'bilingual' }),
+    );
+  });
+
+  it('omitted language + no profile falls back to auto', async () => {
+    // getUserProfileBySub returns null (default) → language must be 'auto'.
+    getUserProfileBySubMock.mockResolvedValueOnce(null);
+    assembleLearnerContextMock.mockReturnValueOnce(undefined);
+
+    const res = await POST(
+      makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }),
+    );
+
+    expect(res.status).toBe(202);
+    expect(buildStudySetItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ language: 'auto' }),
+    );
+  });
+
+  it('buildStudySetItem receives learnerContext when profile yields one', async () => {
+    const context = 'Learner context (user-provided preferences …): focus: Math; level: Advanced';
+    getUserProfileBySubMock.mockResolvedValueOnce({
+      aiProfile: { focus: 'Math', level: 'Advanced', updatedAt: '2025-01-01T00:00:00.000Z' },
+    });
+    assembleLearnerContextMock.mockReturnValueOnce(context);
+
+    const res = await POST(
+      makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }),
+    );
+
+    expect(res.status).toBe(202);
+    expect(buildStudySetItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ learnerContext: context }),
+    );
+  });
+
+  it('buildStudySetItem receives undefined learnerContext when profile is null', async () => {
+    getUserProfileBySubMock.mockResolvedValueOnce(null);
+    assembleLearnerContextMock.mockReturnValueOnce(undefined);
+
+    const res = await POST(
+      makeRequest({ sourceNoteId: 'note-1', type: 'flashcards' }),
+    );
+
+    expect(res.status).toBe(202);
+    // learnerContext key should be undefined (not present or explicitly undefined).
+    expect(buildStudySetItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({ learnerContext: undefined }),
+    );
+  });
+
+  it('dryRun does NOT call getUserProfileBySub', async () => {
+    const res = await POST(
+      makeRequest({ sourceNoteId: 'note-1', type: 'flashcards', dryRun: true }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(getUserProfileBySubMock).not.toHaveBeenCalled();
   });
 });

@@ -26,10 +26,16 @@ import {
   deduplicateCandidates,
   applyProvenance,
   resolveSourceText,
+  buildActivityItem,
+  putActivity,
+  appendStepUpdate,
   type StudySetItem,
   type StudyMaterialType,
   type StudyLanguage,
   type RawCandidate,
+  type ActivityItem,
+  type ActivityProgress,
+  type AppendStepUpdateInput,
   HARD_CAP_TOKENS,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -79,10 +85,15 @@ export interface ProcessStudyDeps {
    */
   getNoteMarkdown: (sub: string, noteId: string) => Promise<string>;
   /**
-   * Fetch a document source's extracted text.
+   * Fetch a document source's extracted text and its trust signal.
    * Default: calls `resolveSourceText(sub, { type: 'document', id })` from core.
+   * `contentTrust` is `'web-fetched'` for M21 web-article sources (gating the LLM
+   * injection guard) and `'user-authored'` for uploaded PDFs/DOCX.
    */
-  getDocumentMarkdown: (sub: string, sourceId: string) => Promise<string>;
+  getDocumentMarkdown: (
+    sub: string,
+    sourceId: string,
+  ) => Promise<{ text: string; contentTrust: 'user-authored' | 'web-fetched' }>;
   /**
    * Generate the study material payload.
    * Default: `generateStudyMaterial` from `@transformmynotes/core`.
@@ -92,15 +103,24 @@ export interface ProcessStudyDeps {
     noteMarkdown: string;
     noteTitle: string;
     language: StudyLanguage;
+    learnerContext?: string;
+    contentTrust?: 'user-authored' | 'web-fetched';
     phase?: 'map' | 'reduce';
     candidates?: RawCandidate[];
     maxTokensOverride?: number;
+    onDelta?: (textDelta: string) => void;
   }) => Promise<{ payload: unknown; promptVersion: string }>;
   /**
    * Persist the generated study set body JSON.
    * Default: writes to S3 via PutObjectCommand.
    */
   putBody: (sub: string, studySetId: string, json: string) => Promise<void>;
+  /** Create an ACTIVITY record in DynamoDB. Default: `putActivity`. */
+  createActivity: (item: ActivityItem) => Promise<void>;
+  /** Append a phase-transition step to an ACTIVITY record. Default: `appendStepUpdate`. */
+  updateActivity: (input: AppendStepUpdateInput) => Promise<unknown>;
+  /** Flush the streaming buffer to S3. Default: PutObjectCommand with 'text/plain'. */
+  flushStream: (s3Key: string, text: string) => Promise<void>;
 }
 
 async function defaultGetNoteMarkdown(sub: string, noteId: string): Promise<string> {
@@ -116,9 +136,12 @@ async function defaultGetNoteMarkdown(sub: string, noteId: string): Promise<stri
   return response.Body!.transformToString();
 }
 
-async function defaultGetDocumentMarkdown(sub: string, sourceId: string): Promise<string> {
+async function defaultGetDocumentMarkdown(
+  sub: string,
+  sourceId: string,
+): Promise<{ text: string; contentTrust: 'user-authored' | 'web-fetched' }> {
   const resolved = await resolveSourceText(sub, { type: 'document', id: sourceId });
-  return resolved.text;
+  return { text: resolved.text, contentTrust: resolved.contentTrust };
 }
 
 async function defaultPutBody(sub: string, studySetId: string, json: string): Promise<void> {
@@ -133,6 +156,18 @@ async function defaultPutBody(sub: string, studySetId: string, json: string): Pr
   );
 }
 
+async function defaultFlushStream(s3Key: string, text: string): Promise<void> {
+  const s3 = new S3Client({});
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: requireBucketName(),
+      Key: s3Key,
+      Body: text,
+      ContentType: 'text/plain',
+    }),
+  );
+}
+
 const DEFAULT_DEPS: ProcessStudyDeps = {
   getStudySet: getStudySet,
   claim: claimStudySet,
@@ -142,6 +177,9 @@ const DEFAULT_DEPS: ProcessStudyDeps = {
   getDocumentMarkdown: defaultGetDocumentMarkdown,
   generate: generateStudyMaterial,
   putBody: defaultPutBody,
+  createActivity: putActivity,
+  updateActivity: appendStepUpdate,
+  flushStream: defaultFlushStream,
 };
 
 // ---------------------------------------------------------------------------
@@ -173,7 +211,19 @@ export async function processStudyGeneration(
   studySetId: string,
   deps: Partial<ProcessStudyDeps> = {},
 ): Promise<{ outcome: 'ready' | 'failed' | 'skipped' | 'not_found' | 'too_large' }> {
-  const { getStudySet: _getStudySet, claim, markReady, markFailed, getNoteMarkdown, getDocumentMarkdown, generate, putBody } = {
+  const {
+    getStudySet: _getStudySet,
+    claim,
+    markReady,
+    markFailed,
+    getNoteMarkdown,
+    getDocumentMarkdown,
+    generate,
+    putBody,
+    createActivity,
+    updateActivity,
+    flushStream,
+  } = {
     ...DEFAULT_DEPS,
     ...deps,
   };
@@ -192,7 +242,25 @@ export async function processStudyGeneration(
     return { outcome: 'skipped' };
   }
 
+  // Declared outside try so the catch block can guard on activityId.
+  let activityId: string | undefined;
+  let streamS3Key: string | undefined;
+
   try {
+    // Create the ACTIVITY record first so failures during generation are still tracked.
+    const activity = buildActivityItem({
+      sub,
+      kind: 'study',
+      refId: studySetId,
+      title: studySet.title,
+      phase: 'queued',
+      phaseDetail: 'Queued',
+      status: 'running',
+    });
+    activityId = activity.activityId;
+    streamS3Key = `activity/${sub}/${activityId}.stream.txt`;
+    await createActivity(activity);
+
     // Derive the effective source ref list. If `sourceRefs` is present (M20+),
     // use it directly. Otherwise fall back to legacy `sourceNoteIds` so sets
     // created before M20 continue to work exactly as before.
@@ -201,6 +269,8 @@ export async function processStudyGeneration(
         ? studySet.sourceRefs
         : studySet.sourceNoteIds.map((id) => ({ type: 'note' as const, id }));
 
+    await updateActivity({ sub, activityId, phase: 'reading_notes', phaseDetail: `Reading ${refs.length} notes` });
+
     // Resolve each ref to its text body in parallel.
     // - note → getNoteMarkdown (existing dep)
     // - document → getDocumentMarkdown (new dep, resolves extractedText from S3)
@@ -208,14 +278,27 @@ export async function processStudyGeneration(
     const noteBodies = await Promise.all(
       refs.map(async (ref) => {
         if (ref.type === 'note') {
-          return { noteId: ref.id, body: await getNoteMarkdown(sub, ref.id) };
+          return {
+            noteId: ref.id,
+            body: await getNoteMarkdown(sub, ref.id),
+            contentTrust: 'user-authored' as const,
+          };
         }
         if (ref.type === 'document') {
-          return { noteId: ref.id, body: await getDocumentMarkdown(sub, ref.id) };
+          const resolved = await getDocumentMarkdown(sub, ref.id);
+          return { noteId: ref.id, body: resolved.text, contentTrust: resolved.contentTrust };
         }
         throw new Error('web sources are not supported yet');
       }),
     );
+
+    // Aggregate trust across all resolved refs: if ANY source is web-fetched, the
+    // combined content is untrusted and must be sent with the LLM injection guard
+    // (M21). Omitted (undefined) when nothing is web-fetched so note-only and
+    // uploaded-document generation behave exactly as before.
+    const contentTrust = noteBodies.some((n) => n.contentTrust === 'web-fetched')
+      ? ('web-fetched' as const)
+      : undefined;
 
     // Allowed ids for provenance: the ref ids (note or document) in resolved order.
     const allowedIds = refs.map((r) => r.id);
@@ -245,12 +328,42 @@ export async function processStudyGeneration(
         combined = combined.slice(0, MAX_NOTE_MARKDOWN_CHARS);
       }
 
+      await updateActivity({
+        sub, activityId,
+        phase: 'generating',
+        phaseDetail: 'Writing your study material',
+        stream: { s3Key: streamS3Key, done: false },
+      });
+
+      let streamBuffer = '';
+      let lastFlush = 0;
+      const onDelta = (textDelta: string) => {
+        streamBuffer += textDelta;
+        const now = Date.now();
+        if (now - lastFlush >= 750) {
+          lastFlush = now;
+          // fire-and-forget throttled flush; ignore individual flush errors
+          void flushStream(streamS3Key!, streamBuffer).catch(() => {});
+        }
+      };
+
       const result = await generate({
         type: studySet.type,
         noteMarkdown: combined,
         noteTitle: studySet.title,
         language: studySet.language,
+        learnerContext: studySet.learnerContext,
+        contentTrust,
+        onDelta,
       });
+
+      // Final flush after generation completes.
+      try {
+        await flushStream(streamS3Key, streamBuffer);
+      } catch (flushErr) {
+        console.warn('[study-generation] final stream flush failed', flushErr);
+      }
+
       const withProvenance = applyProvenance(studySet.type, result.payload, allowedIds);
       await putBody(sub, studySetId, JSON.stringify(withProvenance));
       await markReady({
@@ -260,6 +373,12 @@ export async function processStudyGeneration(
         promptVersion: result.promptVersion,
         inputNoteCount: refs.length,
       });
+      await updateActivity({ sub, activityId, phase: 'finalizing', phaseDetail: 'Finalizing' });
+      await updateActivity({
+        sub, activityId,
+        phase: 'ready', phaseDetail: 'Done', status: 'ready',
+        stream: { s3Key: streamS3Key, done: true },
+      });
       return { outcome: 'ready' };
     }
 
@@ -268,12 +387,21 @@ export async function processStudyGeneration(
 
     // MAP phase: process each chunk sequentially to respect Bedrock throttling.
     const rawCandidates: RawCandidate[] = [];
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]!;
+      await updateActivity({
+        sub, activityId,
+        phase: 'analyzing',
+        phaseDetail: `Analyzing section ${i + 1} of ${chunks.length}`,
+        progress: { current: i + 1, total: chunks.length },
+      });
       const r = await generate({
         type: studySet.type,
         noteMarkdown: chunk.body,
         noteTitle: studySet.title,
         language: studySet.language,
+        learnerContext: studySet.learnerContext,
+        contentTrust,
         phase: 'map',
         maxTokensOverride: 2048,
       });
@@ -294,15 +422,44 @@ export async function processStudyGeneration(
     // Deduplicate across chunks.
     const deduped = deduplicateCandidates(rawCandidates, (c) => c.text);
 
-    // REDUCE phase: synthesise into the final payload.
+    // REDUCE phase: synthesise into the final payload (streaming).
+    await updateActivity({
+      sub, activityId,
+      phase: 'generating',
+      phaseDetail: 'Writing your study material',
+      stream: { s3Key: streamS3Key, done: false },
+    });
+
+    let streamBuffer = '';
+    let lastFlush = 0;
+    const onDelta = (textDelta: string) => {
+      streamBuffer += textDelta;
+      const now = Date.now();
+      if (now - lastFlush >= 750) {
+        lastFlush = now;
+        // fire-and-forget throttled flush; ignore individual flush errors
+        void flushStream(streamS3Key!, streamBuffer).catch(() => {});
+      }
+    };
+
     const reduced = await generate({
       type: studySet.type,
       noteMarkdown: '',
       noteTitle: studySet.title,
       language: studySet.language,
+      learnerContext: studySet.learnerContext,
+      contentTrust,
       phase: 'reduce',
       candidates: deduped,
+      onDelta,
     });
+
+    // Final flush after generation completes.
+    try {
+      await flushStream(streamS3Key, streamBuffer);
+    } catch (flushErr) {
+      console.warn('[study-generation] final stream flush failed', flushErr);
+    }
 
     const reducedWithProvenance = applyProvenance(studySet.type, reduced.payload, allowedIds);
     await putBody(sub, studySetId, JSON.stringify(reducedWithProvenance));
@@ -314,6 +471,12 @@ export async function processStudyGeneration(
       mapReduce: true,
       chunkCount: chunks.length,
       inputNoteCount: refs.length,
+    });
+    await updateActivity({ sub, activityId, phase: 'finalizing', phaseDetail: 'Finalizing' });
+    await updateActivity({
+      sub, activityId,
+      phase: 'ready', phaseDetail: 'Done', status: 'ready',
+      stream: { s3Key: streamS3Key, done: true },
     });
     return { outcome: 'ready' };
   } catch (err) {
@@ -329,6 +492,18 @@ export async function processStudyGeneration(
       await markFailed({ sub, studySetId, error: sanitised });
     } catch (statusErr) {
       console.error('[study-generation] failed to mark study set failed', statusErr);
+    }
+
+    if (activityId) {
+      try {
+        await updateActivity({
+          sub, activityId,
+          phase: 'failed', phaseDetail: 'Generation failed', status: 'failed',
+          error: sanitised,
+        });
+      } catch (activityErr) {
+        console.error('[study-generation] failed to mark activity failed', activityErr);
+      }
     }
 
     return { outcome: 'failed' };

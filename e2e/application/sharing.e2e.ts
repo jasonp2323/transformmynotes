@@ -124,9 +124,13 @@ test.describe('[E2E] sharing round-trip', () => {
     await page.goto(`/notes/${noteId}`);
     await expect(page.getByText(NOTE_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    // Click the Share action-bar IconButton (aria-label="Share", owner only).
-    // Use getByRole('button') to avoid substring-matching the "Current shares" aria-label.
+    // The Share button lives inside a FloatingActionMenu (FAM) which only renders its
+    // children when open. Open the FAM first, then click Share.
     // AppShell renders both mobile + desktop shells, so .first() targets the mobile copy.
+    await page.getByRole('button', { name: 'Actions' }).first().click();
+    // Wait for the Share button to be attached to the DOM before clicking it.
+    await expect(page.getByRole('button', { name: 'Share' }).first()).toBeAttached({ timeout: 5_000 });
+    // Use getByRole('button') to avoid substring-matching the "Current shares" aria-label.
     await page.getByRole('button', { name: 'Share' }).first().click();
 
     // Scope all further sheet interactions to the open dialog's inner .tmn-share-sheet div.
@@ -179,8 +183,24 @@ test.describe('[E2E] sharing round-trip', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
+    // Wait for the SegmentedControl to hydrate. The pill element uses a CSS calc()
+    // fallback on SSR; after React hydration useLayoutEffect runs and replaces it
+    // with explicit pixel values. Waiting for this transition ensures the onClick
+    // handler is attached to the radio buttons before we click.
+    await page.waitForFunction(
+      () => {
+        const pill = document.querySelector<HTMLElement>('.tmn-seg__pill');
+        return pill !== null && !pill.style.width.includes('calc');
+      },
+      { timeout: 15_000 },
+    );
+
     // Click the "Shared" tab radio in the SegmentedControl
     await page.getByRole('radio', { name: 'Shared' }).first().click();
+    // Confirm the tab switched by checking aria-checked before asserting content
+    await expect(
+      page.getByRole('radio', { name: 'Shared' }).first(),
+    ).toHaveAttribute('aria-checked', 'true', { timeout: 5_000 });
 
     // The shared NoteCard for our note should appear
     await expect(page.getByText(NOTE_TITLE).first()).toBeVisible({ timeout: 15_000 });
@@ -205,8 +225,20 @@ test.describe('[E2E] sharing round-trip', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
+    // Wait for SegmentedControl hydration — see comment in "recipient sees shared note" test.
+    await page.waitForFunction(
+      () => {
+        const pill = document.querySelector<HTMLElement>('.tmn-seg__pill');
+        return pill !== null && !pill.style.width.includes('calc');
+      },
+      { timeout: 15_000 },
+    );
+
     // Navigate to the Shared tab and click the NoteCard title
     await page.getByRole('radio', { name: 'Shared' }).first().click();
+    await expect(
+      page.getByRole('radio', { name: 'Shared' }).first(),
+    ).toHaveAttribute('aria-checked', 'true', { timeout: 5_000 });
     await expect(page.getByText(NOTE_TITLE).first()).toBeVisible({ timeout: 15_000 });
     await page.getByText(NOTE_TITLE).first().click();
 
@@ -250,8 +282,11 @@ test.describe('[E2E] sharing round-trip', () => {
     await page.goto(`/notes/${noteId}`);
     await expect(page.getByText(NOTE_TITLE).first()).toBeVisible({ timeout: 15_000 });
 
-    // Open the ShareSheet — use getByRole('button') to avoid substring-matching
+    // Open the FloatingActionMenu first (Share button is hidden until FAM is open),
+    // then click Share. Use getByRole('button') to avoid substring-matching
     // the "Current shares" aria-label div.
+    await page.getByRole('button', { name: 'Actions' }).first().click();
+    await expect(page.getByRole('button', { name: 'Share' }).first()).toBeAttached({ timeout: 5_000 });
     await page.getByRole('button', { name: 'Share' }).first().click();
 
     const sheet = page.locator('dialog[open] .tmn-share-sheet');
@@ -294,8 +329,20 @@ test.describe('[E2E] sharing round-trip', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
 
+    // Wait for SegmentedControl hydration — see comment in "recipient sees shared note" test.
+    await page.waitForFunction(
+      () => {
+        const pill = document.querySelector<HTMLElement>('.tmn-seg__pill');
+        return pill !== null && !pill.style.width.includes('calc');
+      },
+      { timeout: 15_000 },
+    );
+
     // Navigate to the Shared tab — note should be gone
     await page.getByRole('radio', { name: 'Shared' }).first().click();
+    await expect(
+      page.getByRole('radio', { name: 'Shared' }).first(),
+    ).toHaveAttribute('aria-checked', 'true', { timeout: 5_000 });
     await expect(page.getByText('No notes shared with you yet.').first()).toBeVisible({
       timeout: 15_000,
     });

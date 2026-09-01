@@ -95,6 +95,9 @@ describe('processStudyGeneration — map-reduce path (M17)', () => {
       }),
       generate: generateSpy,
       putBody: putBodySpy,
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -164,6 +167,9 @@ describe('processStudyGeneration — direct single-pass path (M17)', () => {
       getNoteMarkdown: vi.fn().mockResolvedValue('short note body'),
       generate: generateSpy,
       putBody: putBodySpy,
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('ready');
@@ -215,6 +221,9 @@ describe('processStudyGeneration — too_large path (M17)', () => {
       getNoteMarkdown: vi.fn().mockResolvedValue(bigBody),
       generate: generateSpy,
       putBody: putBodySpy,
+      createActivity: vi.fn().mockResolvedValue(undefined),
+      updateActivity: vi.fn().mockResolvedValue(undefined),
+      flushStream: vi.fn().mockResolvedValue(undefined),
     });
 
     expect(result.outcome).toBe('too_large');

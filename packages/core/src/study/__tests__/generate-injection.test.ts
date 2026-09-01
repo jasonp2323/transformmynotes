@@ -82,7 +82,7 @@ describe('buildPhaseSystemPrompt with injectGuard', () => {
 const MOCK_CONFIG = {
   baseSystemPrompt: 'Base system prompt.',
   promptOverrides: {} as Record<string, string>,
-  modelId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  modelId: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
   modelOverrides: {} as Record<string, string>,
   maxTokens: 4096,
   temperature: 0.5,

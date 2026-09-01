@@ -5,7 +5,10 @@ import {
   putStudySet, countInFlightStudySets, buildStudySetItem, getSource,
   MATERIAL_TYPES, type StudyMaterialType, type StudyLanguage, type NoteItem,
   resolveAiConfig, estimateTokens, resolveContextLimit, resolveMaxSourceNotes,
-  resolveSourceText,
+  resolveSourceText, getUserProfileBySub, assembleLearnerContext,
+  buildStudySetCreatedEventItem,
+  appendStudyEvent,
+  newEventId,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getAuthenticatedSub } from '@/lib/require-api-user';
@@ -188,18 +191,19 @@ export async function POST(req: Request) {
   }
   const materialType = type as StudyMaterialType;
 
-  // Resolve language. When omitted, default to 'auto' so output matches the
-  // source note's language (generateStudyMaterial maps 'auto' → AUTO_DIRECTIVE).
-  let resolvedLanguage: StudyLanguage;
+  // Validate the provided language (if any). Resolution against the profile's
+  // preferredLanguage happens later (after the profile fetch) so that the
+  // precedence chain is: request param > aiProfile.preferredLanguage > 'auto'.
+  let requestedLanguage: StudyLanguage | undefined;
   if (language === undefined) {
-    resolvedLanguage = 'auto';
+    requestedLanguage = undefined;
   } else if (typeof language !== 'string' || !VALID_LANGUAGES.includes(language as StudyLanguage)) {
     return NextResponse.json(
       { ok: false, error: 'Invalid language.' },
       { status: 400 },
     );
   } else {
-    resolvedLanguage = language as StudyLanguage;
+    requestedLanguage = language as StudyLanguage;
   }
 
   try {
@@ -268,6 +272,13 @@ export async function POST(req: Request) {
 
     // ── Non-dryRun: enqueue generation ───────────────────────────────────────
 
+    // Fetch caller profile once and resolve language + learner context snapshots.
+    // Null profile (new user with no profile) is handled safely via optional chaining.
+    const profile = await getUserProfileBySub(sub);
+    const aiProfile = profile?.aiProfile;
+    const resolvedLanguage: StudyLanguage = requestedLanguage ?? aiProfile?.preferredLanguage ?? 'auto';
+    const learnerContext = assembleLearnerContext(aiProfile);
+
     // Resolve runtime AI config — fails loudly if modelId / baseSystemPrompt unset.
     const config = await resolveAiConfig();
 
@@ -330,8 +341,23 @@ export async function POST(req: Request) {
       model,
       createdAt: now,
       sourceRefs: resolvedSourceRefs,
+      learnerContext,
     });
     await putStudySet(item);
+
+    // Append study-progress event for study set creation (fail-soft: never aborts the generate action)
+    try {
+      await appendStudyEvent(
+        buildStudySetCreatedEventItem(
+          sub,
+          { studySetId: item.studySetId, type: item.type },
+          now,
+          newEventId(),
+        ),
+      );
+    } catch (err) {
+      console.error('[progress] STUDYSET_CREATED event append failed', err);
+    }
 
     return NextResponse.json({ studySetId }, { status: 202 });
   } catch (err) {
