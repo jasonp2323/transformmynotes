@@ -2,13 +2,13 @@
 import { router } from "./router";
 import { webDomain, bedrockInferenceProfileId, resendApiKey, inviteFromAddress, turnstileSiteKey, turnstileSecretKey, multiNoteContextLimit, maxSourceNotes, maxSourceFileBytes, maxSourcesPerUser } from "./secrets";
 import { userPool, userPoolClient } from "./auth";
-import { userData, invites, groups, notes } from "./db";
+import { userData, invites, groups, notes, usage, studyEvents } from "./db";
 import { notesBucket } from "./storage";
 
 const accountId = aws.getCallerIdentityOutput({}).accountId;
 
 // The BEDROCK_MODEL_ID secret is a cross-region inference profile id (e.g.
-// "us.anthropic.claude-3-5-sonnet-20241022-v2:0"). Strip the region prefix
+// "us.anthropic.claude-sonnet-4-5-20250929-v1:0"). Strip the region prefix
 // ("us.", "eu.", "apac.") to recover the underlying foundation-model id used in
 // the per-region foundation-model ARNs. If no prefix is present the id is used
 // as-is (a bare foundation-model id still works for both ARNs).
@@ -26,7 +26,7 @@ export const application = new sst.aws.Nextjs("Application", {
   // consumer (infra/jobs.ts). Prompts are loaded at consumer startup from bundled
   // `prompts/` text files (via study-prompts.ts), bypassing the AWS Lambda 4 KB
   // env-var limit — they are no longer SST secrets or env vars on either runtime.
-  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket],
+  link: [userPool, userPoolClient, userData, invites, groups, notes, notesBucket, usage, studyEvents],
   environment: {
     NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.id,
     NEXT_PUBLIC_COGNITO_CLIENT_ID: userPoolClient.id,
@@ -35,6 +35,8 @@ export const application = new sst.aws.Nextjs("Application", {
     SST_RESOURCE_Groups_name: groups.name,
     SST_RESOURCE_Notes_name: notes.name,
     SST_RESOURCE_NotesBucket_name: notesBucket.name,
+    SST_RESOURCE_Usage_name: usage.name,
+    SST_RESOURCE_StudyEvents_name: studyEvents.name,
     SST_RESOURCE_BEDROCK_MODEL_ID_value: bedrockInferenceProfileId.value,
     // M17 multi-note context limit (mirrors the binding in infra/jobs.ts so
     // the route's resolveContextLimit() honours the seeded value consistently).

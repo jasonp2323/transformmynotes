@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { Source } from '@transformmynotes/core';
 import { AppShell } from '@/src/components/shells';
 import { Badge } from '@/src/components/ui/Badge';
@@ -64,7 +65,9 @@ interface ToastState {
 
 const POLL_INTERVAL_MS = 3000;
 
-export function SourcesScreen() {
+function SourcesScreenInner() {
+  const searchParams = useSearchParams();
+  const addParam = searchParams.get('add');
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -324,7 +327,7 @@ export function SourcesScreen() {
         </div>
 
         {/* Add from URL */}
-        <AddFromUrl onSourceAdded={fetchSources} />
+        <AddFromUrl onSourceAdded={fetchSources} autoFocusUrl={addParam === 'url'} />
 
         {/* Loading */}
         {loading && (
@@ -419,6 +422,16 @@ export function SourcesScreen() {
         />
       )}
     </AppShell>
+  );
+}
+
+SourcesScreenInner.displayName = 'SourcesScreenInner';
+
+export function SourcesScreen() {
+  return (
+    <React.Suspense fallback={null}>
+      <SourcesScreenInner />
+    </React.Suspense>
   );
 }
 

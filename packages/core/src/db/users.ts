@@ -7,7 +7,12 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { userDataKeys, type UserStatus } from './keys.js';
-import { buildUserProfileItem, type UserProfileItem } from '../auth/profile.js';
+import {
+  buildUserProfileItem,
+  type AiProfile,
+  type PreferredLanguage,
+  type UserProfileItem,
+} from '../auth/profile.js';
 
 /** Fetch a user profile from the UserData table by Cognito sub. Returns null if absent. */
 export async function getUserProfileBySub(sub: string): Promise<UserProfileItem | null> {
@@ -32,6 +37,66 @@ export interface UpdateUserResult {
   ok: boolean;
   profile?: UserProfileItem;
   reason?: 'not_found';
+}
+
+/** Content fields the caller may set on the aiProfile (no updatedAt — set server-side). */
+export interface AiProfileInput {
+  focus?: string;
+  level?: string;
+  goals?: string;
+  preferredLanguage?: PreferredLanguage;
+  customInstructions?: string;
+}
+
+/**
+ * Conditionally update the caller's per-user AI study profile (M24). Copies only the
+ * DEFINED input fields onto the aiProfile map (omitting undefined ones so empty
+ * attributes are not written), defaults preferredLanguage to 'auto', and stamps
+ * updatedAt. Missing user → { ok:false, reason:'not_found' }. Returns updated item.
+ */
+export async function updateAiProfile(
+  sub: string,
+  input: AiProfileInput,
+): Promise<UpdateUserResult> {
+  const now = new Date().toISOString();
+
+  const aiProfile: AiProfile = {
+    preferredLanguage: input.preferredLanguage ?? 'auto',
+    updatedAt: now,
+  };
+  if (input.focus !== undefined) aiProfile.focus = input.focus;
+  if (input.level !== undefined) aiProfile.level = input.level;
+  if (input.goals !== undefined) aiProfile.goals = input.goals;
+  if (input.customInstructions !== undefined) {
+    aiProfile.customInstructions = input.customInstructions;
+  }
+
+  try {
+    const result = await ddb.send(
+      new UpdateCommand({
+        TableName: TableNames.UserData,
+        Key: userDataKeys.profile(sub),
+        UpdateExpression: 'SET aiProfile = :ai, updatedAt = :now',
+        ConditionExpression: 'attribute_exists(pk)',
+        ExpressionAttributeValues: {
+          ':ai': aiProfile,
+          ':now': now,
+        },
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+    return { ok: true, profile: result.Attributes as UserProfileItem };
+  } catch (err: unknown) {
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'name' in err &&
+      (err as { name: string }).name === 'ConditionalCheckFailedException'
+    ) {
+      return { ok: false, reason: 'not_found' };
+    }
+    throw err;
+  }
 }
 
 /**
@@ -234,4 +299,72 @@ export async function ensureActiveAdminProfile(opts: {
   name: string;
 }): Promise<UserProfileItem> {
   return ensureActiveProfile({ ...opts, role: 'admin' });
+}
+
+/**
+ * Overwrites the six lifetime/streak progress fields on a user profile (M25).
+ * Called by the nightly progress cron — all values are recomputed-and-set so
+ * repeated calls are idempotent (self-healing).
+ *
+ * Missing user → { ok: false, reason: 'not_found' }.
+ * Returns the updated profile item on success.
+ */
+export async function updateProgressProfile(
+  sub: string,
+  fields: {
+    studyStreakDays: number;
+    longestStreakDays: number;
+    lastStudyDay: string | null;
+    totalReviewsLifetime: number;
+    totalCardsMastered: number;
+    totalQuizAttemptsLifetime: number;
+  },
+): Promise<UpdateUserResult> {
+  const now = new Date().toISOString();
+
+  const setClauses = [
+    'studyStreakDays = :ssd',
+    'longestStreakDays = :lsd',
+    'totalReviewsLifetime = :trl',
+    'totalCardsMastered = :tcm',
+    'totalQuizAttemptsLifetime = :tqal',
+    'updatedAt = :now',
+  ];
+  const eav: Record<string, unknown> = {
+    ':ssd': fields.studyStreakDays,
+    ':lsd': fields.longestStreakDays,
+    ':trl': fields.totalReviewsLifetime,
+    ':tcm': fields.totalCardsMastered,
+    ':tqal': fields.totalQuizAttemptsLifetime,
+    ':now': now,
+  };
+
+  if (fields.lastStudyDay !== null) {
+    setClauses.push('lastStudyDay = :lastDay');
+    eav[':lastDay'] = fields.lastStudyDay;
+  }
+
+  try {
+    const result = await ddb.send(
+      new UpdateCommand({
+        TableName: TableNames.UserData,
+        Key: userDataKeys.profile(sub),
+        UpdateExpression: `SET ${setClauses.join(', ')}`,
+        ConditionExpression: 'attribute_exists(pk)',
+        ExpressionAttributeValues: eav,
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+    return { ok: true, profile: result.Attributes as UserProfileItem };
+  } catch (err: unknown) {
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'name' in err &&
+      (err as { name: string }).name === 'ConditionalCheckFailedException'
+    ) {
+      return { ok: false, reason: 'not_found' };
+    }
+    throw err;
+  }
 }

@@ -27,6 +27,7 @@ function toMobileActive(active: string | undefined): MobileShellProps['active'] 
     active === 'review' ||
     active === 'study' ||
     active === 'sources' ||
+    active === 'progress' ||
     active === 'profile'
   ) {
     return active;

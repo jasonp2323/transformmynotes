@@ -31,6 +31,7 @@ export interface NoteItem {
   ocrConfidence: number;
   bodyS3Key: string;
   originalImageS3Key: string;
+  originalImageS3Keys?: string[];
   groupId?: string;
   createdAt: string;
   updatedAt: string;
@@ -71,6 +72,8 @@ export interface BuildNoteItemInput {
   ocrConfidence: number;
   bodyS3Key: string;
   originalImageS3Key: string;
+  /** Optional array of per-page image S3 keys (multi-page OCR). */
+  originalImageS3Keys?: string[];
   /** Optional group the note belongs to. */
   groupId?: string;
   /** ISO-8601. Defaults to `new Date().toISOString()` if omitted. */
@@ -108,6 +111,10 @@ export function buildNoteItem(input: BuildNoteItemInput): NoteItem {
 
   if (input.groupId !== undefined) {
     item.groupId = input.groupId;
+  }
+
+  if (input.originalImageS3Keys !== undefined) {
+    item.originalImageS3Keys = input.originalImageS3Keys;
   }
 
   return item;
@@ -346,6 +353,7 @@ export interface UpdateNoteInput {
   ocrConfidence: number;
   bodyS3Key: string;
   originalImageS3Key: string;
+  originalImageS3Keys?: string[];
   /** Preserved from the existing item. */
   createdAt: string;
   groupId?: string;
@@ -400,6 +408,7 @@ export async function updateNote(input: UpdateNoteInput): Promise<NoteItem> {
     ocrConfidence: input.ocrConfidence,
     bodyS3Key: input.bodyS3Key,
     originalImageS3Key: input.originalImageS3Key,
+    originalImageS3Keys: input.originalImageS3Keys,
     groupId: input.groupId,
     createdAt: input.createdAt,
     updatedAt,

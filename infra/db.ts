@@ -64,6 +64,28 @@ export const notes = new sst.aws.Dynamo("Notes", {
     GSI9: { hashKey: "gsi9pk", rangeKey: "gsi9sk", projection: "all" },
   },
   stream: "new-and-old-images",
+  ttl: "ttl",
 });
 
-export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes };
+// M23 metering table: raw usage events (TTL'd) + daily aggregates + storage gauge + price-book config.
+export const usage = new sst.aws.Dynamo("Usage", {
+  fields: { pk: "string", sk: "string", gsi1pk: "string", gsi1sk: "string" },
+  primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+  globalIndexes: {
+    GSI1: { hashKey: "gsi1pk", rangeKey: "gsi1sk", projection: "all" },
+  },
+  stream: "new-and-old-images",
+  ttl: "expiresAt",
+});
+
+// M25 study-progress event log: immutable raw events (TTL'd) + daily rollup snapshots.
+// No GSI needed — every read is a single-partition USER#<sub> query.
+// Consumed by the M25.2 progressAggregator stream consumer (not yet added).
+export const studyEvents = new sst.aws.Dynamo("StudyEvents", {
+  fields: { pk: "string", sk: "string" },
+  primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+  stream: "new-and-old-images",
+  ttl: "expiresAt",
+});
+
+export const tables = { UserData: userData, Invites: invites, Groups: groups, Notes: notes, Usage: usage, StudyEvents: studyEvents };

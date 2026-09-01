@@ -22,7 +22,12 @@ env:
 
 jobs:
   remove:
-    if: ${{ !startsWith(github.event.pull_request.head.ref, 'release-please--') }}
+    # Skip branches that deploy.yml never deploys a pr-<N> stage for:
+    #   - release-please--*  (deploying one would orphan an unremovable stack)
+    #   - dependabot/*       (Dependabot runs get no Actions secrets, so the
+    #                         deploy is gated off — and this teardown would
+    #                         itself fail at the OIDC step for the same reason)
+    if: ${{ !startsWith(github.event.pull_request.head.ref, 'release-please--') && !startsWith(github.event.pull_request.head.ref, 'dependabot/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

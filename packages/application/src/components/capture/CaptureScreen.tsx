@@ -1,9 +1,12 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { moveItem, removeAt, buildBatchReviewUrl } from './pageTray';
+import type { TrayPage } from './pageTray';
 import { useRouter } from 'next/navigation';
 import { Icon, Badge, Button } from '@/src/components/ui';
 import { uploadImageForTranscription, CaptureUploadError, formatBytes, pickImage, readCameraCapabilities, clampZoom, normalizeFocusPoint, buildFocusConstraints, buildZoomConstraints, buildZoomPresets } from '@/lib/capture';
 import type { ZoomRange } from '@/lib/capture';
+import { enqueueCapture, getCurrentUserSub } from '@/src/lib/offline';
 import { ProcessingScreen } from './ProcessingScreen';
 
 // ---------------------------------------------------------------------------
@@ -11,7 +14,36 @@ import { ProcessingScreen } from './ProcessingScreen';
 // ---------------------------------------------------------------------------
 
 type FacingMode = 'environment' | 'user';
-type UploadStatus = 'idle' | 'processing' | 'done' | 'error';
+type UploadStatus = 'idle' | 'processing' | 'done' | 'error' | 'queued';
+type CaptureMode = 'single' | 'multi';
+type MultiUploadStatus = 'idle' | 'uploading' | 'error';
+
+// ---------------------------------------------------------------------------
+// Pure helper — determines whether a failed upload should be queued offline
+// rather than surfaced as an error. Exported for unit testing.
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when we should silently queue the capture instead of showing
+ * the error overlay:
+ *   - The browser is now offline, AND
+ *   - The error (if any) is a CaptureUploadError from a network phase
+ *     (presign or put) — not a local failure like resize or transcribe.
+ *
+ * When called for an up-front offline check (no error yet), pass `undefined`
+ * for `err` and the function still returns true if `isOnline` is false.
+ */
+export function shouldQueueCapture(err: unknown, isOnline: boolean): boolean {
+  if (isOnline) return false;
+  // If there's no error (called before attempting upload), queue it.
+  if (err === undefined || err === null) return true;
+  // For a CaptureUploadError, only queue network-phase failures.
+  if (err instanceof CaptureUploadError) {
+    return err.phase === 'presign' || err.phase === 'put';
+  }
+  // For any other error type while offline, treat as a network failure and queue.
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // CircBtn — circular icon button matching the design's header controls
@@ -136,6 +168,19 @@ export function CaptureScreen() {
   const fileInputResolveRef = useRef<((f: File) => void) | null>(null);
   const fileInputRejectRef = useRef<((reason?: unknown) => void) | null>(null);
 
+  // ---------------------------------------------------------------------------
+  // Multi-page tray state
+  // ---------------------------------------------------------------------------
+  const [mode, setMode] = useState<CaptureMode>('single');
+  // modeRef mirrors mode to avoid stale closures inside canvas.toBlob callbacks
+  const modeRef = useRef<CaptureMode>('single');
+  const [pages, setPages] = useState<TrayPage[]>([]);
+  const [multiUploadStatus, setMultiUploadStatus] = useState<MultiUploadStatus>('idle');
+  const [multiUploadError, setMultiUploadError] = useState<string | null>(null);
+  const [batchInFlight, setBatchInFlight] = useState(false);
+  // Track object URLs created for thumbnails so we can revoke them on unmount
+  const thumbnailUrlsRef = useRef<string[]>([]);
+
   // Canvas used for shutter capture (off-screen)
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -208,6 +253,9 @@ export function CaptureScreen() {
     return () => {
       cleanup?.then?.((fn) => fn?.());
       stopStream();
+      // Revoke all thumbnail object URLs to avoid memory leaks
+      thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      thumbnailUrlsRef.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -342,12 +390,34 @@ export function CaptureScreen() {
   // ---------------------------------------------------------------------------
 
   const runUpload = useCallback(async (blob: Blob) => {
+    pendingBlobRef.current = blob;
+
+    // ── Offline up-front check ──────────────────────────────────────────────
+    // If the device has no connection, skip the network pipeline entirely and
+    // queue the capture for replay on reconnect.
+    if (shouldQueueCapture(undefined, navigator.onLine)) {
+      const sub = await getCurrentUserSub();
+      if (!sub) {
+        // Can't identify the user — surface the error so they know.
+        setUploadError('You appear to be offline and we could not identify your account. Please sign in and try again.');
+        setUploadStatus('error');
+        return;
+      }
+      await enqueueCapture({ sub, blob, contentType: blob.type || 'image/jpeg' });
+      // Best-effort Background Sync registration so the SW drains the queue on reconnect.
+      navigator.serviceWorker?.ready
+        .then((r) => (r.sync as { register?: (tag: string) => Promise<void> } | undefined)?.register?.('tmn-sync'))
+        .catch(() => {});
+      setUploadStatus('queued');
+      return;
+    }
+
+    // ── Online path ─────────────────────────────────────────────────────────
     setUploadStatus('processing');
     setUploadError(null);
     setUploadProgress(0);
     setIsRetrying(false);
     setResizedInfo(null);
-    pendingBlobRef.current = blob;
 
     try {
       const { jobId } = await uploadImageForTranscription(blob, {
@@ -361,6 +431,22 @@ export function CaptureScreen() {
       setCapturedJobId(jobId);
       setUploadStatus('done');
     } catch (err) {
+      // ── Mid-upload offline detection ───────────────────────────────────────
+      // If a network-phase failure occurred and we're now offline, queue the
+      // capture rather than surfacing an error.
+      if (shouldQueueCapture(err, navigator.onLine)) {
+        const sub = await getCurrentUserSub();
+        if (sub) {
+          await enqueueCapture({ sub, blob, contentType: blob.type || 'image/jpeg' });
+          navigator.serviceWorker?.ready
+            .then((r) => (r.sync as { register?: (tag: string) => Promise<void> } | undefined)?.register?.('tmn-sync'))
+            .catch(() => {});
+          setUploadStatus('queued');
+          return;
+        }
+        // If we couldn't get a sub, fall through to the normal error overlay.
+      }
+
       let msg = 'Something went wrong. Please try again.';
       if (err instanceof CaptureUploadError) {
         if (err.phase === 'resize') {
@@ -375,6 +461,34 @@ export function CaptureScreen() {
       }
       setUploadError(msg);
       setUploadStatus('error');
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Multi-mode page upload — uploads one page and appends it to the tray
+  // ---------------------------------------------------------------------------
+
+  const runMultiUpload = useCallback(async (blob: Blob) => {
+    setMultiUploadStatus('uploading');
+    setMultiUploadError(null);
+
+    // Generate thumbnail URL from the blob before upload (independent of resize)
+    const thumbnailUrl = URL.createObjectURL(blob);
+    thumbnailUrlsRef.current.push(thumbnailUrl);
+
+    try {
+      const { jobId } = await uploadImageForTranscription(blob, {
+        onProgress: () => {},
+        onResized: () => {},
+      });
+      setPages((prev) => [...prev, { jobId, thumbnailUrl }]);
+      setMultiUploadStatus('idle');
+    } catch {
+      // Revoke the thumbnail URL since the page wasn't added
+      URL.revokeObjectURL(thumbnailUrl);
+      thumbnailUrlsRef.current = thumbnailUrlsRef.current.filter((u) => u !== thumbnailUrl);
+      setMultiUploadError('Upload failed — please try again.');
+      setMultiUploadStatus('error');
     }
   }, []);
 
@@ -405,12 +519,18 @@ export function CaptureScreen() {
     ctx.drawImage(video, 0, 0, w, h);
     canvas.toBlob(
       (blob) => {
-        if (blob) runUpload(blob);
+        if (!blob) return;
+        // Read mode from ref to avoid stale closure (canvas.toBlob is async)
+        if (modeRef.current === 'multi') {
+          runMultiUpload(blob);
+        } else {
+          runUpload(blob);
+        }
       },
       'image/jpeg',
       0.95,
     );
-  }, [facingMode, runUpload]);
+  }, [facingMode, runUpload, runMultiUpload]);
 
   // ---------------------------------------------------------------------------
   // Upload file-input handler
@@ -438,11 +558,15 @@ export function CaptureScreen() {
         resolve(file);
       } else {
         // Direct onChange (e.g. user activated the input without going through
-        // handleUploadClick) — forward straight to runUpload as before.
-        runUpload(file);
+        // handleUploadClick) — forward to the appropriate upload handler.
+        if (modeRef.current === 'multi') {
+          runMultiUpload(file);
+        } else {
+          runUpload(file);
+        }
       }
     },
-    [runUpload],
+    [runUpload, runMultiUpload],
   );
 
   const handleUploadClick = useCallback(() => {
@@ -461,11 +585,12 @@ export function CaptureScreen() {
       });
 
     // pickImage routes to native Capacitor camera on device, web fallback on
-    // browser. Either way we get a File and hand it to runUpload.
-    pickImage({ webFallback }).then(runUpload).catch(() => {
+    // browser. Either way we get a File and hand it to the appropriate handler.
+    const handler = modeRef.current === 'multi' ? runMultiUpload : runUpload;
+    pickImage({ webFallback }).then(handler).catch(() => {
       // User cancelled or error — nothing to upload.
     });
-  }, [runUpload]);
+  }, [runUpload, runMultiUpload]);
 
   // ---------------------------------------------------------------------------
   // Navigate to review screen when transcription is done
@@ -482,6 +607,12 @@ export function CaptureScreen() {
   useEffect(() => {
     zoomLevelRef.current = zoomLevel;
   }, [zoomLevel]);
+
+  // Keep modeRef in sync with mode state to avoid stale closures inside
+  // canvas.toBlob callbacks (same pattern as zoomLevelRef).
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   // Clear focus indicator when reduced motion (animation won't fire onAnimationEnd)
   useEffect(() => {
@@ -518,6 +649,78 @@ export function CaptureScreen() {
     setIsRetrying(true);
     runUpload(blob);
   }, [runUpload, handleRetake]);
+
+  // ---------------------------------------------------------------------------
+  // Mode toggle
+  // ---------------------------------------------------------------------------
+
+  const handleModeChange = useCallback((newMode: CaptureMode) => {
+    if (newMode === mode) return;
+    // Switching back to single: clear the tray and revoke all thumbnail URLs
+    if (newMode === 'single') {
+      setPages((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.thumbnailUrl));
+        thumbnailUrlsRef.current = [];
+        return [];
+      });
+      setMultiUploadStatus('idle');
+      setMultiUploadError(null);
+    }
+    setMode(newMode);
+  }, [mode]);
+
+  // ---------------------------------------------------------------------------
+  // Tray manipulation handlers
+  // ---------------------------------------------------------------------------
+
+  const handlePageDelete = useCallback((index: number) => {
+    setPages((prev) => {
+      const page = prev[index];
+      if (page) {
+        URL.revokeObjectURL(page.thumbnailUrl);
+        thumbnailUrlsRef.current = thumbnailUrlsRef.current.filter((u) => u !== page.thumbnailUrl);
+      }
+      return removeAt(prev, index);
+    });
+  }, []);
+
+  const handlePageMoveLeft = useCallback((index: number) => {
+    setPages((prev) => moveItem(prev, index, index - 1));
+  }, []);
+
+  const handlePageMoveRight = useCallback((index: number) => {
+    setPages((prev) => moveItem(prev, index, index + 1));
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Batch submit ("Done")
+  // ---------------------------------------------------------------------------
+
+  const handleBatchDone = useCallback(async () => {
+    if (pages.length === 0 || batchInFlight || multiUploadStatus === 'uploading') return;
+    setBatchInFlight(true);
+    setMultiUploadError(null);
+    try {
+      const jobIds = pages.map((p) => p.jobId);
+      const res = await fetch('/api/transcribe/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobIds }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setMultiUploadError((body as { error?: string }).error ?? 'Stitching failed — please try again.');
+        setBatchInFlight(false);
+        return;
+      }
+      const data = await res.json() as { jobId: string };
+      const url = buildBatchReviewUrl(data.jobId, jobIds);
+      router.push(url);
+    } catch {
+      setMultiUploadError('Stitching failed — please try again.');
+      setBatchInFlight(false);
+    }
+  }, [pages, batchInFlight, multiUploadStatus, router]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -581,6 +784,54 @@ export function CaptureScreen() {
         ) : (
           <div style={{ width: 38 }} />
         )}
+      </div>
+
+      {/* ------------------------------------------------------- Mode toggle */}
+      <div
+        role="group"
+        aria-label="Capture mode"
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '0 20px 10px',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            background: 'rgba(255,255,255,0.10)',
+            borderRadius: 999,
+            padding: 3,
+            gap: 2,
+          }}
+        >
+          {(['single', 'multi'] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={active}
+                onClick={() => handleModeChange(m)}
+                style={{
+                  borderRadius: 999,
+                  padding: '6px 18px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                  border: 'none',
+                  background: active ? 'rgba(255,215,0,0.28)' : 'transparent',
+                  color: active ? 'var(--gold-400)' : 'rgba(255,255,255,0.7)',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {m === 'single' ? 'Single note' : 'Multi-page note'}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ------------------------------------------------------- Viewfinder / fallback */}
@@ -748,6 +999,193 @@ export function CaptureScreen() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* ------------------------------------------------------- Page tray (multi mode only) */}
+      {mode === 'multi' && (
+        <div
+          style={{
+            flexShrink: 0,
+            padding: '0 16px 8px',
+          }}
+        >
+          {/* Error banner */}
+          {multiUploadError && (
+            <p
+              aria-live="assertive"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: '#ff8080',
+                margin: '0 0 6px',
+                textAlign: 'center',
+              }}
+            >
+              {multiUploadError}
+            </p>
+          )}
+
+          {/* Uploading indicator */}
+          {multiUploadStatus === 'uploading' && (
+            <p
+              aria-live="polite"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.65)',
+                margin: '0 0 6px',
+                textAlign: 'center',
+              }}
+            >
+              Adding page…
+            </p>
+          )}
+
+          {/* Thumbnails */}
+          {pages.length > 0 && (
+            <div
+              role="list"
+              aria-label="Captured pages"
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: 8,
+                overflowX: 'auto',
+                paddingBottom: 6,
+              }}
+            >
+              {pages.map((page, idx) => (
+                <div
+                  key={page.jobId}
+                  role="listitem"
+                  style={{
+                    position: 'relative',
+                    flexShrink: 0,
+                    width: 70,
+                  }}
+                >
+                  {/* Thumbnail image */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={page.thumbnailUrl}
+                    alt={`Page ${idx + 1}`}
+                    style={{
+                      width: 70,
+                      height: 90,
+                      objectFit: 'cover',
+                      borderRadius: 6,
+                      border: '1.5px solid rgba(255,255,255,0.22)',
+                      display: 'block',
+                    }}
+                  />
+
+                  {/* Page number badge */}
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      left: 4,
+                      background: 'rgba(0,0,0,0.55)',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontFamily: 'var(--font-sans)',
+                      fontWeight: 700,
+                      borderRadius: 4,
+                      padding: '1px 5px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {idx + 1}
+                  </span>
+
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    aria-label={`Remove page ${idx + 1}`}
+                    onClick={() => handlePageDelete(idx)}
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      right: 2,
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.65)',
+                      border: 'none',
+                      color: '#fff',
+                      fontSize: 13,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+
+                  {/* Reorder buttons */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginTop: 3,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Move page ${idx + 1} left`}
+                      disabled={idx === 0}
+                      onClick={() => handlePageMoveLeft(idx)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: idx === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
+                        fontSize: 14,
+                        cursor: idx === 0 ? 'default' : 'pointer',
+                        padding: '2px 4px',
+                      }}
+                    >
+                      ◀
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move page ${idx + 1} right`}
+                      disabled={idx === pages.length - 1}
+                      onClick={() => handlePageMoveRight(idx)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: idx === pages.length - 1 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
+                        fontSize: 14,
+                        cursor: idx === pages.length - 1 ? 'default' : 'pointer',
+                        padding: '2px 4px',
+                      }}
+                    >
+                      ▶
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Done button */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <Button
+              variant="accent"
+              size="md"
+              disabled={pages.length === 0 || multiUploadStatus === 'uploading' || batchInFlight}
+              onClick={handleBatchDone}
+            >
+              {batchInFlight
+                ? `Stitching ${pages.length} page${pages.length !== 1 ? 's' : ''}…`
+                : `Done (${pages.length} page${pages.length !== 1 ? 's' : ''})`}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -967,6 +1405,87 @@ export function CaptureScreen() {
             }}
           >
             Opening review…
+          </p>
+        </div>
+      )}
+
+      {uploadStatus === 'queued' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10,32,35,0.95)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            zIndex: 10,
+            padding: '0 32px',
+          }}
+        >
+          <Icon name="cloud-off" size={48} color="var(--gold-400)" />
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 17,
+              color: '#fff',
+              margin: 0,
+              fontWeight: 600,
+              textAlign: 'center',
+            }}
+          >
+            Saved — we&apos;ll process this when you&apos;re back online
+          </p>
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'rgba(255,255,255,0.65)',
+              margin: 0,
+              textAlign: 'center',
+            }}
+          >
+            Your photo is stored on this device and will upload automatically on reconnect.
+          </p>
+          <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            <Button variant="accent" size="md" onClick={() => router.push('/dashboard')}>
+              Done
+            </Button>
+            <Button variant="ghost" size="md" onClick={handleRetake}>
+              Capture another
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {batchInFlight && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(10,32,35,0.92)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            zIndex: 10,
+            padding: '0 32px',
+          }}
+        >
+          <Icon name="loader-circle" size={48} color="var(--gold-400)" />
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 17,
+              color: '#fff',
+              margin: 0,
+              fontWeight: 600,
+              textAlign: 'center',
+            }}
+          >
+            Stitching {pages.length} page{pages.length !== 1 ? 's' : ''}…
           </p>
         </div>
       )}

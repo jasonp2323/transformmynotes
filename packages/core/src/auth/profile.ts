@@ -1,5 +1,22 @@
 import { userDataKeys, type UserStatus } from '../db/keys.js';
 
+export const PREFERRED_LANGUAGES = ['auto', 'pt-BR', 'bilingual'] as const;
+export type PreferredLanguage = (typeof PREFERRED_LANGUAGES)[number];
+
+/**
+ * Per-user AI study profile (M24). Stored as a map attribute on the PROFILE item.
+ * All content fields are optional; `updatedAt` is always set on write.
+ */
+export interface AiProfile {
+  focus?: string;
+  level?: string;
+  goals?: string;
+  preferredLanguage?: PreferredLanguage;
+  customInstructions?: string;
+  /** ISO-8601 UTC datetime of the last aiProfile write. */
+  updatedAt: string;
+}
+
 /** Input to the `buildUserProfileItem` builder. */
 export interface BuildUserProfileInput {
   sub: string;
@@ -34,6 +51,20 @@ export interface UserProfileItem {
   updatedAt: string;
   /** Optional notes set during admin actions (e.g. rejection or revocation reason). */
   auditNotes?: string;
+  /** Per-user AI study profile (M24); absent on profiles created before M24. */
+  aiProfile?: AiProfile;
+  /** Current study streak in days (M25). Set by the nightly progress cron. */
+  studyStreakDays?: number;
+  /** Longest study streak ever recorded (M25). Set by the nightly progress cron. */
+  longestStreakDays?: number;
+  /** Most recent UTC study day YYYY-MM-DD (M25). Set by the nightly progress cron. */
+  lastStudyDay?: string;
+  /** Lifetime review count (M25). Set by the nightly progress cron. */
+  totalReviewsLifetime?: number;
+  /** Lifetime count of cards that crossed the mastery threshold (M25). Set by the nightly progress cron. */
+  totalCardsMastered?: number;
+  /** Lifetime quiz attempt count (M25). Set by the nightly progress cron. */
+  totalQuizAttemptsLifetime?: number;
 }
 
 /**

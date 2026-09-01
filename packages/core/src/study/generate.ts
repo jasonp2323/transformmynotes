@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { BedrockRuntimeClient, ConverseCommand, ConverseStreamCommand } from '@aws-sdk/client-bedrock-runtime';
 import type { DocumentType } from '@smithy/types';
 import { createHash } from 'node:crypto';
 import { withBedrockRetry } from '../ocr/retry.js';
@@ -53,6 +53,20 @@ export interface GenerateStudyMaterialInput {
    * injectionGuard to the system prompt.
    */
   contentTrust?: 'user-authored' | 'web-fetched';
+  /**
+   * M24: per-user learner context (assembled from the caller's aiProfile by the
+   * route and snapshotted on the STUDYSET). Inserted as a prompt layer between
+   * the TYPE prompt and the LANGUAGE directive. Framed as user preferences, never
+   * instructions — see assembleLearnerContext.
+   */
+  learnerContext?: string;
+  /**
+   * M28.2.1: optional streaming callback. When provided, generation uses
+   * ConverseStreamCommand and forwards each partial tool-input/text delta to
+   * this callback as it arrives. When omitted, the non-streaming path runs
+   * unchanged.
+   */
+  onDelta?: (textDelta: string) => void;
 }
 
 export interface GenerateStudyMaterialResult {
@@ -250,9 +264,15 @@ const client = new BedrockRuntimeClient({});
  *
  * Pure helper — no I/O, exported for unit testing.
  *
- * - Single-pass (phase undefined): base + type override + language directive.
+ * Layer order: base → TYPE prompt → [LEARNER CONTEXT] → LANGUAGE directive
+ * → [PHASE suffix] → [injectionGuard]
+ *
+ * - Single-pass (phase undefined): base + type override + [learner context] + language directive.
  * - Map phase: adds MAP_PHASE_INSTRUCTION as a final paragraph.
  * - Reduce phase: adds REDUCE_PHASE_INSTRUCTION as a final paragraph.
+ *
+ * `learnerContext` is an optional trailing param (M24) so existing positional
+ * call sites — which only pass up to `injectGuard` — remain valid without change.
  */
 export function buildPhaseSystemPrompt(
   base: string,
@@ -260,10 +280,12 @@ export function buildPhaseSystemPrompt(
   languageDirective: string,
   phase?: 'map' | 'reduce',
   injectGuard?: boolean,
+  learnerContext?: string,
 ): string {
   const combined =
     base +
     (typePrompt ? '\n\n' + typePrompt : '') +
+    (learnerContext ? '\n\n' + learnerContext : '') +
     '\n\n' +
     languageDirective;
 
@@ -284,6 +306,7 @@ interface BedrockCallOptions {
   maxTokens: number;
   temperature: number;
   toolSchema: DocumentType;
+  onDelta?: (textDelta: string) => void;
 }
 
 interface BedrockCallResult {
@@ -292,17 +315,74 @@ interface BedrockCallResult {
 }
 
 /**
+ * Consumes a Bedrock ConverseStream async-iterable, accumulating the forced
+ * tool-call's partial JSON input (and any plain text deltas), forwarding every
+ * partial chunk to `onDelta` as it arrives, and capturing token usage from the
+ * metadata event. After the stream ends, parses the accumulated tool-input JSON.
+ *
+ * Pure except for the injected `onDelta` callback — no AWS calls — so it can be
+ * unit-tested with a fake async-iterable.
+ *
+ * @throws if the accumulated tool-input JSON fails to parse (caller's try/catch
+ *         marks the study set failed).
+ */
+export async function consumeConverseStream(
+  stream: AsyncIterable<unknown>,
+  onDelta: (textDelta: string) => void,
+): Promise<BedrockCallResult> {
+  let toolInputJson = '';
+  let usage: { inputTokens?: number; outputTokens?: number } | undefined;
+
+  for await (const event of stream) {
+    const e = event as {
+      contentBlockDelta?: { delta?: { toolUse?: { input?: string }; text?: string } };
+      metadata?: { usage?: { inputTokens?: number; outputTokens?: number } };
+    };
+
+    const delta = e.contentBlockDelta?.delta;
+    if (delta) {
+      if (typeof delta.toolUse?.input === 'string') {
+        toolInputJson += delta.toolUse.input;
+        onDelta(delta.toolUse.input);
+      }
+      if (typeof delta.text === 'string') {
+        toolInputJson += delta.text;
+        onDelta(delta.text);
+      }
+    }
+
+    if (e.metadata?.usage) {
+      usage = {
+        inputTokens: e.metadata.usage.inputTokens,
+        outputTokens: e.metadata.usage.outputTokens,
+      };
+    }
+  }
+
+  let toolUseInput: unknown;
+  try {
+    toolUseInput = toolInputJson.length > 0 ? JSON.parse(toolInputJson) : undefined;
+  } catch (err) {
+    throw new Error(
+      `Failed to parse streamed tool-use JSON (${(err as Error).message}); accumulated ${toolInputJson.length} chars`,
+    );
+  }
+
+  return { toolUseInput, usage };
+}
+
+/**
  * Builds and sends a single Bedrock ConverseCommand that forces a tool call,
  * extracts `toolUse.input`, and returns it alongside usage stats.
  * All map/reduce/single-pass paths funnel through here.
  */
 async function callBedrock(opts: BedrockCallOptions): Promise<BedrockCallResult> {
-  const command = new ConverseCommand({
+  const commandInput = {
     modelId: opts.modelId,
     system: [{ text: opts.systemPrompt }],
     messages: [
       {
-        role: 'user',
+        role: 'user' as const,
         content: [{ text: opts.userMessage }],
       },
     ],
@@ -323,7 +403,18 @@ async function callBedrock(opts: BedrockCallOptions): Promise<BedrockCallResult>
       ],
       toolChoice: { tool: { name: 'submit_study_material' } },
     },
-  });
+  };
+
+  if (opts.onDelta) {
+    const streamCommand = new ConverseStreamCommand(commandInput);
+    const response = await withBedrockRetry(() => client.send(streamCommand));
+    if (!response.stream) {
+      throw new Error('ConverseStream returned no stream');
+    }
+    return consumeConverseStream(response.stream as AsyncIterable<unknown>, opts.onDelta);
+  }
+
+  const command = new ConverseCommand(commandInput);
 
   const response = await withBedrockRetry(() => client.send(command));
 
@@ -380,6 +471,7 @@ export async function generateStudyMaterial(
       languageDirective,
       'map',
       webFetched,
+      input.learnerContext,
     );
 
     const promptVersion = createHash('sha256')
@@ -430,6 +522,7 @@ export async function generateStudyMaterial(
       languageDirective,
       'reduce',
       webFetched,
+      input.learnerContext,
     );
 
     const promptVersion = createHash('sha256')
@@ -446,6 +539,7 @@ export async function generateStudyMaterial(
       maxTokens: input.maxTokensOverride ?? config.maxTokens,
       temperature: config.temperature,
       toolSchema: TOOL_SCHEMAS[type],
+      onDelta: input.onDelta,
     });
 
     let payload: unknown = toolUseInput;
@@ -464,6 +558,7 @@ export async function generateStudyMaterial(
     // phase is undefined → no suffix appended
     undefined,
     webFetched,
+    input.learnerContext,
   );
 
   const promptVersion = createHash('sha256')
@@ -480,6 +575,7 @@ export async function generateStudyMaterial(
     maxTokens: config.maxTokens,
     temperature: config.temperature,
     toolSchema: TOOL_SCHEMAS[type],
+    onDelta: input.onDelta,
   });
 
   let payload: unknown = toolUseInput;

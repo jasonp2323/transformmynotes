@@ -378,9 +378,11 @@ export default function AdminInvitesPage() {
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'space-between',
             marginBottom: 16,
+            flexWrap: 'wrap',
+            gap: 12,
           }}
         >
           <div>
@@ -507,6 +509,8 @@ export default function AdminInvitesPage() {
           alignItems: 'center',
           justifyContent: 'space-between',
           margin: '0 2px 12px',
+          flexWrap: 'wrap',
+          gap: 8,
         }}
       >
         <div
@@ -565,6 +569,7 @@ export default function AdminInvitesPage() {
       {/* ------------------------------------------------------------------ */}
       {rows !== null && !fetchError && rows.length > 0 && (
         <Card padded={false}>
+          <div style={{ overflowX: 'auto' }}>
           {/* Header row */}
           <div
             style={{
@@ -578,6 +583,7 @@ export default function AdminInvitesPage() {
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: 'var(--text-subtle)',
+              minWidth: 600,
             }}
           >
             <span>Recipient</span>
@@ -624,6 +630,7 @@ export default function AdminInvitesPage() {
                         ? '1px solid var(--border-subtle)'
                         : 'none',
                     opacity: isDimmed ? 0.6 : 1,
+                    minWidth: 600,
                   }}
                 >
                   {/* Recipient cell */}
@@ -732,6 +739,7 @@ export default function AdminInvitesPage() {
                 </div>
               );
             })}
+          </div>
         </Card>
       )}
 
@@ -766,25 +774,20 @@ export default function AdminInvitesPage() {
       {/* Toast                                                                */}
       {/* ------------------------------------------------------------------ */}
       {toast && (
-        <div
+        <Toast
+          tone={toast.tone}
+          icon={toast.icon}
+          title={toast.title}
+          onClose={dismissToast}
+          duration={6000}
           style={{
-            position: 'fixed',
-            right: 28,
-            bottom: 28,
-            width: 360,
-            zIndex: 50,
+            right: 'max(16px, env(safe-area-inset-right, 0px) + 16px)',
+            bottom: 'max(16px, env(safe-area-inset-bottom, 0px) + 16px)',
+            width: 'min(360px, calc(100vw - 32px))',
           }}
         >
-          <Toast
-            tone={toast.tone}
-            icon={toast.icon}
-            title={toast.title}
-            onClose={dismissToast}
-            duration={6000}
-          >
-            {toast.body}
-          </Toast>
-        </div>
+          {toast.body}
+        </Toast>
       )}
     </AdminShell>
   );
