@@ -4,6 +4,8 @@ import {
   GetCommand,
   UpdateCommand,
   BatchWriteCommand,
+  PutCommand,
+  DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { ddb, TableNames } from './client.js';
 import { cardKeys } from './keys.js';
@@ -17,7 +19,7 @@ import { type ScheduleResult } from '../srs/scheduler.js';
 /** Public card shape returned by db query functions. */
 export interface Card {
   cardId: string;
-  sourceNoteId: string;
+  sourceNoteId?: string;
   front: string;
   back: string;
   ease: number;
@@ -26,7 +28,7 @@ export interface Card {
   lastReviewedAt?: string;
   createdAt: string;
   updatedAt: string;
-  origin?: 'highlight' | 'ai';
+  origin?: 'highlight' | 'ai' | 'manual';
   studySetId?: string;
 }
 
@@ -46,7 +48,7 @@ export interface CardItem extends Card {
 export interface BuildCardItemInput {
   sub: string;
   cardId: string;
-  sourceNoteId: string;
+  sourceNoteId?: string;
   front: string;
   back: string;
   dueAt: string;
@@ -55,7 +57,7 @@ export interface BuildCardItemInput {
   interval?: number;
   lastReviewedAt?: string;
   updatedAt?: string;
-  origin?: 'highlight' | 'ai';
+  origin?: 'highlight' | 'ai' | 'manual';
   studySetId?: string;
 }
 
@@ -79,7 +81,6 @@ export function buildCardItem(input: BuildCardItemInput): CardItem {
     gsi5pk: cardKeys.gsi5pk(input.sub),
     gsi5sk: cardKeys.gsi5sk(input.dueAt),
     cardId: input.cardId,
-    sourceNoteId: input.sourceNoteId,
     front: input.front,
     back: input.back,
     ease: input.ease ?? 2.5,
@@ -89,6 +90,12 @@ export function buildCardItem(input: BuildCardItemInput): CardItem {
     updatedAt: input.updatedAt ?? input.createdAt,
   };
 
+  // Only write sourceNoteId when present — omitting it entirely for standalone
+  // manual cards avoids storing an empty string (DynamoDB rejects '') and keeps
+  // the note-based deck grouping logic clean (grouping keys on attribute presence).
+  if (input.sourceNoteId !== undefined) {
+    item.sourceNoteId = input.sourceNoteId;
+  }
   if (input.lastReviewedAt !== undefined) {
     item.lastReviewedAt = input.lastReviewedAt;
   }
@@ -198,8 +205,10 @@ export function diffCards(extracted: RawCard[], existing: Card[]): CardDiff {
   const unchanged: Card[] = [];
 
   for (const card of existing) {
-    // AI cards are never auto-pruned — they have no highlight to track.
-    if (card.origin === 'ai') {
+    // Non-highlight cards (ai, manual) are never auto-pruned — they have no
+    // highlight to track. Only cards with origin 'highlight' (or no origin, which
+    // is the legacy default for highlight-derived cards) participate in the prune.
+    if (card.origin === 'ai' || card.origin === 'manual') {
       unchanged.push(card);
       continue;
     }
@@ -419,6 +428,73 @@ export async function countCardsDue(sub: string, nowIso: string): Promise<number
   } while (lastKey !== undefined);
 
   return total;
+}
+
+/**
+ * Creates a single manual flashcard in DynamoDB.
+ *
+ * Writes with `origin: 'manual'`, `ease: 2.5`, `interval: 0` (explicitly
+ * overriding the buildCardItem default of 1 so the first review is treated as
+ * a fresh card), and `dueAt = now` so the card appears immediately in the
+ * review queue.
+ *
+ * `sourceNoteId` is omitted from the item when not provided — standalone manual
+ * cards have no parent note.
+ *
+ * @param input.sub          Cognito sub of the card owner.
+ * @param input.cardId       Caller-generated ULID for the new card.
+ * @param input.front        Question / prompt text.
+ * @param input.back         Answer / explanation text.
+ * @param input.sourceNoteId Optional ULID of a note to associate with this card.
+ * @param input.now          Optional fixed timestamp (defaults to `new Date()`).
+ */
+export async function createManualCard(input: {
+  sub: string;
+  cardId: string;
+  front: string;
+  back: string;
+  sourceNoteId?: string;
+  now?: Date;
+}): Promise<void> {
+  const nowIso = (input.now ?? new Date()).toISOString();
+
+  const item = buildCardItem({
+    sub: input.sub,
+    cardId: input.cardId,
+    front: input.front,
+    back: input.back,
+    sourceNoteId: input.sourceNoteId,
+    origin: 'manual',
+    ease: 2.5,
+    interval: 0,
+    dueAt: nowIso,
+    createdAt: nowIso,
+  });
+
+  await ddb.send(
+    new PutCommand({
+      TableName: TableNames.Notes,
+      Item: item,
+    }),
+  );
+}
+
+/**
+ * Deletes a single card item from DynamoDB by owner sub and cardId.
+ *
+ * This is a hard delete — no soft-delete / TTL pattern. The caller is
+ * responsible for verifying ownership before calling this function.
+ *
+ * @param sub    Cognito sub of the card owner.
+ * @param cardId ULID of the card to delete.
+ */
+export async function deleteCard(sub: string, cardId: string): Promise<void> {
+  await ddb.send(
+    new DeleteCommand({
+      TableName: TableNames.Notes,
+      Key: cardKeys.cardItemKey(sub, cardId),
+    }),
+  );
 }
 
 /**

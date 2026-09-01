@@ -112,6 +112,15 @@ describe('resolveSourceText — note ref', () => {
     expect(result.provenanceLabel).toBe(MOCK_NOTE.title);
   });
 
+  it("returns contentTrust 'user-authored' for a note ref", async () => {
+    mockGetNote.mockResolvedValue(MOCK_NOTE);
+    mockS3Send.mockResolvedValue(makeS3Body('# Notes'));
+
+    const result = await resolveSourceText(SUB, { type: 'note', id: NOTE_ID });
+
+    expect(result.contentTrust).toBe('user-authored');
+  });
+
   it('throws a descriptive error when the note is not found', async () => {
     mockGetNote.mockResolvedValue(undefined);
 
@@ -144,6 +153,24 @@ describe('resolveSourceText — document ref', () => {
 
     expect(result.text).toBe(docText);
     expect(result.provenanceLabel).toBe(MOCK_SOURCE.title);
+  });
+
+  it("returns contentTrust 'user-authored' for an uploaded document source (type 'document')", async () => {
+    mockGetSource.mockResolvedValue(MOCK_SOURCE); // type: 'document'
+    mockS3Send.mockResolvedValue(makeS3Body('# Doc'));
+
+    const result = await resolveSourceText(SUB, { type: 'document', id: SOURCE_ID });
+
+    expect(result.contentTrust).toBe('user-authored');
+  });
+
+  it("returns contentTrust 'web-fetched' for a web source (type 'web')", async () => {
+    mockGetSource.mockResolvedValue({ ...MOCK_SOURCE, type: 'web' });
+    mockS3Send.mockResolvedValue(makeS3Body('# Web article'));
+
+    const result = await resolveSourceText(SUB, { type: 'document', id: SOURCE_ID });
+
+    expect(result.contentTrust).toBe('web-fetched');
   });
 
   it('throws when a document source is not found', async () => {

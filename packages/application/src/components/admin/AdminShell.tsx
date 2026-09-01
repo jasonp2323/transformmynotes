@@ -3,6 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { DesktopShell } from '@/src/components/shells';
+import { MobileAdminShell } from './MobileAdminShell';
 import { useAdminShell } from './AdminShellContext';
 import { adminActiveFromPath } from './adminActive';
 
@@ -21,6 +22,9 @@ export interface AdminShellProps {
  * Client wrapper used by all admin pages.
  * Pulls identity from AdminShellContext and derives the active nav item
  * from the current pathname (unless overridden via the `active` prop).
+ *
+ * Renders MobileAdminShell (visible below md) and DesktopShell (visible at md+)
+ * side by side using Tailwind responsive utilities.
  */
 export function AdminShell({
   title,
@@ -37,20 +41,39 @@ export function AdminShell({
   const active = activeProp ?? adminActiveFromPath(pathname) ?? undefined;
 
   return (
-    <DesktopShell
-      userName={userName}
-      isAdmin={isAdmin}
-      pendingCount={pendingCount}
-      active={active}
-      title={title}
-      eyebrow={eyebrow}
-      actions={actions}
-      search={search}
-      searchValue={searchValue}
-      onSearchChange={onSearchChange}
-    >
-      {children}
-    </DesktopShell>
+    <>
+      {/* Mobile: visible below md */}
+      <div className="md:hidden h-full">
+        <MobileAdminShell
+          title={title}
+          eyebrow={eyebrow}
+          actions={actions}
+          userName={userName}
+          isAdmin={isAdmin}
+          pendingCount={pendingCount}
+        >
+          {children}
+        </MobileAdminShell>
+      </div>
+
+      {/* Desktop: visible at md and above */}
+      <div className="hidden md:flex h-full">
+        <DesktopShell
+          userName={userName}
+          isAdmin={isAdmin}
+          pendingCount={pendingCount}
+          active={active}
+          title={title}
+          eyebrow={eyebrow}
+          actions={actions}
+          search={search}
+          searchValue={searchValue}
+          onSearchChange={onSearchChange}
+        >
+          {children}
+        </DesktopShell>
+      </div>
+    </>
   );
 }
 

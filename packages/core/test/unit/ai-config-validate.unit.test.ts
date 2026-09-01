@@ -4,7 +4,7 @@ import { validateAiConfigInput, type AiConfigInput } from '../../src/study/confi
 function validInput(): Record<string, unknown> {
   return {
     baseSystemPrompt: 'Base system prompt',
-    modelId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    modelId: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
     promptOverrides: {},
     modelOverrides: {},
     maxTokens: 4096,

@@ -1,5 +1,161 @@
 # Changelog
 
+## [1.99.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.1...transformmynotes-v1.99.0) (2026-08-14)
+
+
+### 🚀 Features
+
+* **application:** surface PDF/document & web-article study sources (Library entry points, mobile nav, M21 injection guard) ([#703](https://github.com/jasonp2323/transformmynotes/issues/703)) ([0f315a6](https://github.com/jasonp2323/transformmynotes/commit/0f315a6be96c89a8cd7835bdfeba03daeef0b101))
+
+
+### 🐛 Fixes
+
+* **core:** replace EOL Bedrock model (Sonnet 3.5 v2 → Sonnet 4.5) ([#707](https://github.com/jasonp2323/transformmynotes/issues/707)) ([805572d](https://github.com/jasonp2323/transformmynotes/commit/805572d2b4586108010a189255058017f2e0ff3c)), closes [#706](https://github.com/jasonp2323/transformmynotes/issues/706)
+* **marketing:** resolve Android APK link by tag, not page 1 of releases ([677f252](https://github.com/jasonp2323/transformmynotes/commit/677f252cd1ec6ac682cc8ed38c2c6faa351ad06b)), closes [#713](https://github.com/jasonp2323/transformmynotes/issues/713)
+
+
+### 📝 Documentation
+
+* add system architecture diagram to README ([#717](https://github.com/jasonp2323/transformmynotes/issues/717)) ([4be3bf4](https://github.com/jasonp2323/transformmynotes/commit/4be3bf453da10bdf8a10dd02eb2e4d50d182f262))
+
+## [1.98.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.0...transformmynotes-v1.98.1) (2026-06-21)
+
+
+### 🐛 Fixes
+
+* **application:** flashcard cancel discards set, resilient polling & dismissable AI activity chip ([#701](https://github.com/jasonp2323/transformmynotes/issues/701)) ([49221e5](https://github.com/jasonp2323/transformmynotes/commit/49221e5d17e93573813b6d5d3b9e492fb4e42113)), closes [#579](https://github.com/jasonp2323/transformmynotes/issues/579) [#698](https://github.com/jasonp2323/transformmynotes/issues/698)
+* study-guide language, marketing 404 redirect & mobile admin UI ([#568](https://github.com/jasonp2323/transformmynotes/issues/568), [#566](https://github.com/jasonp2323/transformmynotes/issues/566), [#530](https://github.com/jasonp2323/transformmynotes/issues/530)) ([fa91b24](https://github.com/jasonp2323/transformmynotes/commit/fa91b2450b56546d2d7f3589bcf468aac5300839))
+
+
+### 📝 Documentation
+
+* **milestones:** add M29 MFA (TOTP + remembered devices) spec and M30 passkey outline ([#697](https://github.com/jasonp2323/transformmynotes/issues/697)) ([3abcfcc](https://github.com/jasonp2323/transformmynotes/commit/3abcfcc5d8c05752b3fe0a725b2e6d639ae3471c))
+
+## [1.98.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.97.0...transformmynotes-v1.98.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M28 Waves 3 & 4 — global AI activity indicator + SSE live-output ([#686](https://github.com/jasonp2323/transformmynotes/issues/686)) ([6ac7667](https://github.com/jasonp2323/transformmynotes/commit/6ac76674fc7f050284e148104d8971471b8b9cdb))
+
+## [1.97.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.96.0...transformmynotes-v1.97.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M28 backend — ACTIVITY model, producers, Activity API & M19 Collapsible (Waves 1/2/5) ([#684](https://github.com/jasonp2323/transformmynotes/issues/684)) ([9425fea](https://github.com/jasonp2323/transformmynotes/commit/9425feaf8df550e9ad13179040464d4b8857bc58))
+
+## [1.96.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.95.0...transformmynotes-v1.96.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M27 — manual & explicit flashcard creation ([12a040c](https://github.com/jasonp2323/transformmynotes/commit/12a040c508edfed1a9a6ac1ccf47c2119f3525fc))
+
+## [1.95.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.94.0...transformmynotes-v1.95.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M25 — Study Progress & Insights dashboard ([#679](https://github.com/jasonp2323/transformmynotes/issues/679)) ([5d271bb](https://github.com/jasonp2323/transformmynotes/commit/5d271bb1282d7a399cf6492178bdb845d9d1c23d)), closes [#551](https://github.com/jasonp2323/transformmynotes/issues/551) [#552](https://github.com/jasonp2323/transformmynotes/issues/552) [#553](https://github.com/jasonp2323/transformmynotes/issues/553) [#554](https://github.com/jasonp2323/transformmynotes/issues/554)
+
+## [1.94.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.93.0...transformmynotes-v1.94.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M24.3 — AI environment study-profile settings UI ([#674](https://github.com/jasonp2323/transformmynotes/issues/674)) ([9feb142](https://github.com/jasonp2323/transformmynotes/commit/9feb142ca37cda3b76f7601a8f868a854c5654a8))
+
+## [1.93.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.92.0...transformmynotes-v1.93.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M23.5 — admin Cost Breakdown tab UI ([#675](https://github.com/jasonp2323/transformmynotes/issues/675)) ([b88ec08](https://github.com/jasonp2323/transformmynotes/commit/b88ec08c7b183349b8860ae2c75b553ae207b6da)), closes [#516](https://github.com/jasonp2323/transformmynotes/issues/516)
+
+## [1.92.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.1...transformmynotes-v1.92.0) (2026-06-20)
+
+
+### 🚀 Features
+
+* **application:** M26.3 — multi-page review gallery + persist all page image keys ([#672](https://github.com/jasonp2323/transformmynotes/issues/672)) ([b9284c4](https://github.com/jasonp2323/transformmynotes/commit/b9284c41e080299de096acc60531aa4ca28b77fe))
+
+## [1.91.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.91.0...transformmynotes-v1.91.1) (2026-06-20)
+
+
+### 🐛 Fixes
+
+* **e2e:** repair note-set-picker and sharing authed E2E specs ([#670](https://github.com/jasonp2323/transformmynotes/issues/670)) ([38f0779](https://github.com/jasonp2323/transformmynotes/commit/38f07794c29489d882edc180bdda48d09218bb3d))
+
+## [1.91.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.90.0...transformmynotes-v1.91.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M23.4 — admin cost-breakdown aggregation API ([#668](https://github.com/jasonp2323/transformmynotes/issues/668)) ([26ce1ed](https://github.com/jasonp2323/transformmynotes/commit/26ce1edafa2e5bef376b18b9181b33b932f4375e))
+
+
+### 🧰 Maintenance
+
+* **commands:** watch the production deploy in merge-and-close skills ([#667](https://github.com/jasonp2323/transformmynotes/issues/667)) ([c379393](https://github.com/jasonp2323/transformmynotes/commit/c37939362e5ed104f289dfcaf1ffb054967ccc6a))
+
+## [1.90.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.89.0...transformmynotes-v1.90.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M26.2 — capture Single/Multi toggle + page tray UI ([#664](https://github.com/jasonp2323/transformmynotes/issues/664)) ([58d1a68](https://github.com/jasonp2323/transformmynotes/commit/58d1a684a82ecb0ae6bdc40ec716ae095080f701))
+
+## [1.89.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.88.0...transformmynotes-v1.89.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M23.3 — usage-stream aggregator + daily storage-snapshot cron ([#663](https://github.com/jasonp2323/transformmynotes/issues/663)) ([c5233e1](https://github.com/jasonp2323/transformmynotes/commit/c5233e117afac5002e0b11f3da903fbfea35147a))
+
+## [1.88.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.87.0...transformmynotes-v1.88.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M24.2 — thread per-user learner context into study generation ([#661](https://github.com/jasonp2323/transformmynotes/issues/661)) ([fd0fc7b](https://github.com/jasonp2323/transformmynotes/commit/fd0fc7bb9868085b2d37e2e924f98e2655f6f973)), closes [#535](https://github.com/jasonp2323/transformmynotes/issues/535)
+
+## [1.87.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.86.0...transformmynotes-v1.87.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M23.2 — hot-path usage event capture (OCR tokens + storage deltas) ([#656](https://github.com/jasonp2323/transformmynotes/issues/656)) ([3f28c06](https://github.com/jasonp2323/transformmynotes/commit/3f28c064794cdca9afdb883a38f89ea184e2d08d)), closes [#513](https://github.com/jasonp2323/transformmynotes/issues/513)
+
+## [1.86.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.85.0...transformmynotes-v1.86.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* M26.1 — multi-page capture backend (stitchPages, batch transcribe, note image keys) ([#658](https://github.com/jasonp2323/transformmynotes/issues/658)) ([6cc2b14](https://github.com/jasonp2323/transformmynotes/commit/6cc2b14be0d56493de3454d9205524bc6ed27960))
+
+## [1.85.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.84.0...transformmynotes-v1.85.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M24.1 — per-user aiProfile schema + GET/PUT API ([#655](https://github.com/jasonp2323/transformmynotes/issues/655)) ([60a749f](https://github.com/jasonp2323/transformmynotes/commit/60a749f030d53cc09b492906af2d2d25a08d9d74)), closes [#534](https://github.com/jasonp2323/transformmynotes/issues/534)
+
+## [1.84.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.83.0...transformmynotes-v1.84.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M22.3 — offline mutations & sync (queue, conflict resolution, capture) ([#652](https://github.com/jasonp2323/transformmynotes/issues/652)) ([598996a](https://github.com/jasonp2323/transformmynotes/commit/598996a533db9fd5e7dca94cb0c36d53d34401ac))
+* **core:** M23.1 — metering foundation (Usage table, keys, price book, cost math) ([#654](https://github.com/jasonp2323/transformmynotes/issues/654)) ([3514e17](https://github.com/jasonp2323/transformmynotes/commit/3514e17b48e7b991ab9d3ebb6961b649d68ec886)), closes [#512](https://github.com/jasonp2323/transformmynotes/issues/512)
+
+## [1.83.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.82.0...transformmynotes-v1.83.0) (2026-06-19)
+
+
+### 🚀 Features
+
+* **application:** M22.2 — offline read cache (notes &amp; library) ([#639](https://github.com/jasonp2323/transformmynotes/issues/639)) ([607fc8a](https://github.com/jasonp2323/transformmynotes/commit/607fc8aa8c566985f698963f7a0805e32f6ad3be))
+
 ## [1.82.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.81.0...transformmynotes-v1.82.0) (2026-06-19)
 
 

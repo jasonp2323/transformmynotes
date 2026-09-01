@@ -3,6 +3,7 @@ import '../src/styles/globals.css';
 import { AmplifyProvider } from './amplify-provider';
 import { NativeBridge } from './native-bridge';
 import { PwaUpdater } from '../src/components/pwa/pwa-updater';
+import { SyncProvider } from '../src/components/offline/SyncProvider';
 
 export const metadata: Metadata = {
   title: 'TransformMyNotes',
@@ -32,6 +33,7 @@ export default function RootLayout({
         <AmplifyProvider />
         <NativeBridge />
         <PwaUpdater />
+        <SyncProvider />
         {children}
       </body>
     </html>

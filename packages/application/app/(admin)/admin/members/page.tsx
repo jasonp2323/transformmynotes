@@ -297,6 +297,7 @@ export default function AdminMembersPage() {
       {/* Table */}
       {rows !== null && !fetchError && rows.length > 0 && (
         <Card padded={false}>
+          <div style={{ overflowX: 'auto' }}>
           {/* Header row */}
           <div
             style={{
@@ -310,6 +311,7 @@ export default function AdminMembersPage() {
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               color: 'var(--text-subtle)',
+              minWidth: 640,
             }}
           >
             <span>Member</span>
@@ -354,6 +356,7 @@ export default function AdminMembersPage() {
                         ? '1px solid var(--border-subtle)'
                         : 'none',
                     opacity: u.status === 'disabled' ? 0.62 : 1,
+                    minWidth: 640,
                   }}
                 >
                   {/* Member cell */}
@@ -494,6 +497,7 @@ export default function AdminMembersPage() {
                 </div>
               );
             })}
+          </div>
         </Card>
       )}
 
@@ -521,25 +525,20 @@ export default function AdminMembersPage() {
 
       {/* Toast */}
       {toast && (
-        <div
+        <Toast
+          tone={toast.tone}
+          icon={toast.icon}
+          title={toast.title}
+          onClose={dismissToast}
+          duration={3200}
           style={{
-            position: 'fixed',
-            right: 28,
-            bottom: 28,
-            width: 340,
-            zIndex: 50,
+            right: 'max(16px, env(safe-area-inset-right, 0px) + 16px)',
+            bottom: 'max(16px, env(safe-area-inset-bottom, 0px) + 16px)',
+            width: 'min(360px, calc(100vw - 32px))',
           }}
         >
-          <Toast
-            tone={toast.tone}
-            icon={toast.icon}
-            title={toast.title}
-            onClose={dismissToast}
-            duration={3200}
-          >
-            {toast.body}
-          </Toast>
-        </div>
+          {toast.body}
+        </Toast>
       )}
     </AdminShell>
   );

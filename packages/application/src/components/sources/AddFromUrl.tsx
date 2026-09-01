@@ -19,11 +19,12 @@ type FetchPhase =
 
 export interface AddFromUrlProps {
   onSourceAdded?: () => void;
+  autoFocusUrl?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AddFromUrl({ onSourceAdded }: AddFromUrlProps) {
+export function AddFromUrl({ onSourceAdded, autoFocusUrl = false }: AddFromUrlProps) {
   const [url, setUrl] = useState('');
   const [state, setState] = useState<FetchPhase>({ phase: 'idle' });
 
@@ -105,7 +106,7 @@ export function AddFromUrl({ onSourceAdded }: AddFromUrlProps) {
           type="url"
           placeholder="https://…"
           maxLength={2048}
-          autoFocus
+          autoFocus={autoFocusUrl}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={isFetching}

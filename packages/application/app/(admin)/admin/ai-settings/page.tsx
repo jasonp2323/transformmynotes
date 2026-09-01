@@ -5,6 +5,7 @@ import { AdminShell } from '@/src/components/admin';
 import {
   Button,
   Card,
+  Collapsible,
   Dialog,
   Icon,
   Input,
@@ -265,13 +266,14 @@ export default function AiSettingsPage() {
     }
   }, []);
 
-  const handleHistoryToggle = useCallback(() => {
-    setHistoryOpen((prev) => {
-      if (!prev) {
-        void loadVersions();
-      }
-      return !prev;
-    });
+  // Adapts the old `handleHistoryToggle` toggle semantics to the Collapsible's
+  // `onOpenChange(next)` signature: opening the panel still lazily loads the
+  // version list exactly as before (load on every open transition).
+  const handleHistoryOpenChange = useCallback((next: boolean) => {
+    setHistoryOpen(next);
+    if (next) {
+      void loadVersions();
+    }
   }, [loadVersions]);
 
   // ── Inline validation ─────────────────────────────────────────────────────
@@ -949,39 +951,11 @@ export default function AiSettingsPage() {
 
           {/* ── Version history panel ─────────────────────────────────────── */}
           <Card padded={false}>
-            <button
-              type="button"
-              onClick={handleHistoryToggle}
-              aria-expanded={historyOpen}
-              style={{
-                background: 'none',
-                border: 'none',
-                width: '100%',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '14px 20px',
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--text-strong)',
-                borderRadius: historyOpen ? '10px 10px 0 0' : 10,
-                textAlign: 'left',
-              }}
+            <Collapsible
+              title="Version history"
+              open={historyOpen}
+              onOpenChange={handleHistoryOpenChange}
             >
-              <Icon
-                name="chevron-left"
-                size={15}
-                style={{
-                  transform: historyOpen ? 'rotate(-90deg)' : 'rotate(180deg)',
-                  transition: 'transform 0.15s',
-                  flexShrink: 0,
-                }}
-              />
-              Version history
-            </button>
-
-            {historyOpen && (
               <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
                 {versionsLoading && (
                   <div style={{ padding: '18px 20px', fontSize: 13.5, color: 'var(--text-muted)' }}>
@@ -995,6 +969,7 @@ export default function AiSettingsPage() {
                 )}
                 {!versionsLoading && versions.length > 0 && (
                   <div>
+                    <div style={{ overflowX: 'auto' }}>
                     {/* Header row */}
                     <div
                       style={{
@@ -1008,6 +983,7 @@ export default function AiSettingsPage() {
                         textTransform: 'uppercase',
                         color: 'var(--text-subtle)',
                         borderBottom: '1px solid var(--border-subtle)',
+                        minWidth: 480,
                       }}
                     >
                       <span>Version</span>
@@ -1030,6 +1006,7 @@ export default function AiSettingsPage() {
                             idx < versions.length - 1
                               ? '1px solid var(--border-subtle)'
                               : 'none',
+                          minWidth: 480,
                         }}
                       >
                         <span
@@ -1064,10 +1041,11 @@ export default function AiSettingsPage() {
                         </Button>
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+            </Collapsible>
           </Card>
         </div>
       )}
@@ -1100,25 +1078,20 @@ export default function AiSettingsPage() {
 
       {/* ── Toast ─────────────────────────────────────────────────────────── */}
       {toast && (
-        <div
+        <Toast
+          tone={toast.tone}
+          icon={toast.icon}
+          title={toast.title}
+          onClose={dismissToast}
+          duration={4000}
           style={{
-            position: 'fixed',
-            right: 28,
-            bottom: 28,
-            width: 340,
-            zIndex: 50,
+            right: 'max(16px, env(safe-area-inset-right, 0px) + 16px)',
+            bottom: 'max(16px, env(safe-area-inset-bottom, 0px) + 16px)',
+            width: 'min(360px, calc(100vw - 32px))',
           }}
         >
-          <Toast
-            tone={toast.tone}
-            icon={toast.icon}
-            title={toast.title}
-            onClose={dismissToast}
-            duration={4000}
-          >
-            {toast.body}
-          </Toast>
-        </div>
+          {toast.body}
+        </Toast>
       )}
     </AdminShell>
   );

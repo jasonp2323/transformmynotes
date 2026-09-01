@@ -14,6 +14,7 @@ const postprocessMarkdownMock = vi.hoisted(() => vi.fn());
 const countHighlightsMock = vi.hoisted(() => vi.fn());
 const syncCardsForNoteMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
+const putStorageDeltaEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -28,6 +29,7 @@ vi.mock('@transformmynotes/core', () => ({
   postprocessMarkdown: postprocessMarkdownMock,
   countHighlights: countHighlightsMock,
   syncCardsForNote: syncCardsForNoteMock,
+  putStorageDeltaEvent: putStorageDeltaEventMock,
   storageKeys: {
     originalImage: (s: string, i: string) => `images/users/${s}/${i}.jpg`,
     noteMarkdown: (s: string, i: string) => `markdown/users/${s}/${i}.md`,
@@ -37,6 +39,7 @@ vi.mock('@transformmynotes/core', () => ({
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn(() => ({ send: s3SendMock })),
   PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
+  HeadObjectCommand: vi.fn((input) => ({ kind: 'HeadObject', input })),
 }));
 
 // ---------------------------------------------------------------------------
@@ -100,6 +103,7 @@ beforeEach(() => {
   });
   countHighlightsMock.mockReturnValue(0);
   s3SendMock.mockResolvedValue({});
+  putStorageDeltaEventMock.mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -372,6 +376,28 @@ describe('POST /api/notes/save', () => {
       expect(putNoteMock).toHaveBeenCalledWith(
         expect.objectContaining({ tags: [] }),
       );
+    });
+  });
+
+  describe('originalImageS3Keys', () => {
+    it('passes valid keys through to putNote', async () => {
+      const keys = [`images/users/${SUB}/01AAA.jpg`, `images/users/${SUB}/01BBB.jpg`];
+      await POST(makeRequest({ ...DEFAULT_BODY, originalImageS3Keys: keys }));
+      expect(putNoteMock).toHaveBeenCalledWith(expect.objectContaining({ originalImageS3Keys: keys }));
+    });
+
+    it('omitted field → putNote called WITHOUT originalImageS3Keys (undefined)', async () => {
+      await POST(makeRequest(DEFAULT_BODY));
+      const arg = putNoteMock.mock.calls[0][0] as Record<string, unknown>;
+      expect(arg.originalImageS3Keys).toBeUndefined();
+    });
+
+    it('returns 400 when a key is outside the caller\'s prefix', async () => {
+      const res = await POST(makeRequest({ ...DEFAULT_BODY, originalImageS3Keys: [`images/users/other-sub/01AAA.jpg`] }));
+      const body = await res.json() as Record<string, unknown>;
+      expect(res.status).toBe(400);
+      expect(body.error).toBe('Invalid originalImageS3Keys.');
+      expect(putNoteMock).not.toHaveBeenCalled();
     });
   });
 
