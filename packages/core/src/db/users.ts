@@ -300,3 +300,71 @@ export async function ensureActiveAdminProfile(opts: {
 }): Promise<UserProfileItem> {
   return ensureActiveProfile({ ...opts, role: 'admin' });
 }
+
+/**
+ * Overwrites the six lifetime/streak progress fields on a user profile (M25).
+ * Called by the nightly progress cron — all values are recomputed-and-set so
+ * repeated calls are idempotent (self-healing).
+ *
+ * Missing user → { ok: false, reason: 'not_found' }.
+ * Returns the updated profile item on success.
+ */
+export async function updateProgressProfile(
+  sub: string,
+  fields: {
+    studyStreakDays: number;
+    longestStreakDays: number;
+    lastStudyDay: string | null;
+    totalReviewsLifetime: number;
+    totalCardsMastered: number;
+    totalQuizAttemptsLifetime: number;
+  },
+): Promise<UpdateUserResult> {
+  const now = new Date().toISOString();
+
+  const setClauses = [
+    'studyStreakDays = :ssd',
+    'longestStreakDays = :lsd',
+    'totalReviewsLifetime = :trl',
+    'totalCardsMastered = :tcm',
+    'totalQuizAttemptsLifetime = :tqal',
+    'updatedAt = :now',
+  ];
+  const eav: Record<string, unknown> = {
+    ':ssd': fields.studyStreakDays,
+    ':lsd': fields.longestStreakDays,
+    ':trl': fields.totalReviewsLifetime,
+    ':tcm': fields.totalCardsMastered,
+    ':tqal': fields.totalQuizAttemptsLifetime,
+    ':now': now,
+  };
+
+  if (fields.lastStudyDay !== null) {
+    setClauses.push('lastStudyDay = :lastDay');
+    eav[':lastDay'] = fields.lastStudyDay;
+  }
+
+  try {
+    const result = await ddb.send(
+      new UpdateCommand({
+        TableName: TableNames.UserData,
+        Key: userDataKeys.profile(sub),
+        UpdateExpression: `SET ${setClauses.join(', ')}`,
+        ConditionExpression: 'attribute_exists(pk)',
+        ExpressionAttributeValues: eav,
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+    return { ok: true, profile: result.Attributes as UserProfileItem };
+  } catch (err: unknown) {
+    if (
+      err !== null &&
+      typeof err === 'object' &&
+      'name' in err &&
+      (err as { name: string }).name === 'ConditionalCheckFailedException'
+    ) {
+      return { ok: false, reason: 'not_found' };
+    }
+    throw err;
+  }
+}

@@ -77,6 +77,10 @@ const SHARE_RECIPIENT_PASSWORD = 'ShareRecip1!Password';
 // Share group constant
 const SHARE_GROUP_ID = 'e2e-share-group';
 
+// Progress test user (dedicated to progress.spec — starts with zero data)
+const PROGRESS_USERNAME = 'e2e-progress@example.com';
+const PROGRESS_PASSWORD = 'Progress1234!Password';
+
 // Pending users (for admin pending-queue tests)
 const PENDING_USER1_EMAIL = 'e2e-pending1@example.com';
 const PENDING_USER1_PASSWORD = 'Pending1234!Password';
@@ -738,6 +742,30 @@ async function seedCognito(port: number, username: string, password: string) {
     }),
   );
 
+  // ── Progress test user ───────────────────────────────────────────────────────
+  // Dedicated to progress.spec — starts with zero study data.
+  const progressUserResp = await cognitoClient.send(
+    new AdminCreateUserCommand({
+      UserPoolId: poolId,
+      Username: PROGRESS_USERNAME,
+      MessageAction: 'SUPPRESS',
+      UserAttributes: [
+        { Name: 'email', Value: PROGRESS_USERNAME },
+        { Name: 'email_verified', Value: 'true' },
+      ],
+    }),
+  );
+  const progressUserSub = progressUserResp.User!.Attributes!.find((a) => a.Name === 'sub')!.Value!;
+
+  await cognitoClient.send(
+    new AdminSetUserPasswordCommand({
+      UserPoolId: poolId,
+      Username: PROGRESS_USERNAME,
+      Password: PROGRESS_PASSWORD,
+      Permanent: true,
+    }),
+  );
+
   cognitoClient.destroy();
   return {
     poolId,
@@ -747,10 +775,12 @@ async function seedCognito(port: number, username: string, password: string) {
     adminUserSub,
     pendingUser1Sub,
     pendingUser2Sub,
+    progressUserSub,
     libraryUserSub,
     reviewUserSub,
     shareOwnerSub,
     shareRecipientSub,
+    progressUserSub,
   };
 }
 
@@ -1045,6 +1075,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     reviewUserSub,
     shareOwnerSub,
     shareRecipientSub,
+    progressUserSub,
   } = await seedCognito(COGNITO_PORT, username, password);
 
   // 3b. Seed UserData profiles for pre-seeded users so requireActiveUser() passes
@@ -1055,6 +1086,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     { sub: reviewUserSub, email: REVIEW_USERNAME },
     { sub: shareOwnerSub, email: SHARE_OWNER_USERNAME },
     { sub: shareRecipientSub, email: SHARE_RECIPIENT_USERNAME },
+    { sub: progressUserSub, email: PROGRESS_USERNAME },
   ]);
 
   // 3c. Seed admin profile (role:'admin', status:'active')
@@ -1172,6 +1204,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     shareRecipientPassword: SHARE_RECIPIENT_PASSWORD,
     shareRecipientSub,
     shareGroupId: SHARE_GROUP_ID,
+    // Progress test user (dedicated to progress.spec — starts with zero study data)
+    progressUsername: PROGRESS_USERNAME,
+    progressPassword: PROGRESS_PASSWORD,
+    progressUserSub,
     // S3rver info
     s3Endpoint: `http://127.0.0.1:${S3RVER_PORT}`,
     notesBucket: NOTES_BUCKET,

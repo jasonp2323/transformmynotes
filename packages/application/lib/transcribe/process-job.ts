@@ -17,7 +17,11 @@ import {
   postprocessMarkdown,
   putUsageEvent,
   storageKeys,
+  buildActivityItem,
+  putActivity,
+  appendStepUpdate,
   type TranscriptionJobItem,
+  type ActivityItem,
 } from '@transformmynotes/core';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 
@@ -67,6 +71,7 @@ export interface ProcessJobDeps {
    */
   transcribe: (
     imageBytes: Uint8Array,
+    onDelta?: (textDelta: string) => void,
   ) => Promise<{
     rawText: string;
     usage?: { inputTokens?: number; outputTokens?: number };
@@ -85,6 +90,15 @@ export interface ProcessJobDeps {
     inputTokens: number;
     outputTokens: number;
   }) => Promise<void>;
+  /** Create the ACTIVITY mirror record. Default: `putActivity` from core. */
+  createActivity: (item: ActivityItem) => Promise<void>;
+  /** Append a phase-transition step to the ACTIVITY record. Default: `appendStepUpdate` from core. */
+  updateActivity: (input: Parameters<typeof appendStepUpdate>[0]) => Promise<ActivityItem>;
+  /**
+   * Persist the in-progress streaming transcript text.
+   * Default: writes to S3 via PutObjectCommand (`text/plain`).
+   */
+  flushStream: (s3Key: string, text: string) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +140,19 @@ async function defaultPutMarkdown(sub: string, jobId: string, markdown: string):
   );
 }
 
+async function defaultFlushStream(s3Key: string, text: string): Promise<void> {
+  const bucket = requireBucketName();
+  const s3 = new S3Client({});
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: s3Key,
+      Body: text,
+      ContentType: 'text/plain',
+    }),
+  );
+}
+
 const DEFAULT_DEPS: ProcessJobDeps = {
   getJob: getTranscriptionJob,
   updateStatus: updateTranscriptionJobStatus,
@@ -133,6 +160,9 @@ const DEFAULT_DEPS: ProcessJobDeps = {
   transcribe: transcribeImage,
   putMarkdown: defaultPutMarkdown,
   emitUsage: putUsageEvent,
+  createActivity: putActivity,
+  updateActivity: appendStepUpdate,
+  flushStream: defaultFlushStream,
 };
 
 // ---------------------------------------------------------------------------
@@ -161,7 +191,17 @@ export async function processTranscriptionJob(
   jobId: string,
   deps: Partial<ProcessJobDeps> = {},
 ): Promise<ProcessJobResult> {
-  const { getJob, updateStatus, getImageBytes, transcribe, putMarkdown, emitUsage } = {
+  const {
+    getJob,
+    updateStatus,
+    getImageBytes,
+    transcribe,
+    putMarkdown,
+    emitUsage,
+    createActivity,
+    updateActivity,
+    flushStream,
+  } = {
     ...DEFAULT_DEPS,
     ...deps,
   };
@@ -182,10 +222,60 @@ export async function processTranscriptionJob(
 
   const markdownS3Key = storageKeys.noteMarkdown(sub, jobId);
 
+  // ACTIVITY mirror state — declared in the outer scope so the catch block can
+  // best-effort mark the activity 'failed' (only when it was actually created).
+  let activityId: string | undefined;
+  let streamS3Key: string | undefined;
+
   try {
+    // Create the ACTIVITY mirror record alongside the job's 'processing' status.
+    const activityItem = buildActivityItem({
+      sub,
+      kind: 'transcription',
+      refId: jobId,
+      title: 'Transcribing a page',
+      phase: 'queued',
+      phaseDetail: 'Queued',
+      status: 'running',
+    });
+    activityId = activityItem.activityId;
+    streamS3Key = `activity/${sub}/${activityId}.stream.txt`;
+    await createActivity(activityItem);
+
+    // Throttled streaming flush: accumulate deltas, flush at most every
+    // FLUSH_INTERVAL_MS (fire-and-forget; a flush failure never breaks the job).
+    let streamBuffer = '';
+    let lastFlush = 0;
+    const FLUSH_INTERVAL_MS = 750;
+    const flushKey = streamS3Key;
+    const onDelta = (textDelta: string) => {
+      streamBuffer += textDelta;
+      const now = Date.now();
+      if (now - lastFlush >= FLUSH_INTERVAL_MS) {
+        lastFlush = now;
+        void flushStream(flushKey, streamBuffer).catch((e) => {
+          console.error('[processTranscriptionJob] stream flush failed', e);
+        });
+      }
+    };
+
     // Step 4: fetch image, run OCR, post-process.
+    await updateActivity({ sub, activityId, phase: 'uploading', phaseDetail: 'Loading the page' });
     const imageBytes = await getImageBytes(sub, jobId);
-    const { rawText, usage, model } = await transcribe(imageBytes);
+
+    await updateActivity({
+      sub,
+      activityId,
+      phase: 'transcribing',
+      phaseDetail: 'Reading your handwriting',
+      stream: { s3Key: streamS3Key, done: false },
+    });
+    const { rawText, usage, model } = await transcribe(imageBytes, onDelta);
+
+    // Forced final flush of the full transcript buffer (success path).
+    await flushStream(flushKey, streamBuffer).catch((e) => {
+      console.error('[processTranscriptionJob] stream flush failed', e);
+    });
 
     // Meter the OCR call. Fire-and-forget — `emitUsage`/`putUsageEvent` never
     // throws, so it can never break the job.
@@ -204,6 +294,16 @@ export async function processTranscriptionJob(
 
     // Step 6: mark done.
     await updateStatus({ sub, jobId, status: 'done' });
+
+    await updateActivity({ sub, activityId, phase: 'finalizing', phaseDetail: 'Finishing up' });
+    await updateActivity({
+      sub,
+      activityId,
+      phase: 'ready',
+      phaseDetail: 'Done',
+      status: 'ready',
+      stream: { s3Key: streamS3Key, done: true },
+    });
 
     return {
       outcome: 'success',
@@ -229,6 +329,23 @@ export async function processTranscriptionJob(
       await updateStatus({ sub, jobId, status: 'error', errorMsg: sanitizedErrorMsg });
     } catch (statusErr) {
       console.error('[processTranscriptionJob] Failed to update job status to error', statusErr);
+    }
+
+    // Best-effort: mark the ACTIVITY mirror 'failed'. Guard on activityId — if
+    // activity creation itself threw, there is nothing to update.
+    if (activityId) {
+      try {
+        await updateActivity({
+          sub,
+          activityId,
+          phase: 'failed',
+          phaseDetail: 'Transcription failed',
+          status: 'failed',
+          error: sanitizedErrorMsg,
+        });
+      } catch (activityErr) {
+        console.error('[processTranscriptionJob] Failed to update activity to failed', activityErr);
+      }
     }
 
     return {

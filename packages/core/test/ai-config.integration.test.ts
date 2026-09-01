@@ -22,7 +22,7 @@ import {
 } from '../src/study/config.js';
 
 const ENV_VARS = {
-  SST_RESOURCE_BEDROCK_MODEL_ID_value: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+  SST_RESOURCE_BEDROCK_MODEL_ID_value: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
   SST_RESOURCE_STUDY_SYSTEM_PROMPT_value: 'Env base system prompt',
   SST_RESOURCE_STUDY_FLASHCARDS_PROMPT_value: 'Env flashcards prompt',
   SST_RESOURCE_STUDY_QUIZ_PROMPT_value: 'Env quiz prompt',

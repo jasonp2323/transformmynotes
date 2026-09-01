@@ -10,6 +10,8 @@ const synthesizeSpeechMock = vi.hoisted(() => vi.fn());
 const resolveAiConfigMock = vi.hoisted(() => vi.fn());
 const s3SendMock = vi.hoisted(() => vi.fn());
 const getSignedUrlMock = vi.hoisted(() => vi.fn());
+const putActivityMock = vi.hoisted(() => vi.fn());
+const appendStepUpdateMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/require-api-user', () => ({
   getAuthenticatedSub: getAuthenticatedSubMock,
@@ -34,7 +36,7 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 
 vi.mock('@transformmynotes/core', () => ({
   ddb: { send: ddbSendMock },
-  TableNames: { UserData: 'UserData' },
+  TableNames: { UserData: 'UserData', Notes: 'Notes' },
   audioKeys: {
     pointer: (sub: string, hash: string) => ({ pk: `USER#${sub}`, sk: `AUDIO#${hash}` }),
     userAudioQuery: (sub: string) => ({
@@ -51,6 +53,9 @@ vi.mock('@transformmynotes/core', () => ({
   resolveAiConfig: resolveAiConfigMock,
   resolveVoiceEngine: (voiceId: string, preferred?: string) =>
     voiceId === 'Ricardo' ? 'standard' : (preferred ?? 'neural'),
+  buildActivityItem: vi.fn((input) => ({ activityId: 'act-123', ...input })),
+  putActivity: putActivityMock,
+  appendStepUpdate: appendStepUpdateMock,
 }));
 
 // ---------------------------------------------------------------------------
@@ -109,6 +114,8 @@ beforeEach(() => {
   synthesizeSpeechMock.mockResolvedValue({ audioBytes: new Uint8Array([1, 2, 3]), charCount: 5 });
   getSignedUrlMock.mockResolvedValue('https://signed.example/audio.mp3');
   s3SendMock.mockResolvedValue({});
+  putActivityMock.mockResolvedValue(undefined);
+  appendStepUpdateMock.mockResolvedValue({});
   defaultDdb();
 });
 
@@ -250,5 +257,46 @@ describe('POST /api/audio/synthesize', () => {
     expect(res.status).toBe(200);
     expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1);
     expect(synthesizeSpeechMock.mock.calls[0][2]).toBe('neural');
+  });
+
+  it('cache MISS: writes an ACTIVITY (create + ready) and still returns ok:true', async () => {
+    defaultDdb({ queryItems: [], existingPointer: undefined });
+
+    const res = await POST(makeRequest({ text: 'olá' }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.cached).toBe(false);
+    // Activity created once...
+    expect(putActivityMock).toHaveBeenCalledTimes(1);
+    // ...and advanced to ready.
+    expect(appendStepUpdateMock).toHaveBeenCalledTimes(1);
+    const readyCall = appendStepUpdateMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(readyCall.status).toBe('ready');
+    expect(readyCall.phase).toBe('ready');
+  });
+
+  it('cache MISS: a failed activity write does not break audio synthesis', async () => {
+    defaultDdb({ queryItems: [], existingPointer: undefined });
+    putActivityMock.mockRejectedValueOnce(new Error('ddb down'));
+
+    const res = await POST(makeRequest({ text: 'olá' }));
+    const body = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(synthesizeSpeechMock).toHaveBeenCalledTimes(1);
+    // create failed → activity is undefined → no ready append attempted
+    expect(appendStepUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('cache HIT: writes no ACTIVITY', async () => {
+    defaultDdb({ queryItems: [], existingPointer: { pk: `USER#${SUB}`, sk: 'AUDIO#h', charCount: 3 } });
+
+    const res = await POST(makeRequest({ text: 'olá' }));
+    expect(res.status).toBe(200);
+    expect(putActivityMock).not.toHaveBeenCalled();
+    expect(appendStepUpdateMock).not.toHaveBeenCalled();
   });
 });

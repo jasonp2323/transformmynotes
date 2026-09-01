@@ -53,6 +53,18 @@ export interface UserProfileItem {
   auditNotes?: string;
   /** Per-user AI study profile (M24); absent on profiles created before M24. */
   aiProfile?: AiProfile;
+  /** Current study streak in days (M25). Set by the nightly progress cron. */
+  studyStreakDays?: number;
+  /** Longest study streak ever recorded (M25). Set by the nightly progress cron. */
+  longestStreakDays?: number;
+  /** Most recent UTC study day YYYY-MM-DD (M25). Set by the nightly progress cron. */
+  lastStudyDay?: string;
+  /** Lifetime review count (M25). Set by the nightly progress cron. */
+  totalReviewsLifetime?: number;
+  /** Lifetime count of cards that crossed the mastery threshold (M25). Set by the nightly progress cron. */
+  totalCardsMastered?: number;
+  /** Lifetime quiz attempt count (M25). Set by the nightly progress cron. */
+  totalQuizAttemptsLifetime?: number;
 }
 
 /**

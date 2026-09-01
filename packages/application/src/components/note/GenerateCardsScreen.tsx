@@ -28,7 +28,7 @@ type Phase =
   | { phase: 'done' };
 
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 60;
+const MAX_POLLS = 90;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +58,7 @@ export function GenerateCardsScreen({
 
   const mountedRef = useRef(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const createdStudySetIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -77,7 +78,7 @@ export function GenerateCardsScreen({
         if (pollCount >= MAX_POLLS) {
           setPhase({
             phase: 'error',
-            message: 'Generation timed out. Please try again.',
+            message: "Still generating — this is taking longer than usual. Tap \"Try again\" to keep checking.",
           });
           return;
         }
@@ -87,10 +88,8 @@ export function GenerateCardsScreen({
           if (!mountedRef.current) return;
 
           if (!res.ok) {
-            setPhase({
-              phase: 'error',
-              message: 'Generation failed. Please try again.',
-            });
+            // Transient server error — keep polling
+            schedulePoll(id, pollCount + 1);
             return;
           }
 
@@ -110,10 +109,8 @@ export function GenerateCardsScreen({
             if (!mountedRef.current) return;
 
             if (!bodyRes.ok) {
-              setPhase({
-                phase: 'error',
-                message: 'Generation failed. Please try again.',
-              });
+              // Transient error fetching body — keep polling
+              schedulePoll(id, pollCount + 1);
               return;
             }
 
@@ -136,10 +133,8 @@ export function GenerateCardsScreen({
           schedulePoll(id, pollCount + 1);
         } catch {
           if (!mountedRef.current) return;
-          setPhase({
-            phase: 'error',
-            message: 'Generation failed. Please try again.',
-          });
+          // Transient network error — keep polling
+          schedulePoll(id, pollCount + 1);
         }
       }, POLL_INTERVAL_MS);
     },
@@ -170,6 +165,7 @@ export function GenerateCardsScreen({
       const data = (await res.json()) as { studySetId: string };
       if (!mountedRef.current) return;
 
+      createdStudySetIdRef.current = data.studySetId;
       schedulePoll(data.studySetId, 0);
     } catch {
       if (!mountedRef.current) return;
@@ -184,9 +180,15 @@ export function GenerateCardsScreen({
 
   const handleRetry = useCallback(() => {
     if (studySetId) {
+      // Review-existing mode — resume polling the prop id
       setPhase({ phase: 'generating' });
       schedulePoll(studySetId, 0);
+    } else if (createdStudySetIdRef.current) {
+      // From-scratch mode, already kicked off — resume polling the existing id
+      setPhase({ phase: 'generating' });
+      schedulePoll(createdStudySetIdRef.current, 0);
     } else {
+      // From-scratch mode, nothing started yet — begin generation
       void startGeneration();
     }
   }, [studySetId, schedulePoll, startGeneration]);
@@ -226,6 +228,8 @@ export function GenerateCardsScreen({
         throw new Error(`HTTP ${res.status}`);
       }
 
+      // Cards accepted — clear the ref so handleCancel won't delete an accepted set
+      createdStudySetIdRef.current = null;
       setToast({
         tone: 'success',
         title: `${cards.length} ${cards.length === 1 ? 'card' : 'cards'} added to your review deck`,
@@ -237,6 +241,19 @@ export function GenerateCardsScreen({
       setPhase({ phase: 'ready', studySetId: activeStudySetId, cards, noteTitles, totalSourceCount });
     }
   }, [phase, dest, router]);
+
+  // ── Cancel — discards a freshly-generated set (from-scratch mode only) ──────
+
+  const handleCancel = useCallback(() => {
+    if (createdStudySetIdRef.current) {
+      const idToDelete = createdStudySetIdRef.current;
+      // Best-effort delete — fire and forget, do not block navigation
+      void fetch(`/api/study/${idToDelete}`, { method: 'DELETE' }).catch(() => {
+        // Ignore errors — the study set will remain but the user navigated away
+      });
+    }
+    router.push(dest);
+  }, [dest, router]);
 
   // ── Discard ───────────────────────────────────────────────────────────────
 
@@ -282,7 +299,7 @@ export function GenerateCardsScreen({
           <IconButton
             label="Back"
             variant="plain"
-            onClick={() => router.push(dest)}
+            onClick={handleCancel}
           >
             <Icon name="chevron-left" size={24} />
           </IconButton>
@@ -416,7 +433,7 @@ export function GenerateCardsScreen({
             <Button
               variant="ghost"
               fullWidth
-              onClick={() => router.push(dest)}
+              onClick={handleCancel}
             >
               Cancel
             </Button>

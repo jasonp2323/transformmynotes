@@ -5,6 +5,8 @@ import {
   releaseTitle,
   filterPublishedReleases,
   findLatestMobileApkUrl,
+  parseMobileTagRefs,
+  findApkAssetUrl,
   type GitHubRelease,
 } from './releases';
 
@@ -242,5 +244,124 @@ describe('findLatestMobileApkUrl', () => {
     const mobileRelease = makeRelease({ tag_name: 'mobile-v1.0.0' });
     delete (mobileRelease as unknown as Record<string, unknown>).assets;
     expect(findLatestMobileApkUrl([mobileRelease])).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseMobileTagRefs
+// ---------------------------------------------------------------------------
+
+describe('parseMobileTagRefs', () => {
+  it('returns [] for an empty array', () => {
+    expect(parseMobileTagRefs([])).toEqual([]);
+  });
+
+  it('strips the refs/tags/ prefix', () => {
+    expect(parseMobileTagRefs([{ ref: 'refs/tags/mobile-v1.0.0' }])).toEqual(['mobile-v1.0.0']);
+  });
+
+  it('sorts newest-first by numeric patch — double digit beats single digit', () => {
+    const refs = [
+      { ref: 'refs/tags/mobile-v1.0.9' },
+      { ref: 'refs/tags/mobile-v1.0.10' },
+      { ref: 'refs/tags/mobile-v1.0.2' },
+    ];
+    expect(parseMobileTagRefs(refs)).toEqual(['mobile-v1.0.10', 'mobile-v1.0.9', 'mobile-v1.0.2']);
+  });
+
+  it('sorts newest-first by numeric minor — double digit beats single digit', () => {
+    const refs = [
+      { ref: 'refs/tags/mobile-v1.9.0' },
+      { ref: 'refs/tags/mobile-v1.10.0' },
+      { ref: 'refs/tags/mobile-v1.2.0' },
+    ];
+    expect(parseMobileTagRefs(refs)).toEqual(['mobile-v1.10.0', 'mobile-v1.9.0', 'mobile-v1.2.0']);
+  });
+
+  it('sorts newest-first by major version', () => {
+    const refs = [
+      { ref: 'refs/tags/mobile-v1.0.0' },
+      { ref: 'refs/tags/mobile-v2.0.0' },
+    ];
+    expect(parseMobileTagRefs(refs)).toEqual(['mobile-v2.0.0', 'mobile-v1.0.0']);
+  });
+
+  it('filters out refs that do not match the mobile-v prefix', () => {
+    const refs = [
+      { ref: 'refs/tags/v1.0.0' },
+      { ref: 'refs/tags/transformmynotes-v1.0.0' },
+      { ref: 'refs/tags/mobile-v1.0.0' },
+    ];
+    expect(parseMobileTagRefs(refs)).toEqual(['mobile-v1.0.0']);
+  });
+
+  it('filters out malformed mobile-v refs', () => {
+    const refs = [
+      { ref: 'refs/tags/mobile-v1.0' },
+      { ref: 'refs/tags/mobile-vabc' },
+      { ref: 'refs/tags/mobile-v1.0.0-rc1' },
+      { ref: 'refs/tags/mobile-v1.0.0' },
+    ];
+    expect(parseMobileTagRefs(refs)).toEqual(['mobile-v1.0.0']);
+  });
+
+  it('handles a missing/non-array input by returning []', () => {
+    expect(parseMobileTagRefs(undefined as unknown as { ref: string }[])).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// findApkAssetUrl
+// ---------------------------------------------------------------------------
+
+describe('findApkAssetUrl', () => {
+  it('returns null for a null release', () => {
+    expect(findApkAssetUrl(null)).toBeNull();
+  });
+
+  it('returns null for a draft release', () => {
+    const release = makeRelease({
+      draft: true,
+      assets: [{ name: 'app-release.apk', browser_download_url: 'https://example.com/a.apk' }],
+    });
+    expect(findApkAssetUrl(release)).toBeNull();
+  });
+
+  it('returns null for empty assets', () => {
+    const release = makeRelease({ assets: [] });
+    expect(findApkAssetUrl(release)).toBeNull();
+  });
+
+  it('returns null when assets is missing (defensive)', () => {
+    const release = makeRelease();
+    delete (release as unknown as Record<string, unknown>).assets;
+    expect(findApkAssetUrl(release)).toBeNull();
+  });
+
+  it('returns null when only non-APK assets are present', () => {
+    const release = makeRelease({
+      assets: [{ name: 'source.zip', browser_download_url: 'https://example.com/source.zip' }],
+    });
+    expect(findApkAssetUrl(release)).toBeNull();
+  });
+
+  it('prefers an exact app-release.apk match over another .apk asset', () => {
+    const release = makeRelease({
+      assets: [
+        { name: 'debug.apk', browser_download_url: 'https://example.com/debug.apk' },
+        { name: 'app-release.apk', browser_download_url: 'https://example.com/release.apk' },
+      ],
+    });
+    expect(findApkAssetUrl(release)).toBe('https://example.com/release.apk');
+  });
+
+  it('falls back to the first .apk asset case-insensitively when no exact match exists', () => {
+    const release = makeRelease({
+      assets: [
+        { name: 'notes.txt', browser_download_url: 'https://example.com/notes.txt' },
+        { name: 'App-Release-Debug.APK', browser_download_url: 'https://example.com/debug.APK' },
+      ],
+    });
+    expect(findApkAssetUrl(release)).toBe('https://example.com/debug.APK');
   });
 });
