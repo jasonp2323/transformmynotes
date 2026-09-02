@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.99.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.99.1...transformmynotes-v1.99.2) (2026-09-02)
+
+
+### 🤖 Continuous Integration
+
+* add Claude Dependabot triage + issue implementation workflows ([2d5239d](https://github.com/jasonp2323/transformmynotes/commit/2d5239dd8f20c4056a1c0181e6db0283cf841cf6))
+* authenticate Claude workflows via OIDC workload identity federation ([247f798](https://github.com/jasonp2323/transformmynotes/commit/247f7985a7b8c7a20688011167bc7de40d53d873))
+* gate claude-issue workflow on jasonp2323 as issue author ([a93f409](https://github.com/jasonp2323/transformmynotes/commit/a93f40928d81ed247b01c70c9465f140f91918c4))
+
+
+### 🧰 Maintenance
+
+* **deps:** bump zod from 3.25.76 to 4.4.3 ([314001d](https://github.com/jasonp2323/transformmynotes/commit/314001de4953ebeead61c822c0503ecd29e0496e))
+
 ## [1.99.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.99.0...transformmynotes-v1.99.1) (2026-09-02)
 
 
