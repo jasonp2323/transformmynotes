@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.99.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.99.0...transformmynotes-v1.99.1) (2026-09-02)
+
+
+### 🤖 Continuous Integration
+
+* skip SST deploy + teardown for Dependabot PRs ([#719](https://github.com/jasonp2323/transformmynotes/issues/719)) [skip deploy] ([7f6be95](https://github.com/jasonp2323/transformmynotes/commit/7f6be95395499ce9c01bc5879657ac9ca43f55a5))
+
+
+### 🧰 Maintenance
+
+* **deps:** bump the minor-patch group across 1 directory with 44 updates ([16415dd](https://github.com/jasonp2323/transformmynotes/commit/16415ddadb1580d03c14063ec21adae465f62b41))
+
 ## [1.99.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.98.1...transformmynotes-v1.99.0) (2026-08-14)
 
 
