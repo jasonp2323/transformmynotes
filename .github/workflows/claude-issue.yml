@@ -42,7 +42,24 @@ jobs:
       - name: Run Claude implementation
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Auth: Anthropic workload identity federation (OIDC). The action
+          # exchanges this workflow's GitHub Actions OIDC token for a
+          # short-lived Anthropic token — there is no ANTHROPIC_API_KEY to
+          # store or rotate. Requires `id-token: write` (granted above).
+          #
+          # These three are identifiers, not credentials, but they live in
+          # repository *variables* rather than inline so this public repo
+          # doesn't advertise the org/service-account IDs.
+          #
+          # Do NOT add anthropic_api_key or claude_code_oauth_token here — a
+          # static credential takes precedence and silently bypasses OIDC.
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          # Optional — only needed if the federation rule spans more than one
+          # workspace. Leave the variable unset otherwise; an empty value is
+          # treated as absent.
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
           # No github_token input: omitting it makes the action authenticate
           # as the Claude GitHub App instead of the workflow's GITHUB_TOKEN.
           # A GITHUB_TOKEN-authored push does not retrigger downstream CI on
