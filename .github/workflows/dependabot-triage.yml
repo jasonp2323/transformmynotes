@@ -1,0 +1,111 @@
+name: Dependabot triage
+
+# Weekly sweep over open Dependabot PRs: green ones are flagged for
+# auto-merge (DRY RUN below — see the "Would enable auto-merge" comments),
+# red ones get a fix attempt on the PR branch, and anything too risky to
+# touch automatically gets a comment explaining what broke instead.
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'      # Monday 09:00 UTC
+  workflow_dispatch:
+
+# Broad enough for Claude to read PRs/checks/logs, push a fix commit to a
+# dependabot branch, and comment — but no admin/repo-wide scopes.
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  actions: read
+  id-token: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Claude triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # No github_token input: omitting it makes the action authenticate
+          # as the Claude GitHub App instead of the workflow's GITHUB_TOKEN.
+          # A GITHUB_TOKEN-authored push does not retrigger downstream CI on
+          # the pushed commit (GitHub suppresses that to prevent workflow
+          # loops); pushing as the Claude App does, so the fix commit below
+          # actually gets a fresh check run instead of sitting untested.
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Bash,Read,Edit,Write,mcp__github__list_pull_requests,mcp__github__pull_request_read,mcp__github__get_check_run,mcp__github__get_job_logs,mcp__github__actions_list,mcp__github__actions_get,mcp__github__add_issue_comment"
+          # ---------------------------------------------------------------
+          # DRY RUN — currently the prompt tells Claude to post a comment
+          # saying "Would enable auto-merge" instead of enabling it.
+          # After watching this for a couple of weeks, swap the dry-run
+          # instructions in steps 3 and 4 of the prompt below for the real
+          # command:
+          #
+          #     gh pr merge <n> --auto --squash
+          #
+          # Always `--auto --squash` — never a bare `gh pr merge` and never
+          # a direct merge via the API, so branch protection decides the
+          # actual merge timing.
+          # ---------------------------------------------------------------
+          prompt: |
+            You are triaging Dependabot pull requests in this repository.
+            Follow these steps in order, and the hard rules at the end.
+
+            1. List open PRs authored by `dependabot[bot]`.
+
+            2. For each such PR, check the status of the required checks on
+               its head commit. The required checks are named exactly:
+                 - `deploy` (from .github/workflows/deploy.yml — runs lint,
+                   typecheck, unit tests, integration tests, and E2E)
+                 - `analyze (javascript-typescript)` (from
+                   .github/workflows/codeql.yml)
+
+            3. If all required checks are green, this PR qualifies for
+               auto-merge.
+               # DRY RUN: post a PR comment saying exactly
+               # "Would enable auto-merge" plus one line naming the PR
+               # number and why it qualifies (e.g. "PR #123 — deploy and
+               # analyze (javascript-typescript) are both green."). Do NOT
+               # actually enable auto-merge or merge the PR.
+               #
+               # Merging directly via the API, or using a bare merge without
+               # auto, is forbidden — only auto-merge with --squash allows the
+               # branch protection checks to decide the actual merge timing.
+
+            4. If checks are failing, investigate:
+               - Read the failing job's logs to find the breaking change.
+               - Fix the breaking change directly on the PR branch (e.g. a
+                 changed API surface, a renamed config option, a type
+                 change from the bumped dependency).
+               - Validate locally by running, in order: `npm run lint`,
+                 `npm run typecheck`, `npm run test:unit`. All three must
+                 pass before you commit.
+               - Commit with a Conventional Commit message, e.g.
+                 `fix(deps): update usage for <package> vX`.
+               - Push the fix commit to the PR's existing branch (not a new
+                 branch, not master).
+               # DRY RUN: after pushing, post a PR comment saying exactly
+               # "Would enable auto-merge" (do not actually enable it) and
+               # let CI re-run and decide on its own.
+
+            5. If the fix would require a non-trivial refactor, or the PR is
+               a major version bump with real API/behavior changes you
+               cannot safely patch mechanically: do NOT attempt the fix.
+               Instead post a comment on the PR explaining precisely what
+               broke — the failing check name, the exact error, and the
+               file(s) involved — and stop there for that PR.
+
+            Hard rules, no exceptions:
+              - Never force-push.
+              - Never push to or otherwise modify `master`.
+              - Never touch, comment on, or modify any PR not authored by
+                `dependabot[bot]`.
+              - Never skip, disable, comment out, or delete a test (or
+                loosen an assertion) just to make a check go green.

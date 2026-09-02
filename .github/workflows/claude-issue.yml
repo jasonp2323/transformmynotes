@@ -1,0 +1,93 @@
+name: Claude issue implementation
+
+# Labeling an issue "claude" hands it to Claude Code to implement on a
+# branch and open a draft PR. Gated tightly (see the job `if:` below) since
+# this repo is public and issue bodies/titles are untrusted input.
+
+on:
+  issues:
+    types: [labeled]
+
+# One run per issue at a time; a later labeling event waits rather than
+# racing a still-running implementation attempt for the same issue.
+concurrency:
+  group: claude-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  implement:
+    # This repo is public, so anyone can open an issue and anyone with
+    # triage access could apply a label — issue bodies/titles are untrusted
+    # input from arbitrary strangers. Gate on BOTH the "claude" label AND
+    # the issue having been authored by the repo owner, so a random
+    # stranger's issue can never trigger an automated code-writing run just
+    # by getting the label applied to it.
+    if: >
+      github.event.label.name == 'claude' && github.event.issue.user.login == 'REPLACE_WITH_MY_USERNAME'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude implementation
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # No github_token input: omitting it makes the action authenticate
+          # as the Claude GitHub App instead of the workflow's GITHUB_TOKEN.
+          # A GITHUB_TOKEN-authored push does not retrigger downstream CI on
+          # the pushed commit (GitHub suppresses that to prevent workflow
+          # loops); pushing as the Claude App does, so the branch this job
+          # pushes actually gets a real deploy check run on its PR.
+          claude_args: |
+            --max-turns 60
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,mcp__github__issue_read,mcp__github__create_pull_request,mcp__github__add_issue_comment"
+          prompt: |
+            You are implementing GitHub issue #${{ github.event.issue.number }}
+            in this repository.
+
+            1. Read issue #${{ github.event.issue.number }} in full (title,
+               body, and any comments) to understand what is being asked.
+
+            2. If the issue is ambiguous, underspecified, or clearly too
+               large for a single focused change: post a comment on the
+               issue asking for the specific clarification you need, and
+               STOP without writing any code or opening a PR.
+
+            3. Otherwise, implement it:
+               - Create a NEW branch off the default branch named
+                 `issue-${{ github.event.issue.number }}-<short-kebab-slug>`
+                 where `<short-kebab-slug>` is a few words summarizing the
+                 issue (e.g. `issue-142-fix-tag-index-cleanup`).
+               - Follow this repository's CLAUDE.md conventions throughout
+                 (workspace imports, DB key-builder conventions, secrets
+                 handling, testing requirements, commit style, etc.).
+               - Before committing, run, in order, and make all three pass:
+                 `npm run lint`, `npm run typecheck`, `npm run test:unit`.
+               - Use Conventional Commit messages for every commit (e.g.
+                 `feat: ...`, `fix: ...`).
+               - Push the branch to the repository.
+               - Open a **draft** pull request **against `master`** (this
+                 repository's default branch is `master`, NOT `main`).
+                 The PR body must reference the issue with `Refs #<n>`
+                 (using the actual issue number) and briefly summarize the
+                 change and how it was validated.
+               - Then STOP.
+
+            Hard rules, no exceptions:
+              - Never merge the PR.
+              - Never enable auto-merge on the PR.
+              - Never push to `master` directly.
+              - Never force-push.
+              - If you stop early due to ambiguity (step 2), do not open a
+                PR at all.
