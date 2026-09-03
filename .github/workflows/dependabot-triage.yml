@@ -1,9 +1,10 @@
 name: Dependabot triage
 
-# Weekly sweep over open Dependabot PRs: green ones are flagged for
-# auto-merge (DRY RUN below — see the "Would enable auto-merge" comments),
-# red ones get a fix attempt on the PR branch, and anything too risky to
-# touch automatically gets a comment explaining what broke instead.
+# Weekly sweep over open Dependabot PRs: green ones have auto-merge enabled
+# (gh pr merge --auto --squash, queued for GitHub to merge once required
+# checks pass), red ones get a fix attempt on the PR branch followed by the
+# same auto-merge queuing, and anything too risky to touch automatically
+# (or that touches gated infra paths) gets a comment explaining why instead.
 
 on:
   schedule:
@@ -59,17 +60,17 @@ jobs:
             --max-turns 40
             --allowedTools "Bash,Read,Edit,Write,mcp__github__list_pull_requests,mcp__github__pull_request_read,mcp__github__get_check_run,mcp__github__get_job_logs,mcp__github__actions_list,mcp__github__actions_get,mcp__github__add_issue_comment"
           # ---------------------------------------------------------------
-          # DRY RUN — currently the prompt tells Claude to post a comment
-          # saying "Would enable auto-merge" instead of enabling it.
-          # After watching this for a couple of weeks, swap the dry-run
-          # instructions in steps 3 and 4 of the prompt below for the real
-          # command:
+          # LIVE — auto-merge is enabled on the repo, and `deploy` +
+          # `analyze (javascript-typescript)` are required checks in branch
+          # protection on `master`. The prompt below runs the real command:
           #
           #     gh pr merge <n> --auto --squash
           #
-          # Always `--auto --squash` — never a bare `gh pr merge` and never
-          # a direct merge via the API, so branch protection decides the
-          # actual merge timing.
+          # `--auto` is mandatory: it queues the PR for GitHub to merge once
+          # the required checks pass, rather than merging right now.
+          # `--squash` is mandatory too: it makes the PR title the squash
+          # commit message, which this repo's release-please tooling parses
+          # to decide the version bump — never omit it.
           # ---------------------------------------------------------------
           prompt: |
             You are triaging Dependabot pull requests in this repository.
@@ -86,15 +87,13 @@ jobs:
 
             3. If all required checks are green, this PR qualifies for
                auto-merge.
-               # DRY RUN: post a PR comment saying exactly
-               # "Would enable auto-merge" plus one line naming the PR
-               # number and why it qualifies (e.g. "PR #123 — deploy and
-               # analyze (javascript-typescript) are both green."). Do NOT
-               # actually enable auto-merge or merge the PR.
-               #
-               # Merging directly via the API, or using a bare merge without
-               # auto, is forbidden — only auto-merge with --squash allows the
-               # branch protection checks to decide the actual merge timing.
+               Run `gh pr merge <n> --auto --squash` on this PR to queue it
+               for GitHub to merge automatically once the required checks
+               pass. Never merge via the API, and never a bare
+               `gh pr merge` without `--auto`. Note in the run log, in one
+               line per PR, what you enabled (e.g. "PR #123 — deploy and
+               analyze (javascript-typescript) are both green; enabled
+               auto-merge.").
 
             4. If checks are failing, investigate:
                - Read the failing job's logs to find the breaking change.
@@ -108,9 +107,9 @@ jobs:
                  `fix(deps): update usage for <package> vX`.
                - Push the fix commit to the PR's existing branch (not a new
                  branch, not master).
-               # DRY RUN: after pushing, post a PR comment saying exactly
-               # "Would enable auto-merge" (do not actually enable it) and
-               # let CI re-run and decide on its own.
+               - After pushing, run `gh pr merge <n> --auto --squash` on
+                 this PR so CI re-runs on the fix commit and GitHub merges
+                 it only if the required checks go green.
 
             5. If the fix would require a non-trivial refactor, or the PR is
                a major version bump with real API/behavior changes you
@@ -126,3 +125,10 @@ jobs:
                 `dependabot[bot]`.
               - Never skip, disable, comment out, or delete a test (or
                 loosen an assertion) just to make a check go green.
+              - Never enable auto-merge on a PR whose diff touches
+                `infra/**` or `sst.config.ts` — infra changes are
+                human-gated in this repo because of AWS cost impact (a
+                dependency bump normally won't touch these, but a bumped
+                SST or CDK package can pull infra changes in). Instead
+                comment on the PR explaining which infra paths it touches
+                and leave it for a human.
