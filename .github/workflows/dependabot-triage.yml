@@ -56,13 +56,6 @@ jobs:
           # the pushed commit (GitHub suppresses that to prevent workflow
           # loops); pushing as the Claude App does, so the fix commit below
           # actually gets a fresh check run instead of sitting untested.
-          # TEMPORARY (diagnostics): the action defaults to hiding Claude's
-          # output, which turns a startup crash into a bare
-          # "result is_error:true" with no stack trace. Leave this on until
-          # the workflow completes a clean run, then remove it — the full
-          # output is unredacted and this repo is public, so it should not
-          # stay on permanently.
-          show_full_output: true
           claude_args: |
             --max-turns 40
             --allowedTools "Bash,Read,Edit,Write,mcp__github__list_pull_requests,mcp__github__pull_request_read,mcp__github__get_check_run,mcp__github__get_job_logs,mcp__github__actions_list,mcp__github__actions_get,mcp__github__add_issue_comment"
