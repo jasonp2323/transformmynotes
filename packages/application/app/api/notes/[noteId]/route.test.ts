@@ -54,11 +54,11 @@ vi.mock('@transformmynotes/core', () => {
 });
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => ({ send: s3SendMock })),
-  PutObjectCommand: vi.fn((input) => ({ kind: 'PutObject', input })),
-  GetObjectCommand: vi.fn((input) => ({ kind: 'GetObject', input })),
-  DeleteObjectCommand: vi.fn((input) => ({ kind: 'DeleteObject', input })),
-  HeadObjectCommand: vi.fn((input) => ({ kind: 'HeadObject', input })),
+  S3Client: vi.fn(function () { return { send: s3SendMock }; }),
+  PutObjectCommand: vi.fn(function (input) { return { kind: 'PutObject', input }; }),
+  GetObjectCommand: vi.fn(function (input) { return { kind: 'GetObject', input }; }),
+  DeleteObjectCommand: vi.fn(function (input) { return { kind: 'DeleteObject', input }; }),
+  HeadObjectCommand: vi.fn(function (input) { return { kind: 'HeadObject', input }; }),
 }));
 
 // ---------------------------------------------------------------------------

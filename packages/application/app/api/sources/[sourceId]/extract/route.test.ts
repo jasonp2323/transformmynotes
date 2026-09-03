@@ -25,16 +25,16 @@ const s3SendMock = vi.hoisted(() => vi.fn());
 let lastCommandType = vi.hoisted(() => ({ value: '' }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn().mockImplementation(() => ({ send: s3SendMock })),
-  GetObjectCommand: vi.fn().mockImplementation(() => {
+  S3Client: vi.fn().mockImplementation(function () { return { send: s3SendMock }; }),
+  GetObjectCommand: vi.fn().mockImplementation(function () {
     lastCommandType.value = 'GetObjectCommand';
     return {};
   }),
-  HeadObjectCommand: vi.fn().mockImplementation(() => {
+  HeadObjectCommand: vi.fn().mockImplementation(function () {
     lastCommandType.value = 'HeadObjectCommand';
     return {};
   }),
-  PutObjectCommand: vi.fn().mockImplementation(() => {
+  PutObjectCommand: vi.fn().mockImplementation(function () {
     lastCommandType.value = 'PutObjectCommand';
     return {};
   }),

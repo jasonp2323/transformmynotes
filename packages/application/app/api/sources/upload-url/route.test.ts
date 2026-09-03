@@ -29,7 +29,7 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 
 const s3SendMock = vi.hoisted(() => vi.fn());
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn().mockImplementation(() => ({ send: s3SendMock })),
+  S3Client: vi.fn().mockImplementation(function () { return { send: s3SendMock }; }),
   PutObjectCommand: vi.fn(),
 }));
 
