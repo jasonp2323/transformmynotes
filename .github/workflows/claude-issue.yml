@@ -1,8 +1,10 @@
 name: Claude issue implementation
 
 # Labeling an issue "claude" hands it to Claude Code to implement on a
-# branch and open a draft PR. Gated tightly (see the job `if:` below) since
-# this repo is public and issue bodies/titles are untrusted input.
+# branch and open a ready-for-review PR, with auto-merge enabled unless the
+# change has meaningful AWS cost impact (in which case a human must merge).
+# Gated tightly (see the job `if:` below) since this repo is public and
+# issue bodies/titles are untrusted input.
 
 on:
   issues:
@@ -40,6 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Claude implementation
+        id: claude
         uses: anthropics/claude-code-action@v1
         with:
           # Auth: Anthropic workload identity federation (OIDC). The action
@@ -68,7 +71,7 @@ jobs:
           # pushes actually gets a real deploy check run on its PR.
           claude_args: |
             --max-turns 60
-            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,mcp__github__issue_read,mcp__github__create_pull_request,mcp__github__add_issue_comment"
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,mcp__github__issue_read,mcp__github__create_pull_request,mcp__github__add_issue_comment,mcp__github__issue_write"
           prompt: |
             You are implementing GitHub issue #${{ github.event.issue.number }}
             in this repository.
@@ -94,17 +97,122 @@ jobs:
                - Use Conventional Commit messages for every commit (e.g.
                  `feat: ...`, `fix: ...`).
                - Push the branch to the repository.
-               - Open a **draft** pull request **against `master`** (this
-                 repository's default branch is `master`, NOT `main`).
-                 The PR body must reference the issue with `Refs #<n>`
-                 (using the actual issue number) and briefly summarize the
-                 change and how it was validated.
-               - Then STOP.
+               - Open a pull request **ready for review** (do NOT create it
+                 as a draft) **against `master`** (this repository's default
+                 branch is `master`, NOT `main`). The PR title MUST start
+                 with a Conventional Commit type (`feat:`, `fix:`, `chore:`,
+                 etc.) — release tooling parses this on squash-merge. The PR
+                 body must reference the issue with `Refs #<n>` (using the
+                 actual issue number) and briefly summarize the change and
+                 how it was validated.
+
+            4. Cost assessment (required every run, before opening the PR):
+               assess the AWS cost impact of the change. Explicitly
+               consider: new or resized AWS resources in `infra/**` or
+               `sst.config.ts`; new DynamoDB tables or GSIs; new S3 buckets
+               or lifecycle changes; new Lambda functions, crons, or
+               DynamoDB stream consumers; changes to Bedrock model calls
+               (model tier, tokens per call, call frequency); anything that
+               adds a recurring per-request or per-hour charge.
+               - If the change has NO plausible recurring cost: say so in
+                 one line in the PR body under a `## Cost impact` heading.
+               - If the change adds recurring cost that could plausibly
+                 exceed US$10/month, OR touches `infra/**` or
+                 `sst.config.ts` at all: after opening the PR, post a
+                 SEPARATE PR comment (not the PR body) headed
+                 `## 💰 Cost impact — human review required` itemizing each
+                 new/changed billable resource, the pricing basis, an
+                 estimated monthly figure with the assumptions behind it
+                 (e.g. requests/month, GB stored), and the total. Then apply
+                 the `cost-review` label to the PR (PRs share the issue
+                 numbering, so update the PR by its number as if it were an
+                 issue). State plainly in that comment that auto-merge was
+                 deliberately withheld and a human must merge.
+               - When uncertain whether something crosses $10/month, treat
+                 it as crossing it and apply `cost-review`. Never guess low
+                 to get a merge.
+
+            5. Then STOP.
 
             Hard rules, no exceptions:
               - Never merge the PR.
-              - Never enable auto-merge on the PR.
+              - Never enable auto-merge on the PR yourself (a later workflow
+                step handles that, gated on your cost assessment).
               - Never push to `master` directly.
               - Never force-push.
               - If you stop early due to ambiguity (step 2), do not open a
                 PR at all.
+
+      - name: Resolve PR
+        id: pr
+        if: steps.claude.outputs.conclusion == 'success' && steps.claude.outputs.branch_name != ''
+        env:
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+        run: |
+          number=$(gh pr list \
+            --head "${{ steps.claude.outputs.branch_name }}" \
+            --state open \
+            --json number,isDraft \
+            --jq '.[0].number // empty')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      # Deterministic, path-based backstop for Claude's own cost-review
+      # judgment. Claude is asked (in the prompt above) to self-assess cost
+      # impact and label the PR `cost-review` when warranted, but a prompt
+      # can be wrong or skipped — a path check on infra/** / sst.config.ts
+      # cannot. Either signal blocks auto-merge.
+      - name: Check cost gate
+        id: cost
+        if: steps.pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+        run: |
+          number="${{ steps.pr.outputs.number }}"
+          blocked=false
+          reasons=()
+
+          labels=$(gh pr view "$number" --json labels --jq '.labels[].name')
+          if echo "$labels" | grep -qx "cost-review"; then
+            blocked=true
+            reasons+=("cost-review label present")
+          fi
+
+          if gh pr diff "$number" --name-only | grep -qE '^(infra/|sst\.config\.ts$)'; then
+            blocked=true
+            reasons+=("changed files touch infra/ or sst.config.ts")
+          fi
+
+          if [ "$blocked" = true ]; then
+            reasons_str=$(IFS='; '; echo "${reasons[*]}")
+            echo "Cost gate blocked: $reasons_str"
+          else
+            reasons_str=""
+            echo "Cost gate clear"
+          fi
+
+          echo "blocked=$blocked" >> "$GITHUB_OUTPUT"
+          echo "reasons=$reasons_str" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge
+        if: steps.pr.outputs.number != '' && steps.cost.outputs.blocked != 'true'
+        env:
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+        run: |
+          # --auto queues the PR for GitHub to merge automatically once the
+          # required checks (deploy, analyze) pass, rather than merging
+          # right now. --squash makes the PR title the merge commit
+          # message, which release-please parses for Conventional Commit
+          # versioning — so the PR title must keep its `feat:`/`fix:`/etc.
+          # prefix.
+          gh pr merge "${{ steps.pr.outputs.number }}" --auto --squash
+
+      - name: Report cost gate hold
+        if: steps.pr.outputs.number != '' && steps.cost.outputs.blocked == 'true'
+        env:
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+        run: |
+          number="${{ steps.pr.outputs.number }}"
+          reasons="${{ steps.cost.outputs.reasons }}"
+          message="Auto-merge was **deliberately withheld** pending human review of AWS cost impact ($reasons). A human must review and merge this PR manually."
+          gh pr comment "$number" --body "$message"
+          echo "$message" >> "$GITHUB_STEP_SUMMARY"
