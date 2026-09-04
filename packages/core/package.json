@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
-    "@types/node": "^22.19.20",
+    "@types/node": "^26.4.0",
     "@types/turndown": "^5.0.6",
     "dynalite": "^4.0.0",
     "pdfkit": "^0.20.1"
