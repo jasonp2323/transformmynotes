@@ -8,6 +8,6 @@
     "eval-study-prompt": "sst shell tsx src/eval-study-prompt.ts"
   },
   "devDependencies": {
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.13"
   }
 }
