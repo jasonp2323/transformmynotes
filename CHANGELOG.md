@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.100.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.99.1...transformmynotes-v1.100.0) (2026-09-07)
+
+
+### 🚀 Features
+
+* **ci:** add bounded CI autofix loop for Claude's issue PRs ([e093690](https://github.com/jasonp2323/transformmynotes/commit/e0936905bca5cd0b563ae65eab50b73ad9063d22))
+* **claude-issue:** open ready PR with auto-merge behind a cost gate ([a2a9203](https://github.com/jasonp2323/transformmynotes/commit/a2a9203afff22488836be637a076a1ba12a26c2e))
+
+
+### 🐛 Fixes
+
+* **deps:** revert tailwindcss 3-&gt;4 major bump, restore v3.4.14 ([#734](https://github.com/jasonp2323/transformmynotes/issues/734)) ([798e5dc](https://github.com/jasonp2323/transformmynotes/commit/798e5dc251839cc07e64eb0e4be038a9cd9b83e3))
+
+
+### 🤖 Continuous Integration
+
+* add Claude Dependabot triage + issue implementation workflows ([2d5239d](https://github.com/jasonp2323/transformmynotes/commit/2d5239dd8f20c4056a1c0181e6db0283cf841cf6))
+* authenticate Claude workflows via OIDC workload identity federation ([247f798](https://github.com/jasonp2323/transformmynotes/commit/247f7985a7b8c7a20688011167bc7de40d53d873))
+* **dependabot-triage:** drop show_full_output now the run is clean ([003db55](https://github.com/jasonp2323/transformmynotes/commit/003db553be4b4de2f8d75ac95f8506454c832b4b))
+* **dependabot-triage:** enable real auto-merge, gate infra changes ([79f347a](https://github.com/jasonp2323/transformmynotes/commit/79f347ac1048ce33127d7fc8f0f2ea0a80fcbed9))
+* **dependabot-triage:** move weekly sweep to Monday 19:00 America/New_York ([#733](https://github.com/jasonp2323/transformmynotes/issues/733)) ([8cd4d02](https://github.com/jasonp2323/transformmynotes/commit/8cd4d028dcb5a68a64ef87aa39abd7b8744abe55))
+* **dependabot-triage:** surface Claude output while diagnosing startup crash ([4be29d1](https://github.com/jasonp2323/transformmynotes/commit/4be29d1c512db8c2eeedce74559802c3b10ed21b))
+* gate claude-issue workflow on jasonp2323 as issue author ([a93f409](https://github.com/jasonp2323/transformmynotes/commit/a93f40928d81ed247b01c70c9465f140f91918c4))
+
+
+### 📦 Build System
+
+* **deps-dev:** bump @types/node from 22.19.20 to 26.4.1 ([#728](https://github.com/jasonp2323/transformmynotes/issues/728)) ([5e181f8](https://github.com/jasonp2323/transformmynotes/commit/5e181f8a94d2079720be446a39e3467eec5220b2))
+* **deps:** bump actions/checkout from 6 to 7 ([#644](https://github.com/jasonp2323/transformmynotes/issues/644)) ([c001977](https://github.com/jasonp2323/transformmynotes/commit/c0019776a8a34d953dc922a227debc53fe49e635))
+* **deps:** bump actions/setup-java from 4 to 5 ([#642](https://github.com/jasonp2323/transformmynotes/issues/642)) ([96e07f5](https://github.com/jasonp2323/transformmynotes/commit/96e07f567bc86b15114860144a715e86901caa2a))
+* **deps:** bump actions/setup-node from 4 to 6 ([#640](https://github.com/jasonp2323/transformmynotes/issues/640)) ([7f892c8](https://github.com/jasonp2323/transformmynotes/commit/7f892c8a4f303195f04ae41429f67af9e058b063))
+* **deps:** bump actions/upload-artifact from 4 to 7 ([#641](https://github.com/jasonp2323/transformmynotes/issues/641)) ([e04772b](https://github.com/jasonp2323/transformmynotes/commit/e04772bf41841991db0b98023f2bbf7f1730f36f))
+* **deps:** bump softprops/action-gh-release from 2 to 3 ([#643](https://github.com/jasonp2323/transformmynotes/issues/643)) ([ecaf12d](https://github.com/jasonp2323/transformmynotes/commit/ecaf12d083f471108597ce0e66204f1df38bb336))
+
+
+### 🧰 Maintenance
+
+* **deps-dev:** bump tailwindcss from 3.4.19 to 4.3.3 ([#731](https://github.com/jasonp2323/transformmynotes/issues/731)) ([4da58d7](https://github.com/jasonp2323/transformmynotes/commit/4da58d7f5abb6fb91fd149a92834e230a49e95c4))
+* **deps:** bump the minor-patch group with 27 updates ([#724](https://github.com/jasonp2323/transformmynotes/issues/724)) ([d37bb51](https://github.com/jasonp2323/transformmynotes/commit/d37bb51e109d2ea26bd047af22da37dcf9a439c6))
+* **deps:** bump zod from 3.25.76 to 4.4.3 ([314001d](https://github.com/jasonp2323/transformmynotes/commit/314001de4953ebeead61c822c0503ecd29e0496e))
+
 ## [1.99.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.99.0...transformmynotes-v1.99.1) (2026-09-02)
 
 
