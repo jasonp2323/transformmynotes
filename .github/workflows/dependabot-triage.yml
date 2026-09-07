@@ -1,6 +1,6 @@
 name: Dependabot triage
 
-# Weekly sweep over open Dependabot PRs: green ones have auto-merge enabled
+# Weekly Monday-evening sweep over open Dependabot PRs: green ones have auto-merge enabled
 # (gh pr merge --auto --squash, queued for GitHub to merge once required
 # checks pass), red ones get a fix attempt on the PR branch followed by the
 # same auto-merge queuing, and anything too risky to touch automatically
@@ -8,7 +8,7 @@ name: Dependabot triage
 
 on:
   schedule:
-    - cron: '0 9 * * 1'      # Monday 09:00 UTC
+    - cron: '0 23 * * 1'     # Monday 23:00 UTC = 19:00 America/New_York (EDT)
   workflow_dispatch:
 
 # Broad enough for Claude to read PRs/checks/logs, push a fix commit to a
