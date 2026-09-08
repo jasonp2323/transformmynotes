@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, JSX, ReactNode } from 'react';
 
 type CardVariant = 'default' | 'interactive' | 'flat' | 'ghost';
 

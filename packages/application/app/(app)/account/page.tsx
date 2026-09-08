@@ -5,7 +5,7 @@ import { AppShell } from '@/src/components/shells';
 import { AccountScreen } from '@/src/components/account/AccountScreen';
 
 export default async function AccountPage() {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   let who = 'there';
   let admin = false;
   if (token) {

@@ -6,7 +6,7 @@ import { AppShell } from '@/src/components/shells';
 import { SearchScreen } from '@/src/components/note/SearchScreen';
 
 export default async function SearchPage() {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   let who = 'there';
   let claims: Record<string, unknown> | null = null;
   if (token) {

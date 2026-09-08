@@ -12,7 +12,7 @@ export default async function DashboardPage({
 }: {
   searchParams: { forbidden?: string };
 }) {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   let who = 'there';
   let claims: Record<string, unknown> | null = null;
   if (token) {

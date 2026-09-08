@@ -44,7 +44,7 @@ export function TurnstileWidget({ onToken, onExpire }: TurnstileWidgetProps) {
   return (
     <Turnstile
       siteKey={siteKey}
-      onSuccess={(token) => onToken(token)}
+      onSuccess={(token: string) => onToken(token)}
       onError={() => {
         onToken('');
         if (onExpire) onExpire();

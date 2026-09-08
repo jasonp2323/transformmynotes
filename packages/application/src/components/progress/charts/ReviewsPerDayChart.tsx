@@ -49,7 +49,7 @@ export function ReviewsPerDayChart({ days }: ReviewsPerDayChartProps) {
           }}
           labelStyle={{ color: 'var(--text-strong)', fontWeight: 600 }}
           itemStyle={{ color: 'var(--text-default)' }}
-          formatter={(value: number) => [value, 'Reviews']}
+          formatter={(value) => [typeof value === 'number' ? value : String(value ?? ''), 'Reviews']}
         />
         <Bar dataKey="reviews" fill="var(--accent)" radius={[3, 3, 0, 0]} maxBarSize={24} />
       </BarChart>
