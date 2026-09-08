@@ -19,8 +19,8 @@ vi.mock('@transformmynotes/core', () => ({
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => ({ send: s3SendMock })),
-  GetObjectCommand: vi.fn((input) => ({ kind: 'GetObject', input })),
+  S3Client: vi.fn(function () { return { send: s3SendMock }; }),
+  GetObjectCommand: vi.fn(function (input) { return { kind: 'GetObject', input }; }),
 }));
 
 // ---------------------------------------------------------------------------

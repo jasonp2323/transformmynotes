@@ -29,8 +29,8 @@ vi.mock('@transformmynotes/core', () => ({
 
 const s3SendMock = vi.hoisted(() => vi.fn());
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn().mockImplementation(() => ({ send: s3SendMock })),
-  GetObjectCommand: vi.fn().mockImplementation((input) => input),
+  S3Client: vi.fn().mockImplementation(function () { return { send: s3SendMock }; }),
+  GetObjectCommand: vi.fn().mockImplementation(function (input) { return input; }),
 }));
 
 import { POST } from './route';

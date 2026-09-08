@@ -244,7 +244,12 @@ describe('Usage — daily aggregate range query (base table)', () => {
 describe('Usage — cross-user by-day GSI1 query (UsageByDay)', () => {
   const SUB_X = 'usg-003x';
   const SUB_Y = 'usg-003y';
-  const DAY = '2026-06-20';
+  // Unique to this describe block: '2026-06-20' is also used (for other item
+  // shapes, on the same shared dynalite Usage table + GSI1 partition) by
+  // storage-snapshot.integration.test.ts and usage-aggregator.integration.test.ts.
+  // Since this test asserts that *every* item under the day is a per-model
+  // usage aggregate, it must not share a day with those.
+  const DAY = '2026-06-23';
 
   // Model id with special chars to prove gsi1sk encoding is safe.
   const MODEL = 'anthropic.claude-3-5-haiku-20241022-v1:0';

@@ -27,9 +27,9 @@ vi.mock('@transformmynotes/core', () => ({
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => ({ send: s3SendMock })),
-  CreateMultipartUploadCommand: vi.fn((input) => ({ kind: 'CreateMultipartUpload', input })),
-  UploadPartCommand: vi.fn((input) => ({ kind: 'UploadPart', input })),
+  S3Client: vi.fn(function () { return { send: s3SendMock }; }),
+  CreateMultipartUploadCommand: vi.fn(function (input) { return { kind: 'CreateMultipartUpload', input }; }),
+  UploadPartCommand: vi.fn(function (input) { return { kind: 'UploadPart', input }; }),
 }));
 
 vi.mock('@aws-sdk/s3-request-presigner', () => ({

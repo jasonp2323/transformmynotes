@@ -13,6 +13,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'packages/application'),
     },
   },
+  // application/tsconfig.json sets `jsx: "preserve"` (Next.js transforms JSX
+  // itself via SWC). Vite's default oxc transform picks that up from tsconfig,
+  // so .tsx components under test would be left with unstripped JSX unless we
+  // override it here for the test run.
+  oxc: {
+    jsx: 'automatic',
+  },
   test: {
     include: ['packages/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/*.integration.test.ts'],
