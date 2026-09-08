@@ -41,17 +41,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -99,7 +99,7 @@ jobs:
             -PRELEASE_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release-apk
           path: packages/mobile/android/app/build/outputs/apk/release/app-release.apk
@@ -109,6 +109,6 @@ jobs:
         # Only on a tag push — workflow_dispatch has no tag/release to attach to.
         # This action creates the release for the tag if it does not yet exist.
         if: startsWith(github.ref, 'refs/tags/mobile-v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: packages/mobile/android/app/build/outputs/apk/release/app-release.apk

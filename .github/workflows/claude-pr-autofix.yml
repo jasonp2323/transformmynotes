@@ -1,0 +1,322 @@
+name: Claude PR autofix
+
+# When CI goes red on a PR that Claude opened from a labelled issue
+# (claude-issue.yml, branch `issue-<n>-<slug>`), this workflow re-invokes
+# Claude to read the failure, fix it in the PR's own branch, and push — so
+# the PR can reach green and its already-queued auto-merge fires with no
+# human involved.
+#
+# Why `workflow_run` and not `check_suite`: a `check_suite`/`check_run`
+# event runs the *triggering* workflow's file as it exists on the PR's own
+# (often untrusted, contributor-controlled) branch, and — for a public repo
+# — gets a read-only GITHUB_TOKEN with no access to repository *variables*
+# like the Anthropic federation IDs. `workflow_run` instead always runs
+# using the workflow file and permissions from the default branch
+# (`master`), regardless of what the PR branch contains, so it can safely
+# read `vars.ANTHROPIC_*` and push commits. The tradeoff is that we have to
+# re-resolve which PR the run belongs to ourselves (see "Resolve the PR"
+# below) rather than getting it handed to us directly.
+#
+# Loop shape: Deploy/CodeQL fail on a PR → this workflow fires → Claude
+# pushes a fix commit whose message ends in the literal marker `[autofix]`
+# → that push re-triggers Deploy (and CodeQL) → if they fail again, this
+# workflow fires again. The marker is what bounds the loop: the eligibility
+# gate below counts `[autofix]`-marked commits already on the branch and
+# refuses to run again once there are 3, so a persistently broken PR gets
+# capped rather than looping forever.
+on:
+  workflow_run:
+    workflows: ["Deploy", "CodeQL"]
+    types: [completed]
+
+# Grouped per PR (falling back to the head branch name when the PR number
+# isn't in the event payload) rather than per workflow run, so a flurry of
+# failures on the same PR queues rather than races — but never cancels an
+# in-flight autofix attempt, since killing one mid-push could leave the
+# attempt counter and the branch out of sync.
+concurrency:
+  group: claude-pr-autofix-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  checks: read
+  id-token: write
+
+jobs:
+  autofix:
+    # Only react to a *failed* run of a *pull_request*-triggered workflow.
+    # This also excludes push-to-master runs of Deploy/CodeQL (event would
+    # be "push"), so a production deploy failure never gets "autofixed"
+    # here.
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Resolve the PR this failed run belongs to.
+      # ----------------------------------------------------------------
+      - name: Resolve the PR for this workflow run
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          # Routed through env (rather than interpolated with ${{ }}
+          # directly into the script below) because these come from the
+          # workflow_run event and describe a branch/commit an external
+          # contributor controls — untrusted values must never be spliced
+          # straight into a run: script.
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          number=""
+
+          # workflow_run.pull_requests is often populated already, but it's
+          # not reliable (timing, forked heads, etc.) — always confirm/fall
+          # back via the API instead of trusting it blindly.
+          number=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
+
+          if [ -z "$number" ]; then
+            # Fall back: find an open PR associated with this commit sha.
+            number=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/pulls" \
+              --jq '[.[] | select(.state == "open")][0].number // empty')
+          fi
+
+          if [ -z "$number" ]; then
+            # Last resort: find an open PR by head branch name.
+            number=$(gh api "repos/${REPO}/pulls?state=open&head=${REPO_OWNER}:${HEAD_BRANCH}" \
+              --jq '.[0].number // empty')
+          fi
+
+          if [ -n "$number" ]; then
+            head_ref=$(gh api "repos/${REPO}/pulls/${number}" --jq '.head.ref')
+            echo "number=${number}" >> "$GITHUB_OUTPUT"
+            echo "head_ref=${head_ref}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=" >> "$GITHUB_OUTPUT"
+            echo "head_ref=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ----------------------------------------------------------------
+      # 2. Decide whether autofix is allowed to touch this PR at all.
+      # ----------------------------------------------------------------
+      - name: Determine autofix eligibility
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: |
+          set -euo pipefail
+          eligible=true
+          exhausted=false
+          reason=""
+
+          if [ -z "${PR_NUMBER}" ]; then
+            eligible=false
+            reason="no open PR could be resolved for this workflow run"
+          elif [[ "${HEAD_REF}" != issue-* ]]; then
+            # Never touch a branch that isn't one of Claude's own
+            # issue-<n>-<slug> branches.
+            eligible=false
+            reason="head branch '${HEAD_REF}' is not an issue-<n>-<slug> branch"
+          else
+            pr_json=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}")
+            state=$(echo "${pr_json}" | jq -r '.state')
+            draft=$(echo "${pr_json}" | jq -r '.draft')
+            labels=$(echo "${pr_json}" | jq -r '[.labels[].name] | join(",")')
+
+            if [ "${state}" != "open" ]; then
+              eligible=false
+              reason="PR #${PR_NUMBER} is not open"
+            elif [ "${draft}" = "true" ]; then
+              eligible=false
+              reason="PR #${PR_NUMBER} is a draft"
+            elif echo ",${labels}," | grep -q ",cost-review,"; then
+              # cost-review means a human is deliberately gating this PR
+              # (e.g. it needs a paid-service / infra cost sign-off) —
+              # autofix must stay out and let that review happen.
+              eligible=false
+              reason="PR #${PR_NUMBER} carries the cost-review label — a human is gating it"
+            else
+              # This repo is public and this workflow is workflow_run-triggered,
+              # so it always runs with write permissions and repository
+              # variables from master — regardless of what the PR's own branch
+              # contains. The head-ref-prefix check above ("issue-*") is not
+              # enough on its own: anyone can fork this repo, push a branch
+              # literally named issue-999-whatever, and open a PR, satisfying
+              # that check with a forged branch name. So the gate must also
+              # pin the PR to this repo (not a fork) and to a bot author
+              # (Claude's own PRs), not just to a guessable branch prefix.
+              head_repo=$(echo "${pr_json}" | jq -r '.head.repo.full_name')
+              base_repo=$(echo "${pr_json}" | jq -r '.base.repo.full_name')
+              author_type=$(echo "${pr_json}" | jq -r '.user.type')
+
+              if [ "${head_repo}" != "${base_repo}" ]; then
+                eligible=false
+                reason="PR #${PR_NUMBER} is from a fork — autofix only runs on same-repo branches"
+              elif [ "${author_type}" != "Bot" ]; then
+                eligible=false
+                reason="PR #${PR_NUMBER} was not opened by a bot — autofix only runs on Claude's own PRs"
+              fi
+            fi
+          fi
+
+          if [ "${eligible}" = "true" ]; then
+            # Attempt cap: count commits on the PR head branch whose
+            # message contains the literal marker "[autofix]". Each
+            # autofix push adds exactly one such commit, and that push
+            # re-triggers Deploy/CodeQL, which re-enters this workflow —
+            # so this count is how the fix-and-retry loop is bounded to 3
+            # attempts without needing any external state store.
+            messages=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/commits" --paginate --jq '.[].commit.message')
+            attempts=$(printf '%s' "${messages}" | grep -c '\[autofix\]' || true)
+            echo "autofix attempts so far on PR #${PR_NUMBER}: ${attempts}"
+            if [ "${attempts}" -ge 3 ]; then
+              eligible=false
+              exhausted=true
+              reason="3 autofix attempts already spent on PR #${PR_NUMBER}"
+            fi
+          fi
+
+          echo "${reason}"
+          echo "eligible=${eligible}" >> "$GITHUB_OUTPUT"
+          echo "exhausted=${exhausted}" >> "$GITHUB_OUTPUT"
+
+      # ----------------------------------------------------------------
+      # 3. If the attempt cap is spent, say so once and stop.
+      # ----------------------------------------------------------------
+      - name: Report attempt-cap exhaustion
+        if: steps.gate.outputs.exhausted == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          marker="<!-- claude-autofix-exhausted -->"
+
+          already_posted=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '.[].body' | grep -c 'claude-autofix-exhausted' || true)
+
+          if [ "${already_posted}" -eq 0 ]; then
+            body=$(printf '%s\n**%s** is still failing on this PR and 3 automated `[autofix]` attempts have already been pushed without reaching green. A human needs to take it from here.' \
+              "${marker}" "${WORKFLOW_NAME}")
+            gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}"
+          fi
+
+      # ----------------------------------------------------------------
+      # 4-6. Eligible: check out the PR branch and let Claude fix it.
+      # ----------------------------------------------------------------
+      - name: Checkout PR head branch
+        if: steps.gate.outputs.eligible == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.pr.outputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        if: steps.gate.outputs.eligible == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Run Claude autofix
+        if: steps.gate.outputs.eligible == 'true'
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Auth: Anthropic workload identity federation (OIDC), same as
+          # claude-issue.yml — see the comments there for why these are
+          # variables (not secrets) and why no api-key/oauth-token input is
+          # set. Requires `id-token: write` (granted above).
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          # No github_token input: the action authenticates as the Claude
+          # GitHub App instead of the workflow's GITHUB_TOKEN, so the push
+          # it makes below actually retriggers Deploy/CodeQL on the PR
+          # (a GITHUB_TOKEN-authored push does not retrigger downstream CI).
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,mcp__github__get_job_logs,mcp__github__get_check_run,mcp__github__actions_list,mcp__github__actions_get,mcp__github__pull_request_read,mcp__github__add_issue_comment"
+          prompt: |
+            CI failed on PR #${{ steps.pr.outputs.number }} (branch
+            `${{ steps.pr.outputs.head_ref }}`), which Claude opened from a
+            labelled issue. Your job is to get it back to green.
+
+            1. Read the logs of the failed run — workflow
+               `${{ github.event.workflow_run.name }}`, run id
+               `${{ github.event.workflow_run.id }}` — and find the actual
+               root cause of the failure. Don't guess from the job name
+               alone; read the real log output.
+
+            2. Reproduce the failure locally where possible (e.g. run the
+               same lint/typecheck/test command that failed), then fix it
+               in this PR's own code, following this repository's
+               CLAUDE.md conventions throughout.
+
+            3. Validate before committing — all of these must pass:
+               `npm run lint`, `npm run typecheck`, `npm run test:unit`,
+               and `npm run test:integration` if your change touches a
+               DynamoDB access pattern (a `keys.ts` builder, a GSI query,
+               an index-maintaining upsert).
+
+            4. Commit with a Conventional Commit message that ENDS with the
+               literal marker `[autofix]` (e.g.
+               `fix: correct GSI9 sort-key encoding [autofix]`). This
+               marker is load-bearing: it's how the workflow that invoked
+               you counts and caps automated fix attempts at 3 per PR — do
+               not omit it, and do not add it to a commit that isn't an
+               actual autofix push.
+
+            5. Push to this PR's existing branch
+               (`${{ steps.pr.outputs.head_ref }}`).
+
+            Hard rules, no exceptions:
+              - Never force-push.
+              - Never push to `master`.
+              - Never touch a branch other than
+                `${{ steps.pr.outputs.head_ref }}`.
+              - Never skip, disable, delete, or loosen a test just to make
+                the build go green.
+              - If the failure isn't actually caused by this PR's diff
+                (e.g. it reproduces the same way on `master`), post a
+                comment on PR #${{ steps.pr.outputs.number }} saying so and
+                stop — do not push a speculative "fix".
+              - If a real fix would require changing anything under
+                `infra/**` or `sst.config.ts`, do NOT push it. Post a
+                comment on PR #${{ steps.pr.outputs.number }} explaining
+                the infra change that's needed and its likely cost impact,
+                then stop — infra changes are human-gated in this repo.
+
+      # ----------------------------------------------------------------
+      # 7. If the autofix attempt itself blew up, say so.
+      # ----------------------------------------------------------------
+      - name: Report autofix step failure
+        if: steps.gate.outputs.eligible == 'true' && steps.claude.outputs.conclusion == 'failure'
+        env:
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            -f body="The automated autofix attempt itself errored out before finishing (see the **Run Claude autofix** step of this workflow run). A human should take a look."
+
+          {
+            echo "## Claude PR autofix"
+            echo ""
+            echo "The autofix attempt for PR #${PR_NUMBER} failed to run to completion."
+          } >> "$GITHUB_STEP_SUMMARY"
