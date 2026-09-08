@@ -60,13 +60,13 @@ function makeActivityItem(streamField?: { s3Key: string; done: boolean }) {
 }
 
 /** Builds a (Request, params) pair for the GET handler. */
-function makeRequest(id = ACTIVITY_ID): [Request, { params: { id: string } }] {
+function makeRequest(id = ACTIVITY_ID): [Request, { params: Promise<{ id: string }> }] {
   const controller = new AbortController();
   const req = new Request(`http://test/api/activity/${id}/stream`, {
     method: 'GET',
     signal: controller.signal,
   });
-  return [req, { params: { id } }];
+  return [req, { params: Promise.resolve({ id }) }];
 }
 
 /**

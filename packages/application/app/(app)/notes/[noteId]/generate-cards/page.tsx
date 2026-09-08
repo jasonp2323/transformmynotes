@@ -1,5 +1,6 @@
 import { GenerateCardsScreen } from '@/src/components/note/GenerateCardsScreen';
 
-export default function Page({ params }: { params: { noteId: string } }) {
-  return <GenerateCardsScreen noteId={params.noteId} />;
+export default async function Page({ params }: { params: Promise<{ noteId: string }> }) {
+  const { noteId } = await params;
+  return <GenerateCardsScreen noteId={noteId} />;
 }

@@ -1,5 +1,6 @@
 import { StudySetViewerScreen } from '@/src/components/study/StudySetViewerScreen';
 
-export default function StudySetPage({ params }: { params: { studySetId: string } }) {
-  return <StudySetViewerScreen studySetId={params.studySetId} />;
+export default async function StudySetPage({ params }: { params: Promise<{ studySetId: string }> }) {
+  const { studySetId } = await params;
+  return <StudySetViewerScreen studySetId={studySetId} />;
 }

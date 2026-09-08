@@ -56,7 +56,7 @@ function makeRequest(opts?: {
   noteId?: string;
   recipientSub?: string;
   owner?: string;
-}): [Request, { params: { noteId: string; recipientSub: string } }] {
+}): [Request, { params: Promise<{ noteId: string; recipientSub: string }> }] {
   const nId = opts?.noteId ?? NOTE_ID;
   const rSub = opts?.recipientSub ?? RECIPIENT_SUB;
   const ownerQs = opts?.owner != null ? `?owner=${opts.owner}` : '';
@@ -64,7 +64,7 @@ function makeRequest(opts?: {
     `http://localhost/api/notes/${nId}/shares/${rSub}${ownerQs}`,
     { method: 'DELETE' },
   );
-  return [req, { params: { noteId: nId, recipientSub: rSub } }];
+  return [req, { params: Promise.resolve({ noteId: nId, recipientSub: rSub }) }];
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ describe('DELETE /api/notes/[noteId]/shares/[recipientSub]', () => {
   describe('request validation', () => {
     it('returns 400 when noteId is empty', async () => {
       const req = new Request('http://localhost/api/notes//shares/recipient', { method: 'DELETE' });
-      const res = await DELETE(req, { params: { noteId: '', recipientSub: RECIPIENT_SUB } });
+      const res = await DELETE(req, { params: Promise.resolve({ noteId: '', recipientSub: RECIPIENT_SUB }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -113,7 +113,7 @@ describe('DELETE /api/notes/[noteId]/shares/[recipientSub]', () => {
 
     it('returns 400 when recipientSub is empty', async () => {
       const req = new Request(`http://localhost/api/notes/${NOTE_ID}/shares/`, { method: 'DELETE' });
-      const res = await DELETE(req, { params: { noteId: NOTE_ID, recipientSub: '' } });
+      const res = await DELETE(req, { params: Promise.resolve({ noteId: NOTE_ID, recipientSub: '' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);

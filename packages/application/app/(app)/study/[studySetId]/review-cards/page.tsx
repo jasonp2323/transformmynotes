@@ -1,16 +1,18 @@
 import { GenerateCardsScreen } from '@/src/components/note/GenerateCardsScreen';
 
-export default function ReviewCardsPage({
+export default async function ReviewCardsPage({
   params,
   searchParams,
 }: {
-  params: { studySetId: string };
-  searchParams?: { returnTo?: string };
+  params: Promise<{ studySetId: string }>;
+  searchParams?: Promise<{ returnTo?: string }>;
 }) {
+  const { studySetId } = await params;
+  const resolvedSearchParams = await searchParams;
   return (
     <GenerateCardsScreen
-      studySetId={params.studySetId}
-      returnTo={searchParams?.returnTo}
+      studySetId={studySetId}
+      returnTo={resolvedSearchParams?.returnTo}
     />
   );
 }

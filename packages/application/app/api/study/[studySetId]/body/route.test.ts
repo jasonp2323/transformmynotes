@@ -43,7 +43,7 @@ const READY_ITEM = {
   bodyS3Key: 'study/users/sub-1/set-001.json',
 };
 
-const PARAMS = { params: { studySetId: 'set-001' } };
+const PARAMS = { params: Promise.resolve({ studySetId: 'set-001' }) };
 const REQ = new Request('http://test/api/study/set-001/body');
 
 const FAKE_PAYLOAD = { cards: [{ front: 'Q', back: 'A' }] };

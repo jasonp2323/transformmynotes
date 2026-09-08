@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { noteId: string; recipientSub: string } },
+  { params }: { params: Promise<{ noteId: string; recipientSub: string }> },
 ) {
   // 1. Auth
   const caller = await getAuthenticatedSub();
@@ -16,7 +16,7 @@ export async function DELETE(
   }
 
   // 2. Validate route params
-  const { noteId, recipientSub } = params;
+  const { noteId, recipientSub } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
   }

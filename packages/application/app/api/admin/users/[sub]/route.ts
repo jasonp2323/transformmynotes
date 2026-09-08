@@ -12,14 +12,14 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { sub: string } },
+  { params }: { params: Promise<{ sub: string }> },
 ) {
   const admin = await getAdminApiUser();
   if (!admin) {
     return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   }
 
-  const { sub } = params;
+  const { sub } = await params;
 
   // Self-guard: prevent admin from removing their own account.
   if (sub === admin.sub) {

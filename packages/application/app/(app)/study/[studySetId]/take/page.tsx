@@ -1,5 +1,6 @@
 import { QuizTakingScreen } from '@/src/components/study/QuizTakingScreen';
 
-export default function TakeQuizPage({ params }: { params: { studySetId: string } }) {
-  return <QuizTakingScreen studySetId={params.studySetId} />;
+export default async function TakeQuizPage({ params }: { params: Promise<{ studySetId: string }> }) {
+  const { studySetId } = await params;
+  return <QuizTakingScreen studySetId={studySetId} />;
 }

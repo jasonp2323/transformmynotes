@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Admin auth gate.
   const admin = await getAdminApiUser();
@@ -36,7 +36,7 @@ export async function POST(
     );
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   // 3. Load the access request.
   let reqItem: Awaited<ReturnType<typeof getAccessRequest>>;

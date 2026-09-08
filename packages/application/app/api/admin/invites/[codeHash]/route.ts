@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { codeHash: string } },
+  { params }: { params: Promise<{ codeHash: string }> },
 ) {
   // 1. Admin auth gate.
   const admin = await getAdminApiUser();
@@ -16,7 +16,7 @@ export async function DELETE(
   }
 
   // 2. Validate codeHash param.
-  const { codeHash } = params;
+  const { codeHash } = await params;
   if (!codeHash || typeof codeHash !== 'string') {
     return NextResponse.json({ ok: false, error: 'Missing codeHash.' }, { status: 400 });
   }

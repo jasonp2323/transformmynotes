@@ -100,7 +100,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
       getAuthenticatedSubMock.mockResolvedValueOnce(null);
 
       const req = makeRequest(3);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(401);
@@ -112,7 +112,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
   describe('grade validation', () => {
     it('returns 400 when grade is missing', async () => {
       const req = makeRequest(undefined);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -122,7 +122,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('returns 400 when grade is not a number', async () => {
       const req = makeRequest('not-a-number');
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -132,7 +132,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('returns 400 when grade is not an integer', async () => {
       const req = makeRequest(2.5);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -142,7 +142,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('returns 400 when grade is below 0', async () => {
       const req = makeRequest(-1);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -152,7 +152,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('returns 400 when grade is above 5', async () => {
       const req = makeRequest(6);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -162,14 +162,14 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('accepts grade 0 as valid', async () => {
       const req = makeRequest(0);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
 
       expect(res.status).toBe(200);
     });
 
     it('accepts grade 5 as valid', async () => {
       const req = makeRequest(5);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
 
       expect(res.status).toBe(200);
     });
@@ -183,7 +183,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
         headers: { 'content-type': 'application/json' },
       });
 
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -197,7 +197,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
       getCardMock.mockResolvedValueOnce(undefined);
 
       const req = makeRequest(3);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(404);
@@ -207,7 +207,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('calls getCard with the authenticated sub and cardId', async () => {
       const req = makeRequest(3);
-      await PATCH(req, { params: { cardId: CARD_ID } });
+      await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
 
       expect(getCardMock).toHaveBeenCalledWith(SUB, CARD_ID);
     });
@@ -216,7 +216,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
   describe('success path', () => {
     it('returns 200 with updated scheduling fields', async () => {
       const req = makeRequest(4);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -228,7 +228,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('calls schedule with the card state and grade', async () => {
       const req = makeRequest(4);
-      await PATCH(req, { params: { cardId: CARD_ID } });
+      await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
 
       expect(scheduleMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -242,7 +242,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('calls recordCardReview with sub, cardId, and the schedule result', async () => {
       const req = makeRequest(3);
-      await PATCH(req, { params: { cardId: CARD_ID } });
+      await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
 
       expect(recordCardReviewMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -260,7 +260,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
 
     it('returns only the public scheduling fields (excludes pk/sk)', async () => {
       const req = makeRequest(4);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect('pk' in body).toBe(false);
@@ -279,7 +279,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
       getCardMock.mockRejectedValueOnce(new Error('DynamoDB error'));
 
       const req = makeRequest(3);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -291,7 +291,7 @@ describe('PATCH /api/cards/[cardId]/grade', () => {
       recordCardReviewMock.mockRejectedValueOnce(new Error('DynamoDB error'));
 
       const req = makeRequest(3);
-      const res = await PATCH(req, { params: { cardId: CARD_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ cardId: CARD_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);

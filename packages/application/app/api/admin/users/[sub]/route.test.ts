@@ -63,7 +63,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     it('returns 403 when getAdminApiUser returns null', async () => {
       getAdminApiUserMock.mockResolvedValueOnce(null);
 
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(403);
@@ -74,7 +74,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
 
   describe('self-guard', () => {
     it('returns 400 when attempting to delete own account', async () => {
-      const res = await DELETE(makeRequest(), { params: { sub: 'admin-sub-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'admin-sub-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -83,7 +83,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     });
 
     it('does NOT call Cognito or DB when self-deleting', async () => {
-      await DELETE(makeRequest(), { params: { sub: 'admin-sub-001' } });
+      await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'admin-sub-001' }) });
 
       expect(cognitoSendMock).not.toHaveBeenCalled();
       expect(deleteUserProfileWithAuditMock).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
 
   describe('success path', () => {
     it('returns ok:true on successful deletion', async () => {
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -102,7 +102,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     it('calls AdminDeleteUserCommand with UserPoolId and Username:sub', async () => {
       const { AdminDeleteUserCommand } = await import('@aws-sdk/client-cognito-identity-provider');
 
-      await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(AdminDeleteUserCommand).toHaveBeenCalledWith(
         expect.objectContaining({ UserPoolId: 'pool-test', Username: 'user-001' }),
@@ -111,7 +111,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     });
 
     it('calls deleteUserProfileWithAudit with sub and deletedBy:admin.sub', async () => {
-      await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(deleteUserProfileWithAuditMock).toHaveBeenCalledWith(
         'user-001',
@@ -126,7 +126,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
       const notFoundErr = new (UserNotFoundException as unknown as new (msg: string) => Error)('User not found');
       cognitoSendMock.mockRejectedValueOnce(notFoundErr);
 
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -138,7 +138,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     it('returns ok:true when deleteUserProfileWithAudit returns reason:not_found (idempotent)', async () => {
       deleteUserProfileWithAuditMock.mockResolvedValueOnce({ ok: false, reason: 'not_found' });
 
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -150,7 +150,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     it('returns 500 when pool id is not set', async () => {
       delete process.env['NEXT_PUBLIC_COGNITO_USER_POOL_ID'];
 
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -160,7 +160,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     it('returns 500 when Cognito throws a non-UserNotFoundException error', async () => {
       cognitoSendMock.mockRejectedValueOnce(new Error('Network error'));
 
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -170,7 +170,7 @@ describe('DELETE /api/admin/users/[sub]', () => {
     it('returns 500 when deleteUserProfileWithAudit returns !ok without not_found reason', async () => {
       deleteUserProfileWithAuditMock.mockResolvedValueOnce({ ok: false });
 
-      const res = await DELETE(makeRequest(), { params: { sub: 'user-001' } });
+      const res = await DELETE(makeRequest(), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);

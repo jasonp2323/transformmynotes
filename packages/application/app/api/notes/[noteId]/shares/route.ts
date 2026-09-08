@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: Request,
-  { params }: { params: { noteId: string } },
+  { params }: { params: Promise<{ noteId: string }> },
 ) {
   // 1. Auth
   const sub = await getAuthenticatedSub();
@@ -28,7 +28,7 @@ export async function POST(
   }
 
   // 2. Validate noteId
-  const { noteId } = params;
+  const { noteId } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
   }
@@ -124,7 +124,7 @@ export async function POST(
 
 export async function GET(
   req: Request,
-  { params }: { params: { noteId: string } },
+  { params }: { params: Promise<{ noteId: string }> },
 ) {
   // 1. Auth
   const sub = await getAuthenticatedSub();
@@ -133,7 +133,7 @@ export async function GET(
   }
 
   // Validate noteId
-  const { noteId } = params;
+  const { noteId } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
   }

@@ -112,29 +112,29 @@ const DEFAULT_BODY = {
 function makeRequest(
   body: unknown = DEFAULT_BODY,
   noteId = NOTE_ID,
-): [Request, { params: { noteId: string } }] {
+): [Request, { params: Promise<{ noteId: string }> }] {
   const req = new Request(`http://localhost/api/notes/${noteId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
     headers: { 'content-type': 'application/json' },
   });
-  return [req, { params: { noteId } }];
+  return [req, { params: Promise.resolve({ noteId }) }];
 }
 
 function makeGetRequest(
   noteId = NOTE_ID,
   ownerSub?: string,
-): [Request, { params: { noteId: string } }] {
+): [Request, { params: Promise<{ noteId: string }> }] {
   const url = ownerSub
     ? `http://localhost/api/notes/${noteId}?owner=${ownerSub}`
     : `http://localhost/api/notes/${noteId}`;
   const req = new Request(url, { method: 'GET' });
-  return [req, { params: { noteId } }];
+  return [req, { params: Promise.resolve({ noteId }) }];
 }
 
-function makeDeleteRequest(noteId = NOTE_ID): [Request, { params: { noteId: string } }] {
+function makeDeleteRequest(noteId = NOTE_ID): [Request, { params: Promise<{ noteId: string }> }] {
   const req = new Request(`http://localhost/api/notes/${noteId}`, { method: 'DELETE' });
-  return [req, { params: { noteId } }];
+  return [req, { params: Promise.resolve({ noteId }) }];
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +193,7 @@ describe('PATCH /api/notes/[noteId]', () => {
         headers: { 'content-type': 'application/json' },
       });
 
-      const res = await PATCH(req, { params: { noteId: NOTE_ID } });
+      const res = await PATCH(req, { params: Promise.resolve({ noteId: NOTE_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);

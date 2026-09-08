@@ -32,7 +32,7 @@ function makeAttempt(id: string, gradedAt: string, resultCount = 3) {
   };
 }
 
-const PARAMS = { params: { studySetId: 'set-001' } };
+const PARAMS = { params: Promise.resolve({ studySetId: 'set-001' }) };
 
 beforeEach(() => {
   vi.clearAllMocks();

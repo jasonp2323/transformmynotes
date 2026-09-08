@@ -78,18 +78,18 @@ const OWNER_MEMBERSHIPS = [{ groupId: GROUP_ID, userSub: OWNER_SUB, role: 'admin
 function makePostRequest(
   body: unknown,
   noteId = NOTE_ID,
-): [Request, { params: { noteId: string } }] {
+): [Request, { params: Promise<{ noteId: string }> }] {
   const req = new Request(`http://localhost/api/notes/${noteId}/shares`, {
     method: 'POST',
     body: JSON.stringify(body),
     headers: { 'content-type': 'application/json' },
   });
-  return [req, { params: { noteId } }];
+  return [req, { params: Promise.resolve({ noteId }) }];
 }
 
-function makeGetRequest(noteId = NOTE_ID): [Request, { params: { noteId: string } }] {
+function makeGetRequest(noteId = NOTE_ID): [Request, { params: Promise<{ noteId: string }> }] {
   const req = new Request(`http://localhost/api/notes/${noteId}/shares`, { method: 'GET' });
-  return [req, { params: { noteId } }];
+  return [req, { params: Promise.resolve({ noteId }) }];
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +288,7 @@ describe('POST /api/notes/[noteId]/shares', () => {
         headers: { 'content-type': 'application/json' },
       });
 
-      const res = await POST(req, { params: { noteId: NOTE_ID } });
+      const res = await POST(req, { params: Promise.resolve({ noteId: NOTE_ID }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);

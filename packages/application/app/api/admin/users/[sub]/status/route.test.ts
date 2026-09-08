@@ -73,7 +73,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     it('returns 403 when getAdminApiUser returns null', async () => {
       getAdminApiUserMock.mockResolvedValueOnce(null);
 
-      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(403);
@@ -84,7 +84,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
 
   describe('validation', () => {
     it('returns 400 for invalid status value', async () => {
-      const res = await PATCH(makeRequest({ status: 'pending' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'pending' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -93,7 +93,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     });
 
     it('returns 400 when status is missing', async () => {
-      const res = await PATCH(makeRequest({}), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({}), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -101,7 +101,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     });
 
     it('returns 400 on self-disable (sub===admin.sub, status=disabled)', async () => {
-      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'admin-sub-001' } });
+      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: Promise.resolve({ sub: 'admin-sub-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -110,7 +110,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     });
 
     it('allows self-activation (sub===admin.sub, status=active)', async () => {
-      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'admin-sub-001' } });
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'admin-sub-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -120,7 +120,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
 
   describe('success path', () => {
     it('returns ok:true when status is "active"', async () => {
-      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -128,7 +128,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     });
 
     it('returns ok:true when status is "disabled"', async () => {
-      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -136,13 +136,13 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     });
 
     it('calls updateUserStatus with sub and status', async () => {
-      await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ status: 'disabled' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(updateUserStatusMock).toHaveBeenCalledWith('user-001', 'disabled');
     });
 
     it('sends AdminDisableUserCommand to Cognito when disabling', async () => {
-      await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ status: 'disabled' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(AdminDisableUserCommand).toHaveBeenCalledWith({
         UserPoolId: USER_POOL_ID,
@@ -152,7 +152,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     });
 
     it('sends AdminEnableUserCommand to Cognito when enabling', async () => {
-      await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(AdminEnableUserCommand).toHaveBeenCalledWith({
         UserPoolId: USER_POOL_ID,
@@ -165,7 +165,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
       const UserNotFound = new UserNotFoundException({ message: 'User not found', $metadata: {} });
       cognitoSendMock.mockRejectedValueOnce(UserNotFound);
 
-      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -177,7 +177,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     it('returns 404 when updateUserStatus returns reason:not_found', async () => {
       updateUserStatusMock.mockResolvedValueOnce({ ok: false, reason: 'not_found' });
 
-      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(404);
@@ -187,7 +187,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     it('returns 500 when updateUserStatus returns !ok without not_found reason', async () => {
       updateUserStatusMock.mockResolvedValueOnce({ ok: false });
 
-      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -197,7 +197,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     it('returns 500 when NEXT_PUBLIC_COGNITO_USER_POOL_ID is not set', async () => {
       delete process.env['NEXT_PUBLIC_COGNITO_USER_POOL_ID'];
 
-      const res = await PATCH(makeRequest({ status: 'active' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'active' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -208,7 +208,7 @@ describe('PATCH /api/admin/users/[sub]/status', () => {
     it('returns 500 when Cognito send throws a non-UserNotFoundException error', async () => {
       cognitoSendMock.mockRejectedValueOnce(new Error('Network failure'));
 
-      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ status: 'disabled' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);

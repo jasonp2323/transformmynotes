@@ -19,7 +19,7 @@ function requireBucketName(): string {
 
 export async function POST(
   _req: Request,
-  { params }: { params: { noteId: string } },
+  { params }: { params: Promise<{ noteId: string }> },
 ) {
   // Auth: verify the Cognito ID token and extract the sub.
   const sub = await getAuthenticatedSub();
@@ -28,7 +28,7 @@ export async function POST(
   }
 
   // Validate noteId from route params.
-  const { noteId } = params;
+  const { noteId } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json(
       { ok: false, error: 'Missing or invalid noteId.' },

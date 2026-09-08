@@ -65,7 +65,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     it('returns 403 when getAdminApiUser returns null', async () => {
       getAdminApiUserMock.mockResolvedValueOnce(null);
 
-      const res = await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(403);
@@ -76,7 +76,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
 
   describe('validation', () => {
     it('returns 400 for invalid role value', async () => {
-      const res = await PATCH(makeRequest({ role: 'superuser' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ role: 'superuser' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -85,7 +85,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     });
 
     it('returns 400 when role is missing', async () => {
-      const res = await PATCH(makeRequest({}), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({}), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -93,7 +93,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     });
 
     it('returns 400 and makes NO cognito/DB calls on self-demotion (sub===admin.sub, role=member)', async () => {
-      const res = await PATCH(makeRequest({ role: 'member' }), { params: { sub: 'admin-sub-001' } });
+      const res = await PATCH(makeRequest({ role: 'member' }), { params: Promise.resolve({ sub: 'admin-sub-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(400);
@@ -104,7 +104,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     });
 
     it('allows self-promotion to admin (sub===admin.sub, role=admin)', async () => {
-      const res = await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'admin-sub-001' } });
+      const res = await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'admin-sub-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       // Self-promotion is allowed (already admin, but not blocked)
@@ -117,7 +117,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     it('calls AdminAddUserToGroupCommand with GroupName:admin', async () => {
       const { AdminAddUserToGroupCommand } = await import('@aws-sdk/client-cognito-identity-provider');
 
-      await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(AdminAddUserToGroupCommand).toHaveBeenCalledWith(
         expect.objectContaining({ GroupName: 'admin', Username: 'user-001' }),
@@ -126,7 +126,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     });
 
     it('calls updateUserRole with sub and "admin"', async () => {
-      await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(updateUserRoleMock).toHaveBeenCalledWith('user-001', 'admin');
     });
@@ -136,7 +136,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     it('calls AdminRemoveUserFromGroupCommand with GroupName:admin', async () => {
       const { AdminRemoveUserFromGroupCommand } = await import('@aws-sdk/client-cognito-identity-provider');
 
-      await PATCH(makeRequest({ role: 'member' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ role: 'member' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(AdminRemoveUserFromGroupCommand).toHaveBeenCalledWith(
         expect.objectContaining({ GroupName: 'admin', Username: 'user-001' }),
@@ -145,7 +145,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     });
 
     it('calls updateUserRole with sub and "member"', async () => {
-      await PATCH(makeRequest({ role: 'member' }), { params: { sub: 'user-001' } });
+      await PATCH(makeRequest({ role: 'member' }), { params: Promise.resolve({ sub: 'user-001' }) });
 
       expect(updateUserRoleMock).toHaveBeenCalledWith('user-001', 'member');
     });
@@ -153,7 +153,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
 
   describe('success', () => {
     it('returns ok:true on success', async () => {
-      const res = await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -165,7 +165,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     it('returns 404 when updateUserRole returns reason:not_found', async () => {
       updateUserRoleMock.mockResolvedValueOnce({ ok: false, reason: 'not_found' });
 
-      const res = await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(404);
@@ -175,7 +175,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     it('returns 500 when updateUserRole returns !ok without not_found reason', async () => {
       updateUserRoleMock.mockResolvedValueOnce({ ok: false });
 
-      const res = await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -185,7 +185,7 @@ describe('PATCH /api/admin/users/[sub]/role', () => {
     it('returns 500 when pool id is not set', async () => {
       delete process.env['NEXT_PUBLIC_COGNITO_USER_POOL_ID'];
 
-      const res = await PATCH(makeRequest({ role: 'admin' }), { params: { sub: 'user-001' } });
+      const res = await PATCH(makeRequest({ role: 'admin' }), { params: Promise.resolve({ sub: 'user-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);

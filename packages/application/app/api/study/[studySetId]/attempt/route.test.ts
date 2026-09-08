@@ -104,7 +104,7 @@ function postReq(answers: Record<string, string>, durationMs?: number) {
   });
 }
 
-const PARAMS = { params: { studySetId: 'set-001' } };
+const PARAMS = { params: Promise.resolve({ studySetId: 'set-001' }) };
 
 beforeEach(() => {
   vi.clearAllMocks();

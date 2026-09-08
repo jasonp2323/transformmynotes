@@ -23,7 +23,7 @@ async function readStreamBuffer(bucket: string, s3Key: string): Promise<string> 
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   // Auth: verify the Cognito ID token and extract the sub.
   const sub = await getAuthenticatedSub();
@@ -31,7 +31,7 @@ export async function GET(
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   // Resolve the activity; ownership is implicit (query is scoped to the caller's USER#<sub>).
   const activity = await getActivity(sub, id);

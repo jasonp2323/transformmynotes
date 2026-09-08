@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { cardId: string } },
+  { params }: { params: Promise<{ cardId: string }> },
 ) {
   // 1. Auth
   const sub = await getAuthenticatedSub();
@@ -29,7 +29,7 @@ export async function PATCH(
   }
 
   // 2. Validate cardId
-  const { cardId } = params;
+  const { cardId } = await params;
   if (typeof cardId !== 'string' || !cardId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid cardId.' }, { status: 400 });
   }

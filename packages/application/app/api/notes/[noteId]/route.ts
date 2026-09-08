@@ -52,14 +52,14 @@ function toNoteMetadata(n: NoteItem) {
 
 export async function GET(
   req: Request,
-  { params }: { params: { noteId: string } },
+  { params }: { params: Promise<{ noteId: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { noteId } = params;
+  const { noteId } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
   }
@@ -102,7 +102,7 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { noteId: string } },
+  { params }: { params: Promise<{ noteId: string }> },
 ) {
   // Auth: verify the Cognito ID token and extract the sub.
   const sub = await getAuthenticatedSub();
@@ -111,7 +111,7 @@ export async function PATCH(
   }
 
   // Validate noteId from route params.
-  const { noteId } = params;
+  const { noteId } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json(
       { ok: false, error: 'Missing or invalid noteId.' },
@@ -318,14 +318,14 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { noteId: string } },
+  { params }: { params: Promise<{ noteId: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { noteId } = params;
+  const { noteId } = await params;
   if (typeof noteId !== 'string' || !noteId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid noteId.' }, { status: 400 });
   }
