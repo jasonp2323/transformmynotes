@@ -29,29 +29,34 @@ export function StudySetsForNote({ noteId, refreshNonce = 0 }: StudySetsForNoteP
     }
   };
 
-  const fetchSets = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/study?noteId=${encodeURIComponent(noteId)}`);
-      if (!res.ok) return;
-      const data = (await res.json()) as { studySets: StudySetMeta[] };
-      const sets = data.studySets ?? [];
-      if (mountedRef.current) {
-        setStudySets(sets);
-        // Schedule next poll if any sets are still in-flight
-        const hasPending = sets.some((s) => s.status === 'queued' || s.status === 'running');
-        if (hasPending) {
-          clearTimer();
-          timerRef.current = setTimeout(() => {
-            if (mountedRef.current) void fetchSets();
-          }, 2000);
+  const fetchSets = useCallback(
+    // Named so the recursive poll below can call itself directly instead of
+    // closing over the outer `fetchSets` binding before it's assigned.
+    async function fetchSets() {
+      try {
+        const res = await fetch(`/api/study?noteId=${encodeURIComponent(noteId)}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { studySets: StudySetMeta[] };
+        const sets = data.studySets ?? [];
+        if (mountedRef.current) {
+          setStudySets(sets);
+          // Schedule next poll if any sets are still in-flight
+          const hasPending = sets.some((s) => s.status === 'queued' || s.status === 'running');
+          if (hasPending) {
+            clearTimer();
+            timerRef.current = setTimeout(() => {
+              if (mountedRef.current) void fetchSets();
+            }, 2000);
+          }
         }
+      } catch {
+        // Silently fail — the list is supplementary
+      } finally {
+        if (mountedRef.current) setLoading(false);
       }
-    } catch {
-      // Silently fail — the list is supplementary
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  }, [noteId]);
+    },
+    [noteId],
+  );
 
   useEffect(() => {
     mountedRef.current = true;

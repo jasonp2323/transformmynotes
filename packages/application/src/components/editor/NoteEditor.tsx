@@ -18,6 +18,15 @@ import { BubbleMenu } from '@tiptap/react/menus';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { markdownToDoc, docToMarkdown } from '@transformmynotes/core/editor/serialize';
 import { editorExtensions } from '@transformmynotes/core/editor/extensions';
+
+// Test: Conditional hook call (should trigger rules-of-hooks error)
+function TestHookViolation() {
+  const shouldHook = true;
+  if (shouldHook) {
+    useState('test');
+  }
+  return null;
+}
 import { lowConfidence, splitLowConfidence, collapseLowConfidence } from './low-confidence';
 import { useSlashExtension } from './slash-command';
 import { Icon, IconButton, Textarea } from '@/src/components/ui';

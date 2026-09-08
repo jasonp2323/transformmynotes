@@ -75,11 +75,6 @@ export function AiActivityProvider({ children }: { children: React.ReactNode }) 
   const pollTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const stoppedRef = React.useRef(false); // set to true on 401 to halt polling
 
-  // Keep a stable ref to current inFlight length so the schedule callback
-  // doesn't need to close over stale state.
-  const inFlightCountRef = React.useRef(0);
-  inFlightCountRef.current = inFlight.length;
-
   const clearPollTimer = React.useCallback(() => {
     if (pollTimerRef.current !== null) {
       clearTimeout(pollTimerRef.current);
@@ -102,57 +97,62 @@ export function AiActivityProvider({ children }: { children: React.ReactNode }) 
     [clearPollTimer],
   );
 
-  const fetchActivities = React.useCallback(async () => {
-    if (!mountedRef.current || stoppedRef.current) return;
+  const fetchActivities = React.useCallback(
+    // Named so the recursive poll below can call itself directly instead of
+    // closing over the outer `fetchActivities` binding before it's assigned.
+    async function fetchActivities() {
+      if (!mountedRef.current || stoppedRef.current) return;
 
-    let data: ApiResponse;
-    try {
-      const res = await fetch('/api/activity');
-      if (res.status === 401) {
-        stoppedRef.current = true;
+      let data: ApiResponse;
+      try {
+        const res = await fetch('/api/activity');
+        if (res.status === 401) {
+          stoppedRef.current = true;
+          return;
+        }
+        data = (await res.json()) as ApiResponse;
+      } catch {
+        // Network error — schedule the next attempt normally.
+        if (mountedRef.current && !stoppedRef.current) {
+          schedulePoll(fetchActivities, FAST_INTERVAL_MS);
+        }
         return;
       }
-      data = (await res.json()) as ApiResponse;
-    } catch {
-      // Network error — schedule the next attempt normally.
-      if (mountedRef.current && !stoppedRef.current) {
-        schedulePoll(fetchActivities, FAST_INTERVAL_MS);
+
+      if (!mountedRef.current || stoppedRef.current) return;
+
+      if (!data.ok) {
+        // Server error — back off to slow poll.
+        schedulePoll(fetchActivities, SLOW_INTERVAL_MS);
+        return;
       }
-      return;
-    }
 
-    if (!mountedRef.current || stoppedRef.current) return;
+      const { inFlight: newInFlight, recent: newRecent } = data;
 
-    if (!data.ok) {
-      // Server error — back off to slow poll.
-      schedulePoll(fetchActivities, SLOW_INTERVAL_MS);
-      return;
-    }
+      setInFlight(newInFlight);
+      // recent = items that are NOT already in inFlight (deduplicated)
+      const inFlightIds = new Set(newInFlight.map((a) => a.activityId));
+      const filteredRecent = dedupeByActivityId(newRecent).filter(
+        (a) => !inFlightIds.has(a.activityId),
+      );
+      setRecent(filteredRecent);
 
-    const { inFlight: newInFlight, recent: newRecent } = data;
+      // Clear isActiveRef when server confirms nothing is in-flight,
+      // but only after the grace period has elapsed.
+      if (newInFlight.length === 0 && isActiveRef.current) {
+        clearGraceTimer();
+        activeGraceTimerRef.current = setTimeout(() => {
+          isActiveRef.current = false;
+        }, ACTIVE_GRACE_MS);
+      }
 
-    setInFlight(newInFlight);
-    // recent = items that are NOT already in inFlight (deduplicated)
-    const inFlightIds = new Set(newInFlight.map((a) => a.activityId));
-    const filteredRecent = dedupeByActivityId(newRecent).filter(
-      (a) => !inFlightIds.has(a.activityId),
-    );
-    setRecent(filteredRecent);
+      if (!mountedRef.current || stoppedRef.current) return;
 
-    // Clear isActiveRef when server confirms nothing is in-flight,
-    // but only after the grace period has elapsed.
-    if (newInFlight.length === 0 && isActiveRef.current) {
-      clearGraceTimer();
-      activeGraceTimerRef.current = setTimeout(() => {
-        isActiveRef.current = false;
-      }, ACTIVE_GRACE_MS);
-    }
-
-    if (!mountedRef.current || stoppedRef.current) return;
-
-    const needsFast = newInFlight.length > 0 || isActiveRef.current;
-    schedulePoll(fetchActivities, needsFast ? FAST_INTERVAL_MS : SLOW_INTERVAL_MS);
-  }, [clearGraceTimer, schedulePoll]);
+      const needsFast = newInFlight.length > 0 || isActiveRef.current;
+      schedulePoll(fetchActivities, needsFast ? FAST_INTERVAL_MS : SLOW_INTERVAL_MS);
+    },
+    [clearGraceTimer, schedulePoll],
+  );
 
   // Initial fetch on mount.
   React.useEffect(() => {
