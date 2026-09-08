@@ -24,10 +24,10 @@ vi.mock('@transformmynotes/core', () => ({
 }));
 
 vi.mock('@aws-sdk/client-cognito-identity-provider', () => ({
-  CognitoIdentityProviderClient: vi.fn(() => ({ send: cognitoSendMock })),
-  AdminAddUserToGroupCommand: vi.fn((input) => ({ kind: 'AddToGroup', input })),
-  AdminRemoveUserFromGroupCommand: vi.fn((input) => ({ kind: 'RemoveFromGroup', input })),
-  AdminDeleteUserCommand: vi.fn((input) => ({ kind: 'DeleteUser', input })),
+  CognitoIdentityProviderClient: vi.fn(function () { return { send: cognitoSendMock }; }),
+  AdminAddUserToGroupCommand: vi.fn(function (input) { return { kind: 'AddToGroup', input }; }),
+  AdminRemoveUserFromGroupCommand: vi.fn(function (input) { return { kind: 'RemoveFromGroup', input }; }),
+  AdminDeleteUserCommand: vi.fn(function (input) { return { kind: 'DeleteUser', input }; }),
   UserNotFoundException: class UserNotFoundException extends Error { name = 'UserNotFoundException'; },
 }));
 

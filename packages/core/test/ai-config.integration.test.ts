@@ -30,9 +30,20 @@ const ENV_VARS = {
   SST_RESOURCE_STUDY_SUMMARY_PROMPT_value: 'Env summary prompt',
 };
 
-beforeAll(() => {
+beforeAll(async () => {
   // Ensure buildSecretDefaults() produces a valid baseline for every case.
   for (const [k, v] of Object.entries(ENV_VARS)) process.env[k] = v;
+
+  // Clean the CONFIG#AI partition to guarantee a fresh slate. This file and
+  // ai-config-db.integration.test.ts share one dynalite table/partition, and
+  // Vitest does not guarantee cross-file execution order, so start from a
+  // known state rather than assuming nothing else has written here yet.
+  await ddb.send(new DeleteCommand({ TableName: TableNames.UserData, Key: aiConfigKeys.current() }));
+  for (const seq of [1, 2, 3]) {
+    await ddb.send(
+      new DeleteCommand({ TableName: TableNames.UserData, Key: aiConfigKeys.version(seq) }),
+    );
+  }
 });
 
 beforeEach(() => {

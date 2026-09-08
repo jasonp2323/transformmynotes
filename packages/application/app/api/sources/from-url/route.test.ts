@@ -11,7 +11,7 @@ const extractArticleMock = vi.hoisted(() => vi.fn());
 const findSourceByUrlHashMock = vi.hoisted(() => vi.fn());
 const hitSourceFetchWindowMock = vi.hoisted(() => vi.fn());
 const hitSourceDailyCapMock = vi.hoisted(() => vi.fn());
-const buildSourceItemMock = vi.hoisted(() => vi.fn((input: unknown) => ({ ...(input as object) })));
+const buildSourceItemMock = vi.hoisted(() => vi.fn(function (input: unknown) { return { ...(input as object) }; }));
 const putSourceMock = vi.hoisted(() => vi.fn());
 const markSourceReadyMock = vi.hoisted(() => vi.fn());
 const markSourceFailedMock = vi.hoisted(() => vi.fn());
@@ -35,8 +35,8 @@ vi.mock('@/lib/require-api-user', () => ({
 }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => ({ send: s3SendMock })),
-  PutObjectCommand: vi.fn((input) => ({ __type: 'PutObject', input })),
+  S3Client: vi.fn(function () { return { send: s3SendMock }; }),
+  PutObjectCommand: vi.fn(function (input) { return { __type: 'PutObject', input }; }),
 }));
 
 vi.mock('@transformmynotes/core', () => ({

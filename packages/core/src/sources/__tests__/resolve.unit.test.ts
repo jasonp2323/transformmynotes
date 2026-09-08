@@ -16,8 +16,8 @@ const mockGetNote = vi.hoisted(() => vi.fn());
 const mockGetSource = vi.hoisted(() => vi.fn());
 
 vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn().mockImplementation(() => ({ send: mockS3Send })),
-  GetObjectCommand: vi.fn().mockImplementation((input: unknown) => input),
+  S3Client: vi.fn().mockImplementation(function () { return { send: mockS3Send }; }),
+  GetObjectCommand: vi.fn().mockImplementation(function (input: unknown) { return input; }),
 }));
 
 vi.mock('../../db/notes.js', () => ({
