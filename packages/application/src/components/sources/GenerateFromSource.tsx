@@ -71,7 +71,9 @@ export function GenerateFromSource({ sourceId }: GenerateFromSourceProps) {
   // ── Polling ────────────────────────────────────────────────────────────────
 
   const schedulePoll = useCallback(
-    (studySetId: string, type: StudyMaterialType, pollCount: number) => {
+    // Named so the recursive poll below can call itself directly instead of
+    // closing over the outer `schedulePoll` binding before it's assigned.
+    function schedulePoll(studySetId: string, type: StudyMaterialType, pollCount: number) {
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
       }

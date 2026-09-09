@@ -15,7 +15,7 @@ import { isAdmin } from '@/lib/auth-gate';
  *   - The verified claims do not include the `admin` Cognito group.
  */
 export async function getAdminApiUser(): Promise<{ sub: string; claims: Record<string, unknown> } | null> {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   if (!token) return null;
 
   try {

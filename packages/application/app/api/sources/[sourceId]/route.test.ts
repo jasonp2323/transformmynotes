@@ -25,10 +25,10 @@ import { GET } from './route';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeRequest(sourceId: string): [Request, { params: { sourceId: string } }] {
+function makeRequest(sourceId: string): [Request, { params: Promise<{ sourceId: string }> }] {
   return [
     new Request(`http://test/api/sources/${sourceId}`, { method: 'GET' }),
-    { params: { sourceId } },
+    { params: Promise.resolve({ sourceId }) },
   ];
 }
 

@@ -26,9 +26,15 @@
     "@playwright/test": "^1.62.1",
     "@types/s3rver": "^3.7.4",
     "cognito-local": "^5.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "s3rver": "^3.7.1",
     "sst": "^4.17.1",
     "typescript": "^5.6.3",
     "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   }
 }

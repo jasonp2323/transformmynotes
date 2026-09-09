@@ -90,7 +90,7 @@ const ATTEMPT_ITEM = {
   gsi8sk: 'GRADEDAT#2024-01-01T12:00:00.000Z',
 };
 
-const PARAMS = { params: { studySetId: 'set-001', attemptId: 'attempt-001' } };
+const PARAMS = { params: Promise.resolve({ studySetId: 'set-001', attemptId: 'attempt-001' }) };
 
 beforeEach(() => {
   vi.clearAllMocks();

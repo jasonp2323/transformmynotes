@@ -12,14 +12,14 @@ function toSource(item: SourceItem) {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { sourceId: string } },
+  { params }: { params: Promise<{ sourceId: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { sourceId } = params;
+  const { sourceId } = await params;
 
   try {
     const item = await getSource(sub, sourceId);

@@ -41,10 +41,10 @@ import { GET } from './route';
 // Helpers + fixtures
 // ---------------------------------------------------------------------------
 
-function makeRequest(id: string): [Request, { params: { id: string } }] {
+function makeRequest(id: string): [Request, { params: Promise<{ id: string }> }] {
   return [
     new Request(`http://test/api/activity/${id}`, { method: 'GET' }),
-    { params: { id } },
+    { params: Promise.resolve({ id }) },
   ];
 }
 

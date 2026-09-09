@@ -10,9 +10,10 @@ import { getPendingAccessRequestCount } from '@/lib/pending-count';
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { forbidden?: string };
+  searchParams: Promise<{ forbidden?: string }>;
 }) {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const { forbidden } = await searchParams;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   let who = 'there';
   let claims: Record<string, unknown> | null = null;
   if (token) {
@@ -32,7 +33,7 @@ export default async function DashboardPage({
   return (
     <AppShell active="library" title="Library" userName={who} isAdmin={adminUser} pendingCount={pendingCount} fab={<LibraryCreateMenu variant="fab" />} actions={<LibraryCreateMenu variant="bar" />}>
       <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-        {searchParams.forbidden === '1' && (
+        {forbidden === '1' && (
           <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             You don&apos;t have access to the admin area.
           </div>

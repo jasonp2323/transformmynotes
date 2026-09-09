@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _req: Request,
-  { params }: { params: { groupId: string } },
+  { params }: { params: Promise<{ groupId: string }> },
 ) {
   // Auth
   const sub = await getAuthenticatedSub();
@@ -19,7 +19,7 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { groupId } = params;
+  const { groupId } = await params;
   if (typeof groupId !== 'string' || !groupId) {
     return NextResponse.json({ ok: false, error: 'Missing or invalid groupId.' }, { status: 400 });
   }

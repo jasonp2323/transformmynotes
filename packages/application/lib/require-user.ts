@@ -24,7 +24,7 @@ import { gateDecision } from '@/lib/gate-decision';
  * (it pulls the AWS SDK, not Edge-safe).
  */
 export async function requireActiveUser(): Promise<UserProfileItem> {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   if (!token) redirect('/login');
 
   let claims: Awaited<ReturnType<typeof verifyIdToken>>;

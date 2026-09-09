@@ -7,14 +7,14 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { studySetId: string } },
+  { params }: { params: Promise<{ studySetId: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { studySetId } = params;
+  const { studySetId } = await params;
   if (!studySetId) {
     return NextResponse.json({ ok: false, error: 'Missing studySetId.' }, { status: 400 });
   }

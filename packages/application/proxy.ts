@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { verifyIdToken } from '@/lib/verify-id-token';
 import { isAdmin, isAdminRoute } from '@/lib/auth-gate';
 
-export async function middleware(req: NextRequest) {
+// Next.js 16 renamed the middleware convention to "proxy" (the exported
+// function must be named `proxy`, in a file named proxy.ts) — see
+// https://nextjs.org/docs/messages/middleware-to-proxy. This file is the
+// single source of truth for the auth gate; `config.matcher` below controls
+// which routes it runs on (Node-runtime status/role checks for these same
+// routes additionally live in lib/require-user.ts et al.).
+export async function proxy(req: NextRequest) {
   const token = req.cookies.get('CognitoIdToken')?.value;
   const loginUrl = new URL('/login', req.url);
   if (!token) return NextResponse.redirect(loginUrl);
@@ -24,3 +30,14 @@ export async function middleware(req: NextRequest) {
 
   return NextResponse.next();
 }
+
+export const config = {
+  matcher: [
+    '/dashboard/:path*',
+    '/notes/:path*',
+    '/review/:path*',
+    '/account/:path*',
+    '/admin/:path*',
+    '/search/:path*',
+  ],
+};

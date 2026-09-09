@@ -33,7 +33,7 @@ function requireBucketName(): string {
 
 export async function POST(
   _req: Request,
-  { params }: { params: { sourceId: string } },
+  { params }: { params: Promise<{ sourceId: string }> },
 ) {
   // Auth: verify the Cognito ID token and extract the sub.
   const sub = await getAuthenticatedSub();
@@ -41,7 +41,7 @@ export async function POST(
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { sourceId } = params;
+  const { sourceId } = await params;
 
   // Ownership check: getSource is scoped to the caller's USER#<sub> partition,
   // so a cross-user sourceId simply returns undefined → 404 here.

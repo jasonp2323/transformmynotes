@@ -40,11 +40,19 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@transformmynotes/core'],
   // PDF/DOCX/EPUB parser libs must be required at runtime, not webpack-bundled.
-  // Next 14 uses experimental.serverComponentsExternalPackages; Next ≥15 promotes
-  // this to top-level serverExternalPackages.
-  experimental: {
-    serverComponentsExternalPackages: ['unpdf', 'mammoth', 'epub2'],
-  },
+  // Next 14 used experimental.serverComponentsExternalPackages; Next ≥15
+  // promotes this to top-level serverExternalPackages.
+  serverExternalPackages: ['unpdf', 'mammoth', 'epub2'],
+  // @transformmynotes/core is transpiled from source (see transpilePackages
+  // above) and its relative imports use NodeNext-style `.js` specifiers that
+  // point at `.ts` files (e.g. `from './retry.js'` resolving to `retry.ts`).
+  // Plain webpack doesn't resolve that on its own, hence extensionAlias below.
+  //
+  // This app stays on the webpack builder (see the `--webpack` flag on the
+  // `dev`/`build` scripts) rather than Next 16's now-default Turbopack,
+  // because `@serwist/next` (PWA service-worker precache generation) does
+  // not yet support Turbopack — https://github.com/serwist/serwist/issues/54.
+  // Revisit once `@serwist/turbopack` (currently experimental) stabilizes.
   webpack: (config) => {
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js'],

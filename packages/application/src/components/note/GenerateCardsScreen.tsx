@@ -71,7 +71,9 @@ export function GenerateCardsScreen({
   // ── Polling ───────────────────────────────────────────────────────────────
 
   const schedulePoll = useCallback(
-    (id: string, pollCount: number) => {
+    // Named so the recursive poll below can call itself directly instead of
+    // closing over the outer `schedulePoll` binding before it's assigned.
+    function schedulePoll(id: string, pollCount: number) {
       timerRef.current = setTimeout(async () => {
         if (!mountedRef.current) return;
 

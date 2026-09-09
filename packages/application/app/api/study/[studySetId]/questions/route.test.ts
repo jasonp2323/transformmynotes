@@ -88,7 +88,7 @@ const FAKE_QUIZ = {
   ],
 };
 
-const PARAMS = { params: { studySetId: 'set-001' } };
+const PARAMS = { params: Promise.resolve({ studySetId: 'set-001' }) };
 const REQ = new Request('http://test/api/study/set-001/questions');
 
 beforeEach(() => {

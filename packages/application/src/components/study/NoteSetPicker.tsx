@@ -100,6 +100,39 @@ export function NoteSetPicker({
   const searchAbortRef = useRef<AbortController | null>(null);
   const prevOpenRef = useRef(false);
 
+  // ── Fetch recent notes ───────────────────────────────────────────────────
+
+  const fetchRecentNotes = useCallback(
+    async (preSelected: Set<string>, groupId?: string) => {
+      setLoadingNotes(true);
+      try {
+        const res = await fetch('/api/notes');
+        if (!res.ok) return;
+        const data = (await res.json()) as { notes: NoteMetadata[] };
+        setRecentNotes(data.notes);
+
+        // Pre-check notes with matching groupId
+        if (groupId) {
+          const groupMatches = data.notes
+            .filter((n) => n.groupId === groupId)
+            .map((n) => n.noteId);
+          setSelectedNoteIds((prev) => {
+            const next = new Set(prev);
+            for (const id of groupMatches) next.add(id);
+            // Also add from preSelected
+            for (const id of preSelected) next.add(id);
+            return next;
+          });
+        }
+      } catch {
+        // best-effort
+      } finally {
+        setLoadingNotes(false);
+      }
+    },
+    [],
+  );
+
   // ── Reset on open ────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -160,39 +193,6 @@ export function NoteSetPicker({
 
     return () => controller.abort();
   }, [debouncedQuery, open]);
-
-  // ── Fetch recent notes ───────────────────────────────────────────────────
-
-  const fetchRecentNotes = useCallback(
-    async (preSelected: Set<string>, groupId?: string) => {
-      setLoadingNotes(true);
-      try {
-        const res = await fetch('/api/notes');
-        if (!res.ok) return;
-        const data = (await res.json()) as { notes: NoteMetadata[] };
-        setRecentNotes(data.notes);
-
-        // Pre-check notes with matching groupId
-        if (groupId) {
-          const groupMatches = data.notes
-            .filter((n) => n.groupId === groupId)
-            .map((n) => n.noteId);
-          setSelectedNoteIds((prev) => {
-            const next = new Set(prev);
-            for (const id of groupMatches) next.add(id);
-            // Also add from preSelected
-            for (const id of preSelected) next.add(id);
-            return next;
-          });
-        }
-      } catch {
-        // best-effort
-      } finally {
-        setLoadingNotes(false);
-      }
-    },
-    [],
-  );
 
   // ── All fetched notes (recent + search results merged, deduplicated) ──────
 

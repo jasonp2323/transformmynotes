@@ -73,7 +73,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns 403 when getAdminApiUser returns null', async () => {
       getAdminApiUserMock.mockResolvedValueOnce(null);
 
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(403);
@@ -86,7 +86,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns 404 when user profile is not found', async () => {
       getUserProfileBySubMock.mockResolvedValueOnce(null);
 
-      const res = await POST(makeRequest(), { params: { sub: 'nonexistent-sub' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'nonexistent-sub' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(404);
@@ -97,7 +97,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns 409 when user status is not pending', async () => {
       getUserProfileBySubMock.mockResolvedValueOnce({ ...PENDING_PROFILE, status: 'active' });
 
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(409);
@@ -108,7 +108,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns 409 when user is already disabled', async () => {
       getUserProfileBySubMock.mockResolvedValueOnce({ ...PENDING_PROFILE, status: 'disabled' });
 
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(409);
@@ -118,7 +118,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
 
   describe('success path', () => {
     it('returns ok:true and emailSent:true on full success', async () => {
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -127,7 +127,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     });
 
     it('calls updateUserStatus with sub, "disabled", and auditNotes', async () => {
-      await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
 
       expect(updateUserStatusMock).toHaveBeenCalledWith(
         'user-pending-001',
@@ -137,7 +137,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     });
 
     it('calls sendRejectionEmail with profile email', async () => {
-      await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
 
       expect(sendRejectionEmailMock).toHaveBeenCalledWith('pending@example.com');
     });
@@ -145,7 +145,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns emailSent:false but ok:true when sendRejectionEmail throws', async () => {
       sendRejectionEmailMock.mockRejectedValueOnce(new Error('SMTP error'));
 
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(200);
@@ -158,7 +158,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns 500 when getUserProfileBySub throws', async () => {
       getUserProfileBySubMock.mockRejectedValueOnce(new Error('DB error'));
 
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);
@@ -168,7 +168,7 @@ describe('POST /api/admin/users/[sub]/reject', () => {
     it('returns 500 when updateUserStatus returns !ok', async () => {
       updateUserStatusMock.mockResolvedValueOnce({ ok: false, reason: 'not_found' });
 
-      const res = await POST(makeRequest(), { params: { sub: 'user-pending-001' } });
+      const res = await POST(makeRequest(), { params: Promise.resolve({ sub: 'user-pending-001' }) });
       const body = await res.json() as Record<string, unknown>;
 
       expect(res.status).toBe(500);

@@ -13,14 +13,14 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { sub: string } },
+  { params }: { params: Promise<{ sub: string }> },
 ) {
   const admin = await getAdminApiUser();
   if (!admin) {
     return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   }
 
-  const { sub } = params;
+  const { sub } = await params;
 
   // Parse and validate request body.
   let body: unknown;

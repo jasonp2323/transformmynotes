@@ -47,7 +47,7 @@ const VALID_ACCEPTED = [
   { front: 'Define osmosis.', back: 'Movement of water across a membrane.' },
 ];
 
-const PARAMS = { params: { studySetId: 'set-001' } };
+const PARAMS = { params: Promise.resolve({ studySetId: 'set-001' }) };
 
 function makeRequest(body: unknown): Request {
   return new Request('http://test/api/study/set-001/accept-cards', {

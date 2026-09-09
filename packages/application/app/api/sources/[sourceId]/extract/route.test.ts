@@ -80,7 +80,7 @@ function makeRequest(): Request {
 }
 
 function makeParams(sourceId: string) {
-  return { params: { sourceId } };
+  return { params: Promise.resolve({ sourceId }) };
 }
 
 const SMALL_SOURCE = {

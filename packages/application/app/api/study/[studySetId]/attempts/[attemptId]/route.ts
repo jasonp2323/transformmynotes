@@ -30,14 +30,14 @@ function requireBucketName(): string {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { studySetId: string; attemptId: string } },
+  { params }: { params: Promise<{ studySetId: string; attemptId: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { studySetId, attemptId } = params;
+  const { studySetId, attemptId } = await params;
   if (!studySetId || !attemptId) {
     return NextResponse.json({ ok: false, error: 'Missing studySetId or attemptId.' }, { status: 400 });
   }

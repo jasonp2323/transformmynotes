@@ -7,14 +7,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   try {
     // Ownership is implicit: an activity not under the caller's USER#<sub>

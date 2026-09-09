@@ -6,7 +6,7 @@ import { ReviewDeck } from '@/src/components/review/ReviewDeck';
 import { getPendingAccessRequestCount } from '@/lib/pending-count';
 
 export default async function ReviewPage() {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   let who = 'there';
   let claims: Record<string, unknown> | null = null;
   if (token) {

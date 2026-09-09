@@ -1,11 +1,12 @@
 import { AttemptReportScreen } from '@/src/components/study/AttemptReportScreen';
 
-export default function AttemptReportPage({
+export default async function AttemptReportPage({
   params,
 }: {
-  params: { studySetId: string; attemptId: string };
+  params: Promise<{ studySetId: string; attemptId: string }>;
 }) {
+  const { studySetId, attemptId } = await params;
   return (
-    <AttemptReportScreen studySetId={params.studySetId} attemptId={params.attemptId} />
+    <AttemptReportScreen studySetId={studySetId} attemptId={attemptId} />
   );
 }

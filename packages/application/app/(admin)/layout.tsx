@@ -17,7 +17,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const token = cookies().get('CognitoIdToken')?.value;
+  const token = (await cookies()).get('CognitoIdToken')?.value;
   if (!token) {
     redirect('/login');
   }

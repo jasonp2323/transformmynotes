@@ -2,11 +2,12 @@ import { GeneratedMaterialsQueue } from '@/src/components/study/GeneratedMateria
 import { parseStudySetIds } from '@/src/lib/review-queue';
 
 interface ReviewPageProps {
-  searchParams: { ids?: string };
+  searchParams: Promise<{ ids?: string }>;
 }
 
-export default function ReviewPage({ searchParams }: ReviewPageProps) {
-  const parsedIds = parseStudySetIds(searchParams.ids);
+export default async function ReviewPage({ searchParams }: ReviewPageProps) {
+  const { ids } = await searchParams;
+  const parsedIds = parseStudySetIds(ids);
 
   return <GeneratedMaterialsQueue ids={parsedIds} />;
 }

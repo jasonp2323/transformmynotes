@@ -61,11 +61,11 @@ function makeBody(text: string) {
   };
 }
 
-function makeRequest(noteId = NOTE_ID): [Request, { params: { noteId: string } }] {
+function makeRequest(noteId = NOTE_ID): [Request, { params: Promise<{ noteId: string }> }] {
   const req = new Request(`http://localhost/api/notes/${noteId}/cards/refresh`, {
     method: 'POST',
   });
-  return [req, { params: { noteId } }];
+  return [req, { params: Promise.resolve({ noteId }) }];
 }
 
 // ---------------------------------------------------------------------------

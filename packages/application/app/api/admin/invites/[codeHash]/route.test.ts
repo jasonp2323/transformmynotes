@@ -57,7 +57,7 @@ describe('DELETE /api/admin/invites/[codeHash] — auth', () => {
   it('returns 403 when getAdminApiUser returns null', async () => {
     getAdminApiUserMock.mockResolvedValueOnce(null);
 
-    const res = await DELETE(makeDeleteRequest(), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(403);
@@ -72,7 +72,7 @@ describe('DELETE /api/admin/invites/[codeHash] — auth', () => {
 
 describe('DELETE /api/admin/invites/[codeHash]?hard=true — hard delete', () => {
   it('calls deleteInvite with the codeHash and returns { ok: true, status: "deleted" }', async () => {
-    const res = await DELETE(makeDeleteRequest('?hard=true'), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest('?hard=true'), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(200);
@@ -85,7 +85,7 @@ describe('DELETE /api/admin/invites/[codeHash]?hard=true — hard delete', () =>
   it('returns 500 when deleteInvite throws', async () => {
     deleteInviteMock.mockRejectedValueOnce(new Error('DynamoDB error'));
 
-    const res = await DELETE(makeDeleteRequest('?hard=true'), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest('?hard=true'), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(500);
@@ -100,7 +100,7 @@ describe('DELETE /api/admin/invites/[codeHash]?hard=true — hard delete', () =>
 
 describe('DELETE /api/admin/invites/[codeHash] — soft revoke (default)', () => {
   it('calls revokeInvite and returns { ok: true, status: "revoked" } on success', async () => {
-    const res = await DELETE(makeDeleteRequest(), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(200);
@@ -113,7 +113,7 @@ describe('DELETE /api/admin/invites/[codeHash] — soft revoke (default)', () =>
   it('passes auditNotes from request body to revokeInvite', async () => {
     const res = await DELETE(
       makeDeleteRequest('', { auditNotes: 'Policy violation' }),
-      { params: { codeHash: CODE_HASH } },
+      { params: Promise.resolve({ codeHash: CODE_HASH }) },
     );
     const body = await res.json() as Record<string, unknown>;
 
@@ -125,7 +125,7 @@ describe('DELETE /api/admin/invites/[codeHash] — soft revoke (default)', () =>
   it('returns 404 when revokeInvite returns { ok: false, reason: "not_found" }', async () => {
     revokeInviteMock.mockResolvedValueOnce({ ok: false, reason: 'not_found' });
 
-    const res = await DELETE(makeDeleteRequest(), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(404);
@@ -136,7 +136,7 @@ describe('DELETE /api/admin/invites/[codeHash] — soft revoke (default)', () =>
   it('returns 200 idempotently when revokeInvite returns { ok: false, reason: "already_revoked" }', async () => {
     revokeInviteMock.mockResolvedValueOnce({ ok: false, reason: 'already_revoked' });
 
-    const res = await DELETE(makeDeleteRequest(), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(200);
@@ -147,7 +147,7 @@ describe('DELETE /api/admin/invites/[codeHash] — soft revoke (default)', () =>
   it('returns 500 when revokeInvite throws', async () => {
     revokeInviteMock.mockRejectedValueOnce(new Error('DynamoDB error'));
 
-    const res = await DELETE(makeDeleteRequest(), { params: { codeHash: CODE_HASH } });
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ codeHash: CODE_HASH }) });
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(500);

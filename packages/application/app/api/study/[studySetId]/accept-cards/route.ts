@@ -18,14 +18,14 @@ const bodySchema = z.object({
 
 export async function POST(
   req: Request,
-  { params }: { params: { studySetId: string } },
+  { params }: { params: Promise<{ studySetId: string }> },
 ) {
   const sub = await getAuthenticatedSub();
   if (!sub) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { studySetId } = params;
+  const { studySetId } = await params;
 
   // Parse and validate the request body.
   let rawBody: unknown;
