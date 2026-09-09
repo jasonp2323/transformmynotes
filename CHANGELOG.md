@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.100.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.0...transformmynotes-v1.100.1) (2026-09-09)
+
+
+### 📦 Build System
+
+* **deps:** consolidate React 19, Next 16, ESLint 10 and recharts 3 major bumps ([#738](https://github.com/jasonp2323/transformmynotes/issues/738)) ([64532aa](https://github.com/jasonp2323/transformmynotes/commit/64532aab495ca6c208ce000468f072de073bd116))
+
 ## [1.100.0](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.99.1...transformmynotes-v1.100.0) (2026-09-07)
 
 
