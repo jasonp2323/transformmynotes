@@ -265,7 +265,16 @@ test.describe('[E2E] capture → review → save → NoteView', () => {
     await expect(page).toHaveURL(/\/capture\/success/, { timeout: 30_000 });
 
     // Success screen assertions
-    await expect(page.getByText('Saved to your notebook')).toBeVisible();
+    //
+    // `.first()` because Next 16's App Router injects an aria-live route
+    // announcer (`#__next-route-announcer__`, added between Next 14 and 16 —
+    // see next/dist/client/components/app-router-announcer.js) that mirrors
+    // the new page's title/h1 text after a client-side navigation. It
+    // duplicates the "Saved to your notebook" text into the a11y tree, so an
+    // unscoped getByText intermittently trips Playwright strict mode. Every
+    // other getByText in this file already used `.first()` for the same
+    // reason (see below/NoteView) — this one was the odd one out.
+    await expect(page.getByText('Saved to your notebook').first()).toBeVisible();
     // Title derived from the first ## heading
     await expect(page.getByText('What is the subjunctive?').first()).toBeVisible();
 

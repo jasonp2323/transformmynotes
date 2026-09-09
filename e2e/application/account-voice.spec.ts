@@ -57,7 +57,21 @@ test.describe('M18.3 account voice selector (desktop)', () => {
     // (it initialises `pending`/`saved` to the stored voice, default Camila)
     // before interacting — otherwise a click can race the effect, which would
     // reset `pending` back to the baseline and leave Save disabled.
-    const saveBtn = main.getByRole('button', { name: 'Save' });
+    //
+    // Scoped to the radiogroup's own immediate next sibling <button>, NOT
+    // `main.getByRole('button', { name: 'Save' })`. The account page also
+    // renders AiProfileSection ("AI environment"), which has its own "Save"
+    // button and only appears once its `/api/profile/ai` fetch resolves.
+    // That's unrelated to the Mobile/Desktop shell duplication (already
+    // handled by scoping to `main` above) — it's a second, independent
+    // "Save"-labelled button inside the SAME visible desktop shell. Under
+    // React 19 / Next 16 the account page hydrates and that fetch resolves
+    // fast enough that the two locators race: `main.getByRole('button', {
+    // name: 'Save' })` intermittently matches both buttons and trips
+    // Playwright strict mode. VoiceSelector renders its Save button as the
+    // radiogroup's next sibling (see VoiceSelector.tsx), so anchor off that
+    // instead of the ambiguous accessible name.
+    const saveBtn = radiogroup.locator('xpath=following-sibling::button[1]');
     await expect(radiogroup.getByRole('radio', { name: 'Camila' })).toHaveAttribute(
       'aria-checked',
       'true',
