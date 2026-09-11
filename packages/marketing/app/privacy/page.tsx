@@ -205,7 +205,7 @@ export default function PrivacyPage() {
                 If you have any questions about this Privacy Policy, want to request
                 access to or deletion of your data, or have any other privacy-related
                 concerns, please contact us at:{' '}
-                <a href="mailto:jpaquette2323@gmail.com">jpaquette2323@gmail.com</a>.
+                <a href="mailto:contact@transformmynotes.com">contact@transformmynotes.com</a>.
               </p>
             </div>
           </div>
