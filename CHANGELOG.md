@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.100.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.1...transformmynotes-v1.100.2) (2026-09-11)
+
+
+### 🧰 Maintenance
+
+* **ci:** auth dependabot triage with subscription OAuth token ([#745](https://github.com/jasonp2323/transformmynotes/issues/745)) ([8e00993](https://github.com/jasonp2323/transformmynotes/commit/8e00993d24ce05bd23cd34c6bb8d65b6ae765ff7))
+* **deps-dev:** bump tailwindcss from 3.4.19 to 4.3.3 ([#744](https://github.com/jasonp2323/transformmynotes/issues/744)) ([0c98bc9](https://github.com/jasonp2323/transformmynotes/commit/0c98bc9f6d3aacdf7e94fe477bc3889153980296))
+* **deps:** bump actions/checkout from 6 to 7 ([#740](https://github.com/jasonp2323/transformmynotes/issues/740)) ([e5eb16b](https://github.com/jasonp2323/transformmynotes/commit/e5eb16b668770f22d61216261162cd92e036ac2c))
+* **deps:** bump actions/setup-node from 6 to 7 ([#741](https://github.com/jasonp2323/transformmynotes/issues/741)) ([dd85b8f](https://github.com/jasonp2323/transformmynotes/commit/dd85b8fd7d259825b08947af6901740bb78ee42a))
+* **deps:** bump the minor-patch group with 26 updates ([#742](https://github.com/jasonp2323/transformmynotes/issues/742)) ([6a2cb47](https://github.com/jasonp2323/transformmynotes/commit/6a2cb476219c57cca5ef3ae5cd2632188e5359a0))
+
 ## [1.100.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.0...transformmynotes-v1.100.1) (2026-09-09)
 
 
