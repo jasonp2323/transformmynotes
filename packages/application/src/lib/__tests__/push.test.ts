@@ -48,7 +48,7 @@ describe('registerForPushNotifications', () => {
     // Verify no fetch was attempted and push-notifications was not imported.
     expect(global.fetch).not.toHaveBeenCalled();
 
-    vi.unmock('@capacitor/core');
+    vi.doUnmock('@capacitor/core');
   });
 
   it('completes without error on a native platform (happy path)', async () => {
@@ -73,6 +73,6 @@ describe('registerForPushNotifications', () => {
     // Should not throw, despite the error in the import.
     await expect(register()).resolves.toBeUndefined();
 
-    vi.unmock('@capacitor/core');
+    vi.doUnmock('@capacitor/core');
   });
 });
