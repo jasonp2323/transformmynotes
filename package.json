@@ -21,7 +21,7 @@
     "test:e2e:application": "playwright test --config playwright.application.config.ts"
   },
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.1127.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1128.0",
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@types/s3rver": "^3.7.4",
