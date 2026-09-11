@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.100.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.2...transformmynotes-v1.100.3) (2026-09-11)
+
+
+### 🧰 Maintenance
+
+* **deps-dev:** bump js-yaml from 4.2.0 to 4.3.2 ([#748](https://github.com/jasonp2323/transformmynotes/issues/748)) ([843b7d3](https://github.com/jasonp2323/transformmynotes/commit/843b7d35ed90a3e62c1c49ddf45585d519740cc2))
+* **deps:** bump @xmldom/xmldom ([#747](https://github.com/jasonp2323/transformmynotes/issues/747)) ([6ec1d7a](https://github.com/jasonp2323/transformmynotes/commit/6ec1d7abc1a5250cf546ce3596b3411cc31cc12e))
+* **deps:** bump brace-expansion ([#750](https://github.com/jasonp2323/transformmynotes/issues/750)) ([72c2662](https://github.com/jasonp2323/transformmynotes/commit/72c2662df19387ea816923f7252716c153a45000))
+
 ## [1.100.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.1...transformmynotes-v1.100.2) (2026-09-11)
 
 
