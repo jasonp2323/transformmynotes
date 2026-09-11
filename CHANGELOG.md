@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.100.4](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.3...transformmynotes-v1.100.4) (2026-09-11)
+
+
+### 🧰 Maintenance
+
+* **deps-dev:** bump vitest from 4.1.9 to 5.0.0 ([#743](https://github.com/jasonp2323/transformmynotes/issues/743)) ([a7ba019](https://github.com/jasonp2323/transformmynotes/commit/a7ba019d5d9372f9f75a8a0285369ed6b351d315))
+
 ## [1.100.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.2...transformmynotes-v1.100.3) (2026-09-11)
 
 
