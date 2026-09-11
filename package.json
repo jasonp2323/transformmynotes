@@ -31,7 +31,7 @@
     "s3rver": "^3.7.1",
     "sst": "^4.17.1",
     "typescript": "^5.6.3",
-    "vitest": "^4.1.9"
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "react": "19.2.8",
