@@ -12,7 +12,7 @@
     "@capacitor/android": "^8.5.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
-    "@capacitor/camera": "^8.2.3",
+    "@capacitor/camera": "^8.2.4",
     "@capacitor/cli": "^8.5.1",
     "@capacitor/core": "^8.5.1",
     "@capacitor/push-notifications": "^8.1.2",
@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.0",
     "tsx": "^4.23.13",
     "typescript": "^5.6.3"
   }
