@@ -241,6 +241,42 @@ describe('generateInviteCode', () => {
     // sanity check, not a statistical guarantee.
     expect(a).not.toBe(b);
   });
+
+  it('draws characters uniformly across the alphabet (guards against modulo bias)', () => {
+    const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const SAMPLE_CALLS = 2000;
+    const counts = new Map<string, number>();
+    for (const ch of ALPHABET) counts.set(ch, 0);
+
+    for (let i = 0; i < SAMPLE_CALLS; i++) {
+      const code = generateInviteCode();
+      for (const ch of code) {
+        counts.set(ch, (counts.get(ch) ?? 0) + 1);
+      }
+    }
+
+    const totalChars = SAMPLE_CALLS * 8;
+    const expectedMean = totalChars / ALPHABET.length; // 500
+
+    // Every alphabet character must show up at least once — a truncated
+    // alphabet (e.g. an off-by-one in a modulo/rejection range) would zero
+    // out one or more buckets even with a large sample.
+    for (const ch of ALPHABET) {
+      expect(counts.get(ch)).toBeGreaterThan(0);
+    }
+
+    // With 16000 samples spread uniformly over 32 buckets, the expected
+    // count per bucket is 500 with a binomial stddev of ~22. A ±50% band
+    // (250–750) is roughly ±11 stddevs, which is astronomically unlikely to
+    // trip under true uniformity — this tolerance is deliberately loose so
+    // the test never flakes on random seed, while still catching a real
+    // modulo-bias regression, which skews counts far more than that.
+    for (const ch of ALPHABET) {
+      const count = counts.get(ch) ?? 0;
+      expect(count).toBeGreaterThanOrEqual(expectedMean * 0.5);
+      expect(count).toBeLessThanOrEqual(expectedMean * 1.5);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
