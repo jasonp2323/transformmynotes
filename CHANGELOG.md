@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.100.3](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.2...transformmynotes-v1.100.3) (2026-09-11)
+
+
+### 🧰 Maintenance
+
+* **deps-dev:** bump js-yaml from 4.2.0 to 4.3.2 ([#748](https://github.com/jasonp2323/transformmynotes/issues/748)) ([843b7d3](https://github.com/jasonp2323/transformmynotes/commit/843b7d35ed90a3e62c1c49ddf45585d519740cc2))
+* **deps:** bump @xmldom/xmldom ([#747](https://github.com/jasonp2323/transformmynotes/issues/747)) ([6ec1d7a](https://github.com/jasonp2323/transformmynotes/commit/6ec1d7abc1a5250cf546ce3596b3411cc31cc12e))
+* **deps:** bump brace-expansion ([#750](https://github.com/jasonp2323/transformmynotes/issues/750)) ([72c2662](https://github.com/jasonp2323/transformmynotes/commit/72c2662df19387ea816923f7252716c153a45000))
+
+## [1.100.2](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.1...transformmynotes-v1.100.2) (2026-09-11)
+
+
+### 🧰 Maintenance
+
+* **ci:** auth dependabot triage with subscription OAuth token ([#745](https://github.com/jasonp2323/transformmynotes/issues/745)) ([8e00993](https://github.com/jasonp2323/transformmynotes/commit/8e00993d24ce05bd23cd34c6bb8d65b6ae765ff7))
+* **deps-dev:** bump tailwindcss from 3.4.19 to 4.3.3 ([#744](https://github.com/jasonp2323/transformmynotes/issues/744)) ([0c98bc9](https://github.com/jasonp2323/transformmynotes/commit/0c98bc9f6d3aacdf7e94fe477bc3889153980296))
+* **deps:** bump actions/checkout from 6 to 7 ([#740](https://github.com/jasonp2323/transformmynotes/issues/740)) ([e5eb16b](https://github.com/jasonp2323/transformmynotes/commit/e5eb16b668770f22d61216261162cd92e036ac2c))
+* **deps:** bump actions/setup-node from 6 to 7 ([#741](https://github.com/jasonp2323/transformmynotes/issues/741)) ([dd85b8f](https://github.com/jasonp2323/transformmynotes/commit/dd85b8fd7d259825b08947af6901740bb78ee42a))
+* **deps:** bump the minor-patch group with 26 updates ([#742](https://github.com/jasonp2323/transformmynotes/issues/742)) ([6a2cb47](https://github.com/jasonp2323/transformmynotes/commit/6a2cb476219c57cca5ef3ae5cd2632188e5359a0))
+
 ## [1.100.1](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.0...transformmynotes-v1.100.1) (2026-09-09)
 
 
