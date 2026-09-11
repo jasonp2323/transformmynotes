@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { inviteKeys, type InviteStatus, type InviteType } from '../db/keys.js';
 
 /**
@@ -188,15 +188,17 @@ export function buildInviteItem(input: BuildInviteItemInput): InviteItem {
  */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+/** Length of a generated invite code, in characters. */
+const CODE_LENGTH = 8;
+
 /**
  * Generates a cryptographically random invite code.
  * Returns an 8-character uppercase alphanumeric string (ambiguous chars excluded).
+ * Each character is drawn uniformly from `CODE_ALPHABET` via `randomInt`'s
+ * rejection sampling, so the result is unbiased regardless of alphabet length.
  */
 export function generateInviteCode(): string {
-  const bytes = randomBytes(8);
-  return Array.from(bytes)
-    .map((b) => CODE_ALPHABET[b % CODE_ALPHABET.length])
-    .join('');
+  return Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 }
 
 // Re-export the key types so consumers can use them without importing from db/keys.
