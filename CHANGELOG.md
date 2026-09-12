@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.100.6](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.5...transformmynotes-v1.100.6) (2026-09-12)
+
+
+### 🐛 Fixes
+
+* claude workflows oauth auth ([5341da0](https://github.com/jasonp2323/transformmynotes/commit/5341da0b9ff3ad9c2b0376e951e7ce161477b7bd))
+
+
+### 📝 Documentation
+
+* **ci:** correct stale federation reference in autofix header ([1f5b7b6](https://github.com/jasonp2323/transformmynotes/commit/1f5b7b620b671d58d85d68cfa6f2230dff570bd3))
+
+
+### 🧰 Maintenance
+
+* **ci:** auth claude issue + PR autofix with subscription OAuth token ([a0f2a2b](https://github.com/jasonp2323/transformmynotes/commit/a0f2a2b3a5d46fa23dbf62d1e9e354ec9c866cb8))
+
 ## [1.100.5](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.4...transformmynotes-v1.100.5) (2026-09-12)
 
 
