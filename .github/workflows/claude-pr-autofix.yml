@@ -9,13 +9,13 @@ name: Claude PR autofix
 # Why `workflow_run` and not `check_suite`: a `check_suite`/`check_run`
 # event runs the *triggering* workflow's file as it exists on the PR's own
 # (often untrusted, contributor-controlled) branch, and — for a public repo
-# — gets a read-only GITHUB_TOKEN with no access to repository *variables*
-# like the Anthropic federation IDs. `workflow_run` instead always runs
+# — gets a read-only GITHUB_TOKEN with no access to repository *secrets*,
+# specifically `CLAUDE_CODE_OAUTH_TOKEN`. `workflow_run` instead always runs
 # using the workflow file and permissions from the default branch
 # (`master`), regardless of what the PR branch contains, so it can safely
-# read `vars.ANTHROPIC_*` and push commits. The tradeoff is that we have to
-# re-resolve which PR the run belongs to ourselves (see "Resolve the PR"
-# below) rather than getting it handed to us directly.
+# read `secrets.CLAUDE_CODE_OAUTH_TOKEN` and push commits. The tradeoff is
+# that we have to re-resolve which PR the run belongs to ourselves (see
+# "Resolve the PR" below) rather than getting it handed to us directly.
 #
 # Loop shape: Deploy/CodeQL fail on a PR → this workflow fires → Claude
 # pushes a fix commit whose message ends in the literal marker `[autofix]`
@@ -236,14 +236,13 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
-          # Auth: Anthropic workload identity federation (OIDC), same as
-          # claude-issue.yml — see the comments there for why these are
-          # variables (not secrets) and why no api-key/oauth-token input is
-          # set. Requires `id-token: write` (granted above).
-          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
-          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
-          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          # Auth: Claude Pro/Max subscription OAuth token, same as
+          # claude-issue.yml — see the comments there for why the previous
+          # Anthropic workload identity federation (OIDC) inputs were
+          # removed rather than kept alongside this token. `id-token: write`
+          # (granted above) stays regardless — it's still needed for the
+          # separate GitHub App token exchange below, not for this auth.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # No github_token input: the action authenticates as the Claude
           # GitHub App instead of the workflow's GITHUB_TOKEN, so the push
           # it makes below actually retriggers Deploy/CodeQL on the PR
