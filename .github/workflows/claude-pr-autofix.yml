@@ -9,13 +9,13 @@ name: Claude PR autofix
 # Why `workflow_run` and not `check_suite`: a `check_suite`/`check_run`
 # event runs the *triggering* workflow's file as it exists on the PR's own
 # (often untrusted, contributor-controlled) branch, and — for a public repo
-# — gets a read-only GITHUB_TOKEN with no access to repository *variables*
-# like the Anthropic federation IDs. `workflow_run` instead always runs
+# — gets a read-only GITHUB_TOKEN with no access to repository *secrets*,
+# specifically `CLAUDE_CODE_OAUTH_TOKEN`. `workflow_run` instead always runs
 # using the workflow file and permissions from the default branch
 # (`master`), regardless of what the PR branch contains, so it can safely
-# read `vars.ANTHROPIC_*` and push commits. The tradeoff is that we have to
-# re-resolve which PR the run belongs to ourselves (see "Resolve the PR"
-# below) rather than getting it handed to us directly.
+# read `secrets.CLAUDE_CODE_OAUTH_TOKEN` and push commits. The tradeoff is
+# that we have to re-resolve which PR the run belongs to ourselves (see
+# "Resolve the PR" below) rather than getting it handed to us directly.
 #
 # Loop shape: Deploy/CodeQL fail on a PR → this workflow fires → Claude
 # pushes a fix commit whose message ends in the literal marker `[autofix]`
