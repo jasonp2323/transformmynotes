@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.100.5](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.4...transformmynotes-v1.100.5) (2026-09-12)
+
+
+### 🐛 Fixes
+
+* **core:** draw invite codes with randomInt instead of modulo bias ([#754](https://github.com/jasonp2323/transformmynotes/issues/754)) ([7457e3c](https://github.com/jasonp2323/transformmynotes/commit/7457e3c618e3375db0079270a69c43e24731c7d7)), closes [#753](https://github.com/jasonp2323/transformmynotes/issues/753)
+
+
+### 🧰 Maintenance
+
+* **deps:** bump the minor-patch group with 8 updates ([#756](https://github.com/jasonp2323/transformmynotes/issues/756)) ([bdb2c89](https://github.com/jasonp2323/transformmynotes/commit/bdb2c89e00e2c3c0519c4acc470832ab2a62ba6f))
+* updating contact email on privacy. ([#752](https://github.com/jasonp2323/transformmynotes/issues/752)) ([0ba9567](https://github.com/jasonp2323/transformmynotes/commit/0ba9567f8143af8e53f929ac5eab274cbade6960))
+
 ## [1.100.4](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.3...transformmynotes-v1.100.4) (2026-09-11)
 
 
