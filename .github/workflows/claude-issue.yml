@@ -67,6 +67,19 @@ jobs:
           # the pushed commit (GitHub suppresses that to prevent workflow
           # loops); pushing as the Claude App does, so the branch this job
           # pushes actually gets a real deploy check run on its PR.
+          #
+          # display_report writes Claude's final report/conclusion to the
+          # GitHub Actions job summary ($GITHUB_STEP_SUMMARY), so a run that
+          # posts no PR and no issue comment (e.g. it stopped early, or
+          # decided there was nothing to do) still leaves a record of what
+          # Claude concluded. The action's own docs say this should only be
+          # enabled for trusted input — satisfied here by the job `if:` gate
+          # above, which already restricts this workflow to issues authored
+          # by the repo owner, so a stranger's issue text can never reach
+          # this action even though the repo is public. show_full_output
+          # stays OFF deliberately: it dumps every tool result (which can
+          # contain secrets) into these publicly visible logs.
+          display_report: true
           claude_args: |
             --max-turns 60
             --allowedTools "Bash,Read,Edit,Write,Glob,Grep,mcp__github__issue_read,mcp__github__create_pull_request,mcp__github__add_issue_comment,mcp__github__issue_write"
@@ -100,9 +113,10 @@ jobs:
                  branch is `master`, NOT `main`). The PR title MUST start
                  with a Conventional Commit type (`feat:`, `fix:`, `chore:`,
                  etc.) — release tooling parses this on squash-merge. The PR
-                 body must reference the issue with `Refs #<n>` (using the
-                 actual issue number) and briefly summarize the change and
-                 how it was validated.
+                 body must reference the issue with `Closes #<n>` (using the
+                 actual issue number) — this GitHub close-keyword is what
+                 auto-closes the issue when the PR merges — and briefly
+                 summarize the change and how it was validated.
 
             4. Cost assessment (required every run, before opening the PR):
                assess the AWS cost impact of the change. Explicitly
