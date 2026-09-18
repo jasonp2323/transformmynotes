@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.100.7](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.6...transformmynotes-v1.100.7) (2026-09-18)
+
+
+### 🧰 Maintenance
+
+* **ci:** surface Claude's report and auto-close the issue on merge ([#760](https://github.com/jasonp2323/transformmynotes/issues/760)) ([0917673](https://github.com/jasonp2323/transformmynotes/commit/091767338a84a008d6b630e0de3fe4bc8e619e3b))
+
 ## [1.100.6](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.5...transformmynotes-v1.100.6) (2026-09-12)
 
 
