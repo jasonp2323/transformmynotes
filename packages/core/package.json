@@ -15,11 +15,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.1128.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.1128.0",
-    "@aws-sdk/client-dynamodb": "^3.1128.0",
-    "@aws-sdk/client-polly": "^3.1128.0",
-    "@aws-sdk/lib-dynamodb": "^3.1128.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1136.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1136.0",
+    "@aws-sdk/client-dynamodb": "^3.1136.0",
+    "@aws-sdk/client-polly": "^3.1136.0",
+    "@aws-sdk/lib-dynamodb": "^3.1136.0",
     "@tiptap/core": "^3.31.3",
     "@tiptap/extension-table": "^3.31.3",
     "@tiptap/extension-table-cell": "^3.31.3",
@@ -27,7 +27,7 @@
     "@tiptap/extension-table-row": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "epub2": "^3.0.2",
-    "mammoth": "^1.12.2",
+    "mammoth": "^1.12.3",
     "@mozilla/readability": "^0.6.0",
     "ip-range-check": "^0.2.1",
     "linkedom": "^0.18.13",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.163",
-    "@types/node": "^26.5.0",
+    "@types/node": "^26.6.1",
     "@types/turndown": "^5.0.6",
     "dynalite": "^4.0.0",
     "pdfkit": "^0.20.2"
