@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.100.8](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.7...transformmynotes-v1.100.8) (2026-09-23)
+
+
+### 🧰 Maintenance
+
+* **deps:** bump actions/setup-java from 5 to 6 ([#761](https://github.com/jasonp2323/transformmynotes/issues/761)) ([cd426d4](https://github.com/jasonp2323/transformmynotes/commit/cd426d4a6a9059bf411ce5f71fa1c6490bc00790))
+* **deps:** bump tailwind-merge from 2.6.1 to 3.7.0 ([#763](https://github.com/jasonp2323/transformmynotes/issues/763)) ([23ea1dd](https://github.com/jasonp2323/transformmynotes/commit/23ea1dd468997f573b323fb853e04ed23fce409f))
+* **deps:** bump the minor-patch group across 1 directory with 20 updates ([#766](https://github.com/jasonp2323/transformmynotes/issues/766)) ([6dfd5d4](https://github.com/jasonp2323/transformmynotes/commit/6dfd5d41f39b19b0804b724c711c6d5bc5e2ee28))
+
 ## [1.100.7](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.6...transformmynotes-v1.100.7) (2026-09-18)
 
 
