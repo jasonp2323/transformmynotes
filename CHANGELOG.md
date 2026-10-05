@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.100.9](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.8...transformmynotes-v1.100.9) (2026-10-05)
+
+
+### 🧰 Maintenance
+
+* **deps:** bump the minor-patch group with 10 updates ([#767](https://github.com/jasonp2323/transformmynotes/issues/767)) ([1129fd5](https://github.com/jasonp2323/transformmynotes/commit/1129fd585924213e84e7ecdc051018da238f4c34))
+* **deps:** bump the minor-patch group with 16 updates ([#769](https://github.com/jasonp2323/transformmynotes/issues/769)) ([35203a3](https://github.com/jasonp2323/transformmynotes/commit/35203a3d3a372f4e8b576a460fc03d2f689fa032))
+
 ## [1.100.8](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.7...transformmynotes-v1.100.8) (2026-09-23)
 
 
