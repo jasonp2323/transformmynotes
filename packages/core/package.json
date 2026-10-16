@@ -15,11 +15,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.1146.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.1146.0",
-    "@aws-sdk/client-dynamodb": "^3.1146.0",
-    "@aws-sdk/client-polly": "^3.1146.0",
-    "@aws-sdk/lib-dynamodb": "^3.1146.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1150.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1150.0",
+    "@aws-sdk/client-dynamodb": "^3.1150.0",
+    "@aws-sdk/client-polly": "^3.1150.0",
+    "@aws-sdk/lib-dynamodb": "^3.1150.0",
     "@tiptap/core": "^3.31.4",
     "@tiptap/extension-table": "^3.31.4",
     "@tiptap/extension-table-cell": "^3.31.4",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.164",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/turndown": "^5.0.6",
     "dynalite": "^4.0.0",
     "pdfkit": "^0.20.2"
