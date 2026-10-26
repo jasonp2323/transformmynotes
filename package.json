@@ -1,6 +1,6 @@
 {
   "name": "transformmynotes",
-  "version": "1.100.8",
+  "version": "1.100.9",
   "private": true,
   "engines": {
     "node": ">=22"
