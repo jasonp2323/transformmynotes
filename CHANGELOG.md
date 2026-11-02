@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.100.9](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.8...transformmynotes-v1.100.9) (2026-11-02)
+
+
+### 🧰 Maintenance
+
+* **deps-dev:** bump handlebars from 4.7.9 to 4.7.10 ([#771](https://github.com/jasonp2323/transformmynotes/issues/771)) ([a630d94](https://github.com/jasonp2323/transformmynotes/commit/a630d94ace6746c1b2dad9a03641325cd51377b8))
+* **deps-dev:** bump postcss-selector-parser from 6.1.4 to 6.1.5 ([#775](https://github.com/jasonp2323/transformmynotes/issues/775)) ([3d213c8](https://github.com/jasonp2323/transformmynotes/commit/3d213c8d33733b49e474a8dcccdf057fb0c16824))
+* **deps-dev:** bump proxy-addr from 2.0.7 to 2.0.8 ([#772](https://github.com/jasonp2323/transformmynotes/issues/772)) ([ad56d33](https://github.com/jasonp2323/transformmynotes/commit/ad56d332248dd89b252d515f2877eedddb3c7ca8))
+* **deps:** bump the minor-patch group with 10 updates ([#767](https://github.com/jasonp2323/transformmynotes/issues/767)) ([1129fd5](https://github.com/jasonp2323/transformmynotes/commit/1129fd585924213e84e7ecdc051018da238f4c34))
+* **deps:** bump the minor-patch group with 15 updates ([#776](https://github.com/jasonp2323/transformmynotes/issues/776)) ([04355f7](https://github.com/jasonp2323/transformmynotes/commit/04355f7d9586a0083eac20fa139dfbdffab324c4))
+* **deps:** bump the minor-patch group with 16 updates ([#769](https://github.com/jasonp2323/transformmynotes/issues/769)) ([35203a3](https://github.com/jasonp2323/transformmynotes/commit/35203a3d3a372f4e8b576a460fc03d2f689fa032))
+* **deps:** bump the minor-patch group with 22 updates ([#773](https://github.com/jasonp2323/transformmynotes/issues/773)) ([35c0338](https://github.com/jasonp2323/transformmynotes/commit/35c0338a0bf4f7cec364f3681cd2a3a0bb6d2d90))
+* **deps:** bump the minor-patch group with 30 updates ([#774](https://github.com/jasonp2323/transformmynotes/issues/774)) ([ed9c308](https://github.com/jasonp2323/transformmynotes/commit/ed9c308c9c7f563fab9d98e30a9dfa7c4fd6b081))
+* **deps:** bump the minor-patch group with 32 updates ([#770](https://github.com/jasonp2323/transformmynotes/issues/770)) ([f6b7ef2](https://github.com/jasonp2323/transformmynotes/commit/f6b7ef26db6e006ea7bae4aab06f9f8f12073ce4))
+
 ## [1.100.8](https://github.com/jasonp2323/transformmynotes/compare/transformmynotes-v1.100.7...transformmynotes-v1.100.8) (2026-09-23)
 
 
