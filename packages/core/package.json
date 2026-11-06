@@ -33,7 +33,7 @@
     "linkedom": "^0.18.14",
     "turndown": "^7.2.4",
     "ulid": "^3.0.2",
-    "unpdf": "^1.9.1"
+    "unpdf": "^2.1.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.164",
