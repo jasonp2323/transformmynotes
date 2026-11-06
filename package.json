@@ -21,7 +21,7 @@
     "test:e2e:application": "playwright test --config playwright.application.config.ts"
   },
   "devDependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.1157.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1161.0",
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
     "@types/s3rver": "^3.7.4",
@@ -31,7 +31,7 @@
     "s3rver": "^3.7.1",
     "sst": "^4.17.2",
     "typescript": "^5.6.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "react": "19.2.8",
